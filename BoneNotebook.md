@@ -363,22 +363,30 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Loading necessary libraries...
 
+    ## Loading required package: org.Mm.eg.db
+
+    ## Loading required package: AnnotationDbi
+
+    ## 
+
     ## Loaded Package org.Mm.eg.db
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  9.2 sec 
-    ## iteration 2 done; time  6.24 sec 
-    ## iteration 3 done; time  7.35 sec 
-    ## iteration 4 done; time  6.25 sec 
-    ## iteration 5 done; time  6.03 sec 
-    ## iteration 6 done; time  7.25 sec 
-    ## iteration 7 done; time  8.25 sec 
-    ## iteration 8 done; time  7.21 sec 
-    ## iteration 9 done; time  8.52 sec 
-    ## iteration 10 done; time  6.1 sec
+    ## iteration 1 done; time  10.58 sec 
+    ## iteration 2 done; time  8.27 sec 
+    ## iteration 3 done; time  7.04 sec 
+    ## iteration 4 done; time  7.59 sec 
+    ## iteration 5 done; time  7.36 sec 
+    ## iteration 6 done; time  5.28 sec 
+    ## iteration 7 done; time  7.41 sec 
+    ## iteration 8 done; time  7.05 sec 
+    ## iteration 9 done; time  5.57 sec 
+    ## iteration 10 done; time  6.77 sec
 
     ## Labeling output ...
+
+    ## Loading required package: GO.db
 
     ## Loaded Package GO.db
 
@@ -395,16 +403,16 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  6.52 sec 
-    ## iteration 2 done; time  7.11 sec 
-    ## iteration 3 done; time  6.77 sec 
-    ## iteration 4 done; time  7.34 sec 
-    ## iteration 5 done; time  7.25 sec 
-    ## iteration 6 done; time  7.36 sec 
-    ## iteration 7 done; time  6.57 sec 
-    ## iteration 8 done; time  6.14 sec 
-    ## iteration 9 done; time  7.21 sec 
-    ## iteration 10 done; time  7.26 sec
+    ## iteration 1 done; time  7.03 sec 
+    ## iteration 2 done; time  6.93 sec 
+    ## iteration 3 done; time  7.18 sec 
+    ## iteration 4 done; time  6.87 sec 
+    ## iteration 5 done; time  5.57 sec 
+    ## iteration 6 done; time  7.62 sec 
+    ## iteration 7 done; time  7.24 sec 
+    ## iteration 8 done; time  7.44 sec 
+    ## iteration 9 done; time  7.74 sec 
+    ## iteration 10 done; time  7.46 sec
 
     ## Labeling output ...
 
@@ -534,40 +542,96 @@ Interesting... Now PC2 (separates osteocytes from progenitors)
 
 ``` r
 #Positive
-a <- eaciout[[2]][eaciout[[1]]$set.mean>0,]
+a <- eaciout[[2]][eaciout[[2]]$set.mean>0,]
 print(a[1:25,])
 ```
 
-    ##                                                                  Term
-    ## GO:0000076                                 DNA replication checkpoint
-    ## GO:0019825                                             oxygen binding
-    ## GO:0042168                                     heme metabolic process
-    ## GO:0048845                          venous blood vessel morphogenesis
-    ## GO:0042608                                    T cell receptor binding
-    ## GO:0004745                             retinol dehydrogenase activity
-    ## GO:0005779                 integral component of peroxisomal membrane
-    ## GO:0070402                                              NADPH binding
-    ## GO:0016755       transferase activity, transferring amino-acyl groups
-    ## GO:0045948            positive regulation of translational initiation
-    ## GO:0035641                            locomotory exploration behavior
-    ## GO:0030687                       preribosome, large subunit precursor
-    ## GO:0035859                                    Seh1-associated complex
-    ## GO:0032823          regulation of natural killer cell differentiation
-    ## GO:0006677                         glycosylceramide metabolic process
-    ## GO:0090502        RNA phosphodiester bond hydrolysis, endonucleolytic
-    ## GO:0052744    phosphatidylinositol monophosphate phosphatase activity
-    ## GO:0000940                     condensed chromosome outer kinetochore
-    ## GO:0048821                                    erythrocyte development
-    ## GO:0008356                                   asymmetric cell division
-    ## GO:0007076                            mitotic chromosome condensation
-    ## GO:0002098                           tRNA wobble uridine modification
-    ## GO:0009931 calcium-dependent protein serine/threonine kinase activity
-    ## GO:0072576                                        liver morphogenesis
-    ## GO:0007214                  gamma-aminobutyric acid signaling pathway
+    ##                                                                           Term
+    ## GO:0000076                                          DNA replication checkpoint
+    ## GO:0019825                                                      oxygen binding
+    ## GO:0042168                                              heme metabolic process
+    ## GO:0042555                                                         MCM complex
+    ## GO:0043034                                                           costamere
+    ## GO:0035641                                     locomotory exploration behavior
+    ## GO:0052744             phosphatidylinositol monophosphate phosphatase activity
+    ## GO:0060004                                                              reflex
+    ## GO:0000940                              condensed chromosome outer kinetochore
+    ## GO:0048821                                             erythrocyte development
+    ## GO:0007076                                     mitotic chromosome condensation
+    ## GO:0002098                                    tRNA wobble uridine modification
+    ## GO:0072576                                                 liver morphogenesis
+    ## GO:0043142                       single-stranded DNA-dependent ATPase activity
+    ## GO:0030539                                          male genitalia development
+    ## GO:0043567 regulation of insulin-like growth factor receptor signaling pathway
+    ## GO:0007064                                   mitotic sister chromatid cohesion
+    ## GO:0008139                               nuclear localization sequence binding
+    ## GO:0006271                   DNA strand elongation involved in DNA replication
+    ## GO:0034508                                         centromere complex assembly
+    ## GO:0071108                                 protein K48-linked deubiquitination
+    ## GO:0003688                                      DNA replication origin binding
+    ## GO:0042588                                                     zymogen granule
+    ## GO:0001833                                  inner cell mass cell proliferation
+    ## GO:0045047                                             protein targeting to ER
+    ##            Ontology    set.mean      set.sd set.size         pval
+    ## GO:0000076       BP 0.009615196 0.005016409       10 0.000000e+00
+    ## GO:0019825       MF 0.008360877 0.004446153       13 0.000000e+00
+    ## GO:0042168       BP 0.007882931 0.009897122       14 0.000000e+00
+    ## GO:0042555       CC 0.007180768 0.005252514        9 0.000000e+00
+    ## GO:0043034       CC 0.006840889 0.003487247       12 0.000000e+00
+    ## GO:0035641       BP 0.006407021 0.002836283       12 6.661338e-16
+    ## GO:0052744       MF 0.005673013 0.003687309        9 9.268142e-13
+    ## GO:0060004       BP 0.005626890 0.003281712       14 1.411316e-12
+    ## GO:0000940       CC 0.005521746 0.004888167       12 3.635092e-12
+    ## GO:0048821       BP 0.005447644 0.010238490       21 7.008172e-12
+    ## GO:0007076       BP 0.005226645 0.005956587        9 4.719292e-11
+    ## GO:0002098       BP 0.005148514 0.003893779        9 9.095724e-11
+    ## GO:0072576       BP 0.005012840 0.006779259       10 2.779141e-10
+    ## GO:0043142       MF 0.004847823 0.002419726       14 1.040463e-09
+    ## GO:0030539       BP 0.004834055 0.003078178       12 1.159404e-09
+    ## GO:0043567       BP 0.004631164 0.002766449       16 5.523590e-09
+    ## GO:0007064       BP 0.004542517 0.004914272       13 1.071005e-08
+    ## GO:0008139       MF 0.004487473 0.002662749       10 1.605859e-08
+    ## GO:0006271       BP 0.004446402 0.002178446       10 2.165933e-08
+    ## GO:0034508       BP 0.004368292 0.003428045       17 3.798905e-08
+    ## GO:0071108       BP 0.004277346 0.002371514       11 7.221574e-08
+    ## GO:0003688       MF 0.004141285 0.002382171       11 1.843726e-07
+    ## GO:0042588       CC 0.003986197 0.002123809       12 5.183815e-07
+    ## GO:0001833       BP 0.003900993 0.004003917       11 9.005245e-07
+    ## GO:0045047       BP 0.003875734 0.009257969        9 1.058447e-06
+
+``` r
+#Negative
+a <- eaciout[[2]][eaciout[[2]]$set.mean<0,]
+print(a[1:25,])
+```
+
+    ##                                                                     Term
+    ## GO:0048845                             venous blood vessel morphogenesis
+    ## GO:0042608                                       T cell receptor binding
+    ## GO:0004745                                retinol dehydrogenase activity
+    ## GO:0005779                    integral component of peroxisomal membrane
+    ## GO:0070402                                                 NADPH binding
+    ## GO:0016755          transferase activity, transferring amino-acyl groups
+    ## GO:0045948               positive regulation of translational initiation
+    ## GO:0030687                          preribosome, large subunit precursor
+    ## GO:0035859                                       Seh1-associated complex
+    ## GO:0032823             regulation of natural killer cell differentiation
+    ## GO:0048875                          chemical homeostasis within a tissue
+    ## GO:0006677                            glycosylceramide metabolic process
+    ## GO:0090502           RNA phosphodiester bond hydrolysis, endonucleolytic
+    ## GO:0008356                                      asymmetric cell division
+    ## GO:0009931    calcium-dependent protein serine/threonine kinase activity
+    ## GO:0007214                     gamma-aminobutyric acid signaling pathway
+    ## GO:0050774                 negative regulation of dendrite morphogenesis
+    ## GO:0036158                                     outer dynein arm assembly
+    ## GO:0031624                          ubiquitin conjugating enzyme binding
+    ## GO:0045236                               CXCR chemokine receptor binding
+    ## GO:0031338                                  regulation of vesicle fusion
+    ## GO:0051443 positive regulation of ubiquitin-protein transferase activity
+    ## GO:0031902                                        late endosome membrane
+    ## GO:0016922                     ligand-dependent nuclear receptor binding
+    ## GO:0031588                   nucleotide-activated protein kinase complex
     ##            Ontology     set.mean      set.sd set.size         pval
-    ## GO:0000076       BP  0.009615196 0.005016409       10 0.000000e+00
-    ## GO:0019825       MF  0.008360877 0.004446153       13 0.000000e+00
-    ## GO:0042168       BP  0.007882931 0.009897122       14 0.000000e+00
     ## GO:0048845       BP -0.007359190 0.003754399       10 2.243250e-20
     ## GO:0042608       MF -0.007310068 0.002537374       12 3.991114e-20
     ## GO:0004745       MF -0.006907912 0.004696231       10 3.871873e-18
@@ -575,80 +639,24 @@ print(a[1:25,])
     ## GO:0070402       MF -0.006843770 0.003351163       11 7.846286e-18
     ## GO:0016755       MF -0.006580065 0.006133792       13 1.337918e-16
     ## GO:0045948       BP -0.006498461 0.006216034       12 3.148132e-16
-    ## GO:0035641       BP  0.006407021 0.002836283       12 6.661338e-16
     ## GO:0030687       CC -0.006353456 0.002878246       13 1.403682e-15
     ## GO:0035859       CC -0.006059734 0.007981162       11 2.622416e-14
     ## GO:0032823       BP -0.006027126 0.006984531       12 3.599602e-14
+    ## GO:0048875       BP -0.006012858 0.006183006       11 4.132506e-14
     ## GO:0006677       BP -0.006010684 0.005911558       11 4.220274e-14
     ## GO:0090502       BP -0.005770300 0.004635664       12 4.116323e-13
-    ## GO:0052744       MF  0.005673013 0.003687309        9 9.268142e-13
-    ## GO:0000940       CC  0.005521746 0.004888167       12 3.635092e-12
-    ## GO:0048821       BP  0.005447644 0.010238490       21 7.008172e-12
     ## GO:0008356       BP -0.005232414 0.004714601       11 4.859928e-11
-    ## GO:0007076       BP  0.005226645 0.005956587        9 4.719292e-11
-    ## GO:0002098       BP  0.005148514 0.003893779        9 9.095724e-11
     ## GO:0009931       MF -0.005099047 0.006776889        8 1.479980e-10
-    ## GO:0072576       BP  0.005012840 0.006779259       10 2.779141e-10
     ## GO:0007214       BP -0.004960674 0.002687077       12 4.564537e-10
-
-``` r
-#Negative
-a <- eaciout[[2]][eaciout[[1]]$set.mean<0,]
-print(a[1:25,])
-```
-
-    ##                                                                                     Term
-    ## GO:0042555                                                                   MCM complex
-    ## GO:0043034                                                                     costamere
-    ## GO:0048875                                          chemical homeostasis within a tissue
-    ## GO:0060004                                                                        reflex
-    ## GO:0043142                                 single-stranded DNA-dependent ATPase activity
-    ## GO:0051443                 positive regulation of ubiquitin-protein transferase activity
-    ## GO:0007064                                             mitotic sister chromatid cohesion
-    ## GO:0016922                                     ligand-dependent nuclear receptor binding
-    ## GO:0000062                                                        fatty-acyl-CoA binding
-    ## GO:0004143                                                diacylglycerol kinase activity
-    ## GO:0004467                                     long-chain fatty acid-CoA ligase activity
-    ## GO:0046966                                              thyroid hormone receptor binding
-    ## GO:0042790 transcription of nuclear large rRNA transcript from RNA polymerase I promoter
-    ## GO:0042588                                                               zymogen granule
-    ## GO:1903077                negative regulation of protein localization to plasma membrane
-    ## GO:0006335                                 DNA replication-dependent nucleosome assembly
-    ## GO:0034723                             DNA replication-dependent nucleosome organization
-    ## GO:0043240                                               Fanconi anaemia nuclear complex
-    ## GO:0000413                                         protein peptidyl-prolyl isomerization
-    ## GO:0043687                                       post-translational protein modification
-    ## GO:2000369                                  regulation of clathrin-dependent endocytosis
-    ## GO:0034219                                          carbohydrate transmembrane transport
-    ## GO:0032793                     positive regulation of CREB transcription factor activity
-    ## GO:0052646                                           alditol phosphate metabolic process
-    ## GO:0042407                                                             cristae formation
-    ##            Ontology     set.mean      set.sd set.size         pval
-    ## GO:0042555       CC  0.007180768 0.005252514        9 0.000000e+00
-    ## GO:0043034       CC  0.006840889 0.003487247       12 0.000000e+00
-    ## GO:0048875       BP -0.006012858 0.006183006       11 4.132506e-14
-    ## GO:0060004       BP  0.005626890 0.003281712       14 1.411316e-12
-    ## GO:0043142       MF  0.004847823 0.002419726       14 1.040463e-09
+    ## GO:0050774       BP -0.004775596 0.002723825       10 1.965784e-09
+    ## GO:0036158       BP -0.004724579 0.003386423        9 2.912715e-09
+    ## GO:0031624       MF -0.004710290 0.005188591       22 3.249448e-09
+    ## GO:0045236       MF -0.004666287 0.004459990       10 4.542276e-09
+    ## GO:0031338       BP -0.004597896 0.005462973       36 7.599441e-09
     ## GO:0051443       BP -0.004570007 0.002927050       17 9.354615e-09
-    ## GO:0007064       BP  0.004542517 0.004914272       13 1.071005e-08
+    ## GO:0031902       CC -0.004512783 0.003300020       14 1.427461e-08
     ## GO:0016922       MF -0.004509303 0.003186444       11 1.464394e-08
-    ## GO:0000062       MF -0.004312339 0.002103698       10 6.028410e-08
-    ## GO:0004143       MF -0.004255370 0.005066818        9 8.976804e-08
-    ## GO:0004467       MF -0.004123597 0.006990212        8 2.212090e-07
-    ## GO:0046966       MF -0.004063852 0.006689654       12 3.300501e-07
-    ## GO:0042790       BP -0.004007188 0.008877302       11 4.799525e-07
-    ## GO:0042588       CC  0.003986197 0.002123809       12 5.183815e-07
-    ## GO:1903077       BP -0.003850028 0.002443080       11 1.321499e-06
-    ## GO:0006335       BP  0.003704615 0.003428725       17 3.082776e-06
-    ## GO:0034723       BP  0.003704615 0.003428725       17 3.082776e-06
-    ## GO:0043240       CC  0.003704036 0.006547982       12 3.093717e-06
-    ## GO:0000413       BP -0.003703515 0.004599179       11 3.283828e-06
-    ## GO:0043687       BP -0.003677610 0.003810090       18 3.844129e-06
-    ## GO:2000369       BP  0.003615209 0.002418128       13 5.294221e-06
-    ## GO:0034219       BP -0.003456942 0.001825648       10 1.411297e-05
-    ## GO:0032793       BP -0.003433720 0.005966559       10 1.611353e-05
-    ## GO:0052646       BP -0.003228119 0.003180319        7 5.028510e-05
-    ## GO:0042407       BP  0.003112112 0.006278929       10 8.854322e-05
+    ## GO:0031588       CC -0.004476210 0.002646992       10 1.865186e-08
 
 Sweet.
 

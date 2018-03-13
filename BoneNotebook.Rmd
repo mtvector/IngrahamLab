@@ -181,10 +181,10 @@ Interesting... Now PC2 (separates osteocytes from progenitors)
 
 ```{r PC2GO}
 #Positive
-a <- eaciout[[2]][eaciout[[1]]$set.mean>0,]
+a <- eaciout[[2]][eaciout[[2]]$set.mean>0,]
 print(a[1:25,])
 #Negative
-a <- eaciout[[2]][eaciout[[1]]$set.mean<0,]
+a <- eaciout[[2]][eaciout[[2]]$set.mean<0,]
 print(a[1:25,])
 
 ```
