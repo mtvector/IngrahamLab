@@ -6,7 +6,7 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,cache=TRUE)
 ```
 
 This is an analysis for Candice where we're going to compare the RNAseq data she has to the seq data from the Ambrosi et al data.
@@ -89,7 +89,6 @@ allRownames <- Reduce(union,lapply(dsList,rownames))
 
 #Use Biomart to get the 
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-listFilters(mart)
 rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
 
@@ -150,7 +149,7 @@ std.heatmap(cor(ambrosiMatNorm,method = "pea"))
 conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
 #Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent
 plot(svAmbrosi$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
-legend("bottomright",legend = unique(names(conditNums)),col=1:4)
+legend("bottomright",legend = unique(names(conditNums)),col=1:4,fill = 1:4)
 
 eaciout <- list()
 l <- 1
@@ -168,13 +167,26 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 So that reiterates the Ambrosi analysis. Now let's look at the continuous GO enrichment in the genes that contribute to PC1 (separates the osteocyte and progenitors from adipocytes)
 
 ```{r PC1GO}
-print(eaciout[[1]][1:25,])
+#Positive
+a <- eaciout[[1]][eaciout[[1]]$set.mean>0,]
+print(a[1:25,])
+#Negative
+a <- eaciout[[1]][eaciout[[1]]$set.mean<0,]
+print(a[1:25,])
+
+
 ```
 
 Interesting... Now PC2 (separates osteocytes from progenitors)
 
 ```{r PC2GO}
-print(eaciout[[2]][1:25,])
+#Positive
+a <- eaciout[[2]][eaciout[[1]]$set.mean>0,]
+print(a[1:25,])
+#Negative
+a <- eaciout[[2]][eaciout[[1]]$set.mean<0,]
+print(a[1:25,])
+
 ```
 
 Sweet.
@@ -208,24 +220,25 @@ for(i in 1:length(resList)){
   res <- resList[[i]]
   res <- res[!is.na(res$padj),]
   res <- res[res$padj<.1&res$log2FoldChange>0,]
-  print(res[order(res$padj,decreasing = F),])
-  std.heatmap(log(ambrosiMatNorm[rownames(res[order(res$padj,decreasing = F),])[1:25],]+1,2))
+  std.heatmap(log(ambrosiMatNorm[rownames(res[order(res$padj,decreasing = F),])[1:25],]+1,2),main=paste(resultsNames(DESeqOutput)[i],"Up vs All"))
 }
 
 ```
 
-The data for the Ingraham lab RNAseq was also passed to Salmon after trimming with trimgalore and 
+
+
+## Candice's Data
+
+The data for the Ingraham lab RNAseq was also passed to Salmon after fastqc and trimming with trimgalore.
 
 ```{r IngrahamBone}
-datapath <- "~/code/IngrahamLab/BoneSalmonOutputs/"
-setwd(datapath)
-fileList <- dir()
+datapath <- "~/code/IngrahamLabData/BoneSalmonOutputs/"
+fileList <- dir(datapath)
 fileList <- fileList[!grepl("Gene|pdf",fileList)]
-dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+dsList <- lapply(paste0(datapath,fileList),read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
 allRownames <- Reduce(union,lapply(dsList,rownames))
 
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-listFilters(mart)
 rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
 
@@ -244,8 +257,7 @@ boneMatNorm <-  median.normalize(boneMat)
 boneMatNorm <- boneMatNorm[,order(colnames(boneMatNorm))]
 heatmap.2(cor(boneMatNorm,method = "spe"),col=cols,trace="none")
 
-std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"))
-
+std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Sets vs Each Other")
 
 cond <- as.factor(SampleNameMat[3,])
 dds <- DESeqDataSetFromMatrix(boneMat,colData = DataFrame(cond),design = ~cond)
@@ -259,11 +271,13 @@ res <- res[!is.na(res$padj),]
 boneUpDown <- list(rownames(res[res$padj<.1&res$log2FoldChange>0,]),rownames(res[res$padj<.1&res$log2FoldChange<0,]))
 res <- res[res$log2FoldChange>0,]
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
+res <-  results(DESeqOutput)
+res <- res[!is.na(res$padj),]
 
 #ESR1 not differentially expressed
 barplot((boneMatNorm["Esr1",]),main="ESR1")
 hist(res$log2FoldChange)
-plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",x="logFC")
+plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC")
 
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
 dfGO <- as.data.frame(eG)
@@ -277,18 +291,24 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized c
 
 ```
 
+## Overlap
+
 So what overlaps in the up/down for each sorted cell type and the KO vs fl data?
+
+Note: Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent progenitor
 
 ```{r Overlap DE}
 
 overlaps <- lapply(1:2,function(u){
-  sapply(ambrosiUpDown,function(x){
-    c(sum(boneUpDown[[u]]%in%x[[1]]), sum(boneUpDown[[u]]%in%x[[2]]))
+  a <- sapply(ambrosiUpDown,function(x){
+    c("up"=sum(boneUpDown[[u]]%in%x[[1]]), "down"=sum(boneUpDown[[u]]%in%x[[2]]))
   })
+  colnames(a) <- sort(unique(sapply(strsplit(colnames(ambrosiMatNorm),"_"),function(x)x[2])))
+  a
 })
-#Up
+#Up in KO
 print(overlaps[[1]])
-#Down
+#Down in KO
 print(overlaps[[2]])
 
 ```
