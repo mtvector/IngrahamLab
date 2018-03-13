@@ -1,0 +1,296 @@
+---
+title: "BoneNotebook"
+author: "Matthew Schmitz"
+date: "March 12, 2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is an analysis for Candice where we're going to compare the RNAseq data she has to the seq data from the Ambrosi et al data.
+
+# Ambrosi et al. Data Analysis
+
+This data was taken from ENA with accession number ERP013883 (http://
+www.ebi.ac.uk/ena). Following quality control, reads were quantified using Salmon.
+
+First I'll load the libraries and functions I'll need for the analysis (skip this part).
+
+```{r loadLibraries,message=F,warning=F}
+library(DESeq2)
+library(EBSeq)
+library(matrixStats)
+library(biomaRt)
+library(gplots)
+library(clusterProfiler)
+library(RColorBrewer)
+cols <-  colorRampPalette(rev(brewer.pal(11,"RdBu")))(50)
+
+#see Github lengning
+library(EACI)
+
+
+median.normalize <- function(x){
+  GetNormalizedMat(x,MedianNorm(x))
+}
+
+round.log <- function(s,base=2){
+  round(log(s+1, base),digits = 1)
+}
+
+std.heatmap <- function(M,...){
+  heatmap.2(M,Rowv = F,Colv = F,trace="none",col = cols,...)
+}
+
+rn.merge <- function(x,y,fill=0,simple.intersect=F){
+  rn <- intersect(rownames(x),rownames(y))
+  zerosx <- setdiff(rownames(x),rownames(y))
+  zerosy <- setdiff(rownames(y),rownames(x))
+  out <- cbind(x[rn,,drop=F],y[rn,,drop=F])
+  if(simple.intersect){return(out)}
+  else{
+  if(length(zerosx)!=1  &length(zerosy)!=1){
+    zx <- matrix(fill, nrow=length(zerosx), ncol =ncol(y), dimnames = list(zerosx,NULL))
+    zy <- matrix(fill, nrow=length(zerosy), ncol =ncol(x), dimnames = list(zerosy,NULL))
+    zx <- cbind(x[zerosx,],zx)
+    zy <- cbind(zy,y[zerosy,])
+  }else if(length(zerosx)==1){
+    zx <- rep(fill, ncol(y))
+    zy <- matrix(fill, nrow=length(zerosy), ncol =ncol(x), dimnames = list(zerosy,NULL))
+    zx <- c(x[zerosx,],zx)
+    zy <- cbind(zy,y[zerosy,])
+  }else if(length(zerosy)==1){
+    zx <- matrix(fill, nrow=length(zerosx), ncol =ncol(y), dimnames = list(zerosx,NULL))
+    zy <- rep(fill, ncol(x))
+    print(zx)
+    print(zy)
+    zx <- cbind(x[zerosx,],zx)
+    zy <- c(zy,y[zerosy,])
+  }
+  out <- rbind(out,rbind(zx,zy))
+  return(out)}
+}
+
+
+
+```
+
+
+```{r loadData}
+
+datapath <- "~/code/data/GEOData/seq/AmbrosiBone/out/"
+setwd(datapath)
+fileList <- dir()
+fileList <- paste0(datapath,"/",fileList,"/","quant.sf")
+dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+allRownames <- Reduce(union,lapply(dsList,rownames))
+
+#Use Biomart to get the 
+mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
+listFilters(mart)
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+
+#Load the table from ENA with the names of each sample
+sampleMat <- read.table(file = "~/code/data/GEOData/seq/AmbrosiBone/PRJEB12408.txt",sep="\t",header = T,stringsAsFactors = F)
+print(sampleMat)
+
+dsAgList <-  lapply(dsList,function(x){
+  rnsgs <-  rnSymbolGenes[rnSymbolGenes$ensembl_transcript_id_version %in% rownames(x),]
+  x <- x[rnsgs$ensembl_transcript_id_version,]
+  ret <- aggregate(as.integer(x$NumReads), by=list(rnsgs$mgi_symbol),sum)
+  rownames(ret) <- ret[,1]
+  ret[,-1,drop=F]
+})
+
+ambrosiMat <-  as.matrix(Reduce(rn.merge,dsAgList))
+colnames(ambrosiMat) <- sampleMat$sample_title
+
+std.heatmap(cor(ambrosiMat,method="spearman"))
+
+#Correlation between tech replicates super high. Pool the reads from the technical replicates.
+ambrosiMat <- ambrosiMat[,1:12]+ambrosiMat[,13:24]
+#Get rid of failed sample
+ambrosiMat <- ambrosiMat[,-which(colnames(ambrosiMat)=="2_CD24-")]
+ambrosiMatNorm <-  median.normalize(ambrosiMat[rowMaxs(ambrosiMat)>2,])
+condits <- sapply(strsplit(colnames(ambrosiMat),"_"),function(x)x[2])
+ambrosiMat <- ambrosiMat[,order(condits)]
+ambrosiMatNorm <- ambrosiMatNorm[,order(condits)]
+condits <- sort(condits)
+condits <- gsub("\\+","plus",condits)
+condits <- gsub("\\-","minus",condits)
+
+```
+
+Now we have normalized counts in "ambrosiMatNorm", the conditions in "condits", and the unnormalized counts for differential expression in "ambrosiMat."
+
+```{r checkData}
+head(ambrosiMat)
+head(ambrosiMatNorm)
+print(condits)
+
+barplot(ambrosiMatNorm["Esr1",],las=2,main="Esr1")
+barplot(ambrosiMatNorm["Esr2",],las=2,main="Esr2")
+barplot(ambrosiMatNorm["Gper1",],las=2,main="Gper1")
+
+```
+
+Let's redo the Principal component analysis (or singular value decomposition, svd) to check against figure 5 of the paper.
+
+```{r svd}
+
+ambrosiCLN <- round.log(ambrosiMatNorm+1,2)
+ambrosiCLN <- ambrosiCLN[rowSds(ambrosiCLN)>1,]
+svAmbrosi <- svd((ambrosiCLN-rowMeans(ambrosiCLN))/rowSds(ambrosiCLN))
+
+std.heatmap(cor(ambrosiMatNorm,method = "pea"))
+
+conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
+#Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent
+plot(svAmbrosi$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
+legend("bottomright",legend = unique(names(conditNums)),col=1:4)
+
+eaciout <- list()
+l <- 1
+eacivector <- svAmbrosi$u[,l]
+names(eacivector) <- rownames(ambrosiCLN)
+eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
+
+l <- 2
+eacivector <- svAmbrosi$u[,l]
+names(eacivector) <- rownames(ambrosiCLN)
+eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
+
+```
+
+So that reiterates the Ambrosi analysis. Now let's look at the continuous GO enrichment in the genes that contribute to PC1 (separates the osteocyte and progenitors from adipocytes)
+
+```{r PC1GO}
+print(eaciout[[1]][1:25,])
+```
+
+Interesting... Now PC2 (separates osteocytes from progenitors)
+
+```{r PC2GO}
+print(eaciout[[2]][1:25,])
+```
+
+Sweet.
+
+Time for some differential expression
+
+```{r DESeqAmbrosi}
+cond <- as.factor(condits)
+colnames(ambrosiMat) <- make.names(condits,unique = T)
+dds <- DESeqDataSetFromMatrix(ambrosiMat,colData = DataFrame(cond),design = formula(~cond+0))
+DESeqOutput <-  DESeq(dds)
+resultsNames(DESeqOutput)
+
+resList <-  list(results(DESeqOutput,contrast = c(1,-1/3,-1/3,-1/3 ),cooksCutoff=T),results(DESeqOutput,contrast = c(-1/3,1,-1/3,-1/3 ),cooksCutoff=T),results(DESeqOutput,contrast = c(-1/3,-1/3,1,-1/3 ),cooksCutoff=T),results(DESeqOutput,contrast = c(-1/3,-1/3,-1/3 ,1),cooksCutoff=T))
+
+ambrosiUpDown <-lapply(resList,function(res){
+  res <- res[!is.na(res$padj),]
+  list(rownames(res[res$padj<.1&res$log2FoldChange>0,]),rownames(res[res$padj<.1&res$log2FoldChange<0,]))
+})
+
+print(str(ambrosiUpDown))
+
+```
+
+So there's a bunch of genes differentially expressed up or down for each cell type compared to all the others.
+
+```{r hmDEs}
+
+for(i in 1:length(resList)){
+  print(resultsNames(DESeqOutput)[i])
+  res <- resList[[i]]
+  res <- res[!is.na(res$padj),]
+  res <- res[res$padj<.1&res$log2FoldChange>0,]
+  print(res[order(res$padj,decreasing = F),])
+  std.heatmap(log(ambrosiMatNorm[rownames(res[order(res$padj,decreasing = F),])[1:25],]+1,2))
+}
+
+```
+
+The data for the Ingraham lab RNAseq was also passed to Salmon after trimming with trimgalore and 
+
+```{r IngrahamBone}
+datapath <- "~/code/IngrahamLab/BoneSalmonOutputs/"
+setwd(datapath)
+fileList <- dir()
+fileList <- fileList[!grepl("Gene|pdf",fileList)]
+dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+allRownames <- Reduce(union,lapply(dsList,rownames))
+
+mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
+listFilters(mart)
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+
+dsAgList <-  lapply(dsList,function(x){
+  rnsgs <-  rnSymbolGenes[rnSymbolGenes$ensembl_transcript_id_version %in% rownames(x),]
+  x <- x[rnsgs$ensembl_transcript_id_version,]
+  ret <- aggregate(as.integer(x$NumReads), by=list(rnsgs$mgi_symbol),sum)
+  rownames(ret) <- ret[,1]
+  ret[,-1,drop=F]
+})
+sampleNames <- c("1807_BM_fl_A1","1810_BM_KO_E1","1811_BM_KO_G1","1815_BM_fl_B1","1818_BM_fl_C1","1825_BM_KO_F1","1984_BM_fl_D1","1985_BM_KO_H1")
+SampleNameMat <- sapply(strsplit(sampleNames,"_"),function(i)i)
+boneMat <-  as.matrix(Reduce(rn.merge,dsAgList))
+colnames(boneMat) <- paste(SampleNameMat[3,],gsub("[[:digit:]]","",SampleNameMat[4,]),sep = "_")
+boneMatNorm <-  median.normalize(boneMat)
+boneMatNorm <- boneMatNorm[,order(colnames(boneMatNorm))]
+heatmap.2(cor(boneMatNorm,method = "spe"),col=cols,trace="none")
+
+std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"))
+
+
+cond <- as.factor(SampleNameMat[3,])
+dds <- DESeqDataSetFromMatrix(boneMat,colData = DataFrame(cond),design = ~cond)
+DESeqOutput <-  DESeq(dds)
+res <-  results(DESeqOutput)
+res <- res[!is.na(res$padj),]
+res <- res[res$log2FoldChange<0,]
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(normalized counts + 1)")
+res <-  results(DESeqOutput)
+res <- res[!is.na(res$padj),]
+boneUpDown <- list(rownames(res[res$padj<.1&res$log2FoldChange>0,]),rownames(res[res$padj<.1&res$log2FoldChange<0,]))
+res <- res[res$log2FoldChange>0,]
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
+
+#ESR1 not differentially expressed
+barplot((boneMatNorm["Esr1",]),main="ESR1")
+hist(res$log2FoldChange)
+plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",x="logFC")
+
+eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
+dfGO <- as.data.frame(eG)
+ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon",dfGO[,2])),"geneID"],"/"))
+repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
+bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen",dfGO[,2])),"geneID"],"/"))
+
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+
+```
+
+So what overlaps in the up/down for each sorted cell type and the KO vs fl data?
+
+```{r Overlap DE}
+
+overlaps <- lapply(1:2,function(u){
+  sapply(ambrosiUpDown,function(x){
+    c(sum(boneUpDown[[u]]%in%x[[1]]), sum(boneUpDown[[u]]%in%x[[2]]))
+  })
+})
+#Up
+print(overlaps[[1]])
+#Down
+print(overlaps[[2]])
+
+```
+
+Not much.
