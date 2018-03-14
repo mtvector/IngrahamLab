@@ -81,8 +81,7 @@ rn.merge <- function(x,y,fill=0,simple.intersect=F){
 ```{r loadData}
 
 datapath <- "~/code/data/GEOData/seq/AmbrosiBone/out/"
-setwd(datapath)
-fileList <- dir()
+fileList <- dir(datapath)
 fileList <- paste0(datapath,"/",fileList,"/","quant.sf")
 dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
 allRownames <- Reduce(union,lapply(dsList,rownames))
@@ -117,13 +116,15 @@ ambrosiMatNorm <-  median.normalize(ambrosiMat[rowMaxs(ambrosiMat)>2,])
 condits <- sapply(strsplit(colnames(ambrosiMat),"_"),function(x)x[2])
 ambrosiMat <- ambrosiMat[,order(condits)]
 ambrosiMatNorm <- ambrosiMatNorm[,order(condits)]
-condits <- sort(condits)
+condits <- condits[order(condits)]
 condits <- gsub("\\+","plus",condits)
 condits <- gsub("\\-","minus",condits)
 
 ```
 
 Now we have normalized counts in "ambrosiMatNorm", the conditions in "condits", and the unnormalized counts for differential expression in "ambrosiMat."
+
+### A few genes of interest
 
 ```{r checkData}
 head(ambrosiMat)
@@ -136,6 +137,7 @@ barplot(ambrosiMatNorm["Gper1",],las=2,main="Gper1")
 
 ```
 
+### PCA
 Let's redo the Principal component analysis (or singular value decomposition, svd) to check against figure 5 of the paper.
 
 ```{r svd}
@@ -151,6 +153,7 @@ conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
 plot(svAmbrosi$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
 legend("bottomright",legend = unique(names(conditNums)),col=1:4,fill = 1:4)
 
+
 eaciout <- list()
 l <- 1
 eacivector <- svAmbrosi$u[,l]
@@ -164,13 +167,15 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
 ```
 
+### GO enrichment of Principal Components
+
 So that reiterates the Ambrosi analysis. Now let's look at the continuous GO enrichment in the genes that contribute to PC1 (separates the osteocyte and progenitors from adipocytes)
 
 ```{r PC1GO}
-#Positive
+#PC1 Positive
 a <- eaciout[[1]][eaciout[[1]]$set.mean>0,]
 print(a[1:25,])
-#Negative
+#PC1 Negative
 a <- eaciout[[1]][eaciout[[1]]$set.mean<0,]
 print(a[1:25,])
 
@@ -180,10 +185,10 @@ print(a[1:25,])
 Interesting... Now PC2 (separates osteocytes from progenitors)
 
 ```{r PC2GO}
-#Positive
+#PC2 Positive
 a <- eaciout[[2]][eaciout[[2]]$set.mean>0,]
 print(a[1:25,])
-#Negative
+#PC2 Negative
 a <- eaciout[[2]][eaciout[[2]]$set.mean<0,]
 print(a[1:25,])
 
@@ -225,8 +230,6 @@ for(i in 1:length(resList)){
 
 ```
 
-
-
 ## Candice's Data
 
 The data for the Ingraham lab RNAseq was also passed to Salmon after fastqc and trimming with trimgalore.
@@ -257,14 +260,25 @@ boneMatNorm <-  median.normalize(boneMat)
 boneMatNorm <- boneMatNorm[,order(colnames(boneMatNorm))]
 heatmap.2(cor(boneMatNorm,method = "spe"),col=cols,trace="none")
 
-std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Sets vs Each Other")
+std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spearman Correlation\n Ambrosi vs Candice")
 
+```
+
+### Differential expression of Candice's data
+
+Use a DESeq2 False Discovery Rate of .1, breaking into up and down in KO groups.
+
+```{r differentialExpression}
 cond <- as.factor(SampleNameMat[3,])
 dds <- DESeqDataSetFromMatrix(boneMat,colData = DataFrame(cond),design = ~cond)
 DESeqOutput <-  DESeq(dds)
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 res <- res[res$log2FoldChange<0,]
+hist(res$log2FoldChange,main = "Log2 Fold Changes Detected")
+plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcano Plot")
+
+
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(normalized counts + 1)")
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
@@ -276,8 +290,6 @@ res <- res[!is.na(res$padj),]
 
 #ESR1 not differentially expressed
 barplot((boneMatNorm["Esr1",]),main="ESR1")
-hist(res$log2FoldChange)
-plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC")
 
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
 dfGO <- as.data.frame(eG)
@@ -297,7 +309,7 @@ So what overlaps in the up/down for each sorted cell type and the KO vs fl data?
 
 Note: Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent progenitor
 
-```{r Overlap DE}
+```{r OverlapDE}
 
 overlaps <- lapply(1:2,function(u){
   a <- sapply(ambrosiUpDown,function(x){
@@ -313,4 +325,21 @@ print(overlaps[[2]])
 
 ```
 
-Not much.
+Not much. Which genes are they?
+
+```{r OverlapDENames}
+
+overlaps <- lapply(1:2,function(u){
+  a <- sapply(ambrosiUpDown,function(x){
+    c("up"=boneUpDown[[u]][boneUpDown[[u]]%in%x[[1]]], "down"=boneUpDown[[u]][boneUpDown[[u]]%in%x[[2]]])
+  })
+  names(a) <- sort(unique(sapply(strsplit(colnames(ambrosiMatNorm),"_"),function(x)x[2])))
+  a
+})
+#Up in KO
+print(overlaps[[1]])
+#Down in KO
+print(overlaps[[2]])
+
+```
+

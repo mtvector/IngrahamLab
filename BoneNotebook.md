@@ -373,16 +373,16 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  10.58 sec 
-    ## iteration 2 done; time  8.27 sec 
-    ## iteration 3 done; time  7.04 sec 
-    ## iteration 4 done; time  7.59 sec 
-    ## iteration 5 done; time  7.36 sec 
-    ## iteration 6 done; time  5.28 sec 
-    ## iteration 7 done; time  7.41 sec 
-    ## iteration 8 done; time  7.05 sec 
-    ## iteration 9 done; time  5.57 sec 
-    ## iteration 10 done; time  6.77 sec
+    ## iteration 1 done; time  8.88 sec 
+    ## iteration 2 done; time  7.12 sec 
+    ## iteration 3 done; time  6.95 sec 
+    ## iteration 4 done; time  7.06 sec 
+    ## iteration 5 done; time  7.25 sec 
+    ## iteration 6 done; time  7.41 sec 
+    ## iteration 7 done; time  7.53 sec 
+    ## iteration 8 done; time  7.62 sec 
+    ## iteration 9 done; time  9.63 sec 
+    ## iteration 10 done; time  7.25 sec
 
     ## Labeling output ...
 
@@ -403,16 +403,16 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  7.03 sec 
-    ## iteration 2 done; time  6.93 sec 
-    ## iteration 3 done; time  7.18 sec 
-    ## iteration 4 done; time  6.87 sec 
-    ## iteration 5 done; time  5.57 sec 
-    ## iteration 6 done; time  7.62 sec 
-    ## iteration 7 done; time  7.24 sec 
-    ## iteration 8 done; time  7.44 sec 
-    ## iteration 9 done; time  7.74 sec 
-    ## iteration 10 done; time  7.46 sec
+    ## iteration 1 done; time  8.19 sec 
+    ## iteration 2 done; time  7.45 sec 
+    ## iteration 3 done; time  5.12 sec 
+    ## iteration 4 done; time  7.18 sec 
+    ## iteration 5 done; time  7.31 sec 
+    ## iteration 6 done; time  5.79 sec 
+    ## iteration 7 done; time  7.17 sec 
+    ## iteration 8 done; time  7.61 sec 
+    ## iteration 9 done; time  7.2 sec 
+    ## iteration 10 done; time  7.49 sec
 
     ## Labeling output ...
 
@@ -974,4 +974,85 @@ print(overlaps[[2]])
     ## up       2    10     2    6
     ## down     3     3     3    2
 
-Not much.
+Not much. Which genes are they?
+
+``` r
+overlaps <- lapply(1:2,function(u){
+  a <- sapply(ambrosiUpDown,function(x){
+    c("up"=boneUpDown[[u]][boneUpDown[[u]]%in%x[[1]]], "down"=boneUpDown[[u]][boneUpDown[[u]]%in%x[[2]]])
+  })
+  names(a) <- sort(unique(sapply(strsplit(colnames(ambrosiMatNorm),"_"),function(x)x[2])))
+  a
+})
+#Up in KO
+print(overlaps[[1]])
+```
+
+    ## $`CD24-`
+    ##        up1        up2        up3        up4        up5        up6 
+    ##    "Cadm3" "Calcoco1"     "Ccr9"      "Dcn"    "Evi2b"    "Gvin1" 
+    ##        up7        up8      down1      down2      down3      down4 
+    ##   "Jchain"    "Pqlc3"    "Cmpk2"  "Gm10925"     "Myl1"    "Oasl2" 
+    ##      down5 
+    ##   "Tceanc" 
+    ## 
+    ## $`CD24+`
+    ##       up1       up2       up3       up4       up5       up6       up7 
+    ##     "A2m"  "Col2a1"   "Evi2b"  "Gm4070"   "Gvin1"    "Ibsp"    "Lifr" 
+    ##       up8       up9      up10      up11      up12      up13      up14 
+    ##   "Lpin1" "mt-Cytb" "mt-Nd4l"  "mt-Nd5"  "mt-Nd6"   "Oasl2"  "Papss2" 
+    ##      up15      up16      up17     down1     down2     down3     down4 
+    ##    "Peg3"   "Satb2"     "Ttn"   "Cadm3"   "Chit1"   "Cmpk2"  "Col1a1" 
+    ##     down5     down6     down7     down8     down9    down10    down11 
+    ##  "Col5a2"     "Dcn"  "Fam78b"  "Ifi207"   "Ifit1"   "Inhba"     "Lox" 
+    ##    down12    down13    down14    down15    down16    down17    down18 
+    ##    "Mlip"    "Myl1"    "Oas3"   "Postn"   "Pqlc3"      "Xk" "Zscan29" 
+    ## 
+    ## $`Sca1-`
+    ##        up1        up2        up3        up4        up5        up6 
+    ##     "Bmp3"    "Chit1"     "Cir1"    "Cmpk2"   "Col1a1"   "Col2a1" 
+    ##        up7        up8        up9       up10       up11       up12 
+    ##  "Gm10925"     "Ibsp"     "Mlip"  "mt-Cytb"  "mt-Nd4l"   "mt-Nd5" 
+    ##       up13       up14       up15       up16       up17       up18 
+    ##   "mt-Nd6"     "Myl1"     "Oas3"    "Satb2"    "Smpd3"   "Tceanc" 
+    ##       up19      down1      down2      down3      down4      down5 
+    ##       "Xk" "Calcoco1"     "Ccr9"    "Cerkl"    "Ddx60"    "Evi2b" 
+    ##      down6      down7      down8      down9     down10     down11 
+    ##   "Gm4070"    "Gvin1"   "Jchain"     "Pi15"     "Zbp1"   "Zfp125" 
+    ## 
+    ## $`ZFP+`
+    ##        up1        up2        up3        up4        up5        up6 
+    ##    "Cadm3"    "Cmpk2"      "Dcn"   "Fam78b"    "Gvin1"     "Myl1" 
+    ##        up7        up8        up9      down1      down2      down3 
+    ##     "Oas2"    "Pcsk6"    "Pqlc3" "Cacna2d4"    "Cadm1"     "Ccr9" 
+    ##      down4      down5      down6      down7      down8      down9 
+    ##   "Col2a1"   "Dixdc1"     "Ibsp"     "Lifr"  "mt-Cytb"   "mt-Nd4" 
+    ##     down10     down11     down12     down13     down14     down15 
+    ##  "mt-Nd4l"   "mt-Nd5"   "mt-Nd6"   "Papss2"     "Peg3"    "Satb2" 
+    ##     down16     down17 
+    ##    "Smpd3"       "Xk"
+
+``` r
+#Down in KO
+print(overlaps[[2]])
+```
+
+    ## $`CD24-`
+    ##       up1       up2     down1     down2     down3 
+    ##    "Ly6d"  "Zfp768" "Ankrd35"  "Gm2000"  "Rpl35a" 
+    ## 
+    ## $`CD24+`
+    ##       up1       up2       up3       up4       up5       up6       up7 
+    ## "Adamts1"    "Cst3" "Eif2ak4"   "Gm128"  "Gm2000"   "Nop10"    "Scd2" 
+    ##       up8       up9      up10     down1     down2     down3 
+    ##  "Tspan6"  "Zfp108"  "Zfp768" "S100a10"  "S100a4"   "Sap30" 
+    ## 
+    ## $`Sca1-`
+    ##       up1       up2     down1     down2     down3 
+    ##    "Emg1" "Tmem147"    "Ly6d" "Rarres2"  "Zfp768" 
+    ## 
+    ## $`ZFP+`
+    ##       up1       up2       up3       up4       up5       up6     down1 
+    ##  "Gm2000"  "Mrpl33" "Rarres2" "S100a10"  "S100a4"  "Zfp768"    "Cst3" 
+    ##     down2 
+    ##  "Gemin6"
