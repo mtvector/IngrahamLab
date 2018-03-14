@@ -106,12 +106,16 @@ dsAgList <-  lapply(dsList,function(x){
 ambrosiMat <-  as.matrix(Reduce(rn.merge,dsAgList))
 colnames(ambrosiMat) <- sampleMat$sample_title
 
+#There's a failed sample in there
 std.heatmap(cor(ambrosiMat,method="spearman"))
 
 #Correlation between tech replicates super high. Pool the reads from the technical replicates.
 ambrosiMat <- ambrosiMat[,1:12]+ambrosiMat[,13:24]
 #Get rid of failed sample
 ambrosiMat <- ambrosiMat[,-which(colnames(ambrosiMat)=="2_CD24-")]
+#Check failed sample removal
+std.heatmap(cor(ambrosiMat,method = "spearman"))
+
 ambrosiMatNorm <-  median.normalize(ambrosiMat[rowMaxs(ambrosiMat)>2,])
 condits <- sapply(strsplit(colnames(ambrosiMat),"_"),function(x)x[2])
 ambrosiMat <- ambrosiMat[,order(condits)]
@@ -146,7 +150,7 @@ ambrosiCLN <- round.log(ambrosiMatNorm+1,2)
 ambrosiCLN <- ambrosiCLN[rowSds(ambrosiCLN)>1,]
 svAmbrosi <- svd((ambrosiCLN-rowMeans(ambrosiCLN))/rowSds(ambrosiCLN))
 
-std.heatmap(cor(ambrosiMatNorm,method = "pea"))
+std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 
 conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
 #Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent
@@ -268,15 +272,13 @@ std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spear
 
 Use a DESeq2 False Discovery Rate of .1, breaking into up and down in KO groups.
 
-```{r differentialExpression}
+```{r differentialExpression,warning=F}
 cond <- as.factor(SampleNameMat[3,])
 dds <- DESeqDataSetFromMatrix(boneMat,colData = DataFrame(cond),design = ~cond)
 DESeqOutput <-  DESeq(dds)
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 res <- res[res$log2FoldChange<0,]
-hist(res$log2FoldChange,main = "Log2 Fold Changes Detected")
-plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcano Plot")
 
 
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(normalized counts + 1)")
@@ -288,11 +290,21 @@ std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:2
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 
+
+hist(res$log2FoldChange,main = "Log2 Fold Changes Detected")
+plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcano Plot")
+
 #ESR1 not differentially expressed
-barplot((boneMatNorm["Esr1",]),main="ESR1")
+barplot((boneMatNorm["Esr1",]),main="Esr1")
+#Just a sanity Check
+barplot((boneMatNorm["Kiss1",]),main="Kiss1")
+#also a sanity check
+std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
+
 
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
 dfGO <- as.data.frame(eG)
+print(dfGO[1:30,])
 ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon",dfGO[,2])),"geneID"],"/"))
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
 bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen",dfGO[,2])),"geneID"],"/"))
@@ -301,6 +313,14 @@ std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized 
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 
+```
+
+#### Candice DE in the Ambrosi
+
+```{r checkInAmbrosi, warning=F}
+std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 ```
 
 ## Overlap
@@ -325,7 +345,7 @@ print(overlaps[[2]])
 
 ```
 
-Not much. Which genes are they?
+Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteoclasts and down in the preadipocytes. Which genes are they?
 
 ```{r OverlapDENames}
 
@@ -342,4 +362,6 @@ print(overlaps[[1]])
 print(overlaps[[2]])
 
 ```
+
+Nothing jumps out at me...
 

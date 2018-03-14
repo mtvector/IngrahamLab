@@ -70,8 +70,7 @@ rn.merge <- function(x,y,fill=0,simple.intersect=F){
 
 ``` r
 datapath <- "~/code/data/GEOData/seq/AmbrosiBone/out/"
-setwd(datapath)
-fileList <- dir()
+fileList <- dir(datapath)
 fileList <- paste0(datapath,"/",fileList,"/","quant.sf")
 dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
 allRownames <- Reduce(union,lapply(dsList,rownames))
@@ -224,6 +223,7 @@ dsAgList <-  lapply(dsList,function(x){
 ambrosiMat <-  as.matrix(Reduce(rn.merge,dsAgList))
 colnames(ambrosiMat) <- sampleMat$sample_title
 
+#There's a failed sample in there
 std.heatmap(cor(ambrosiMat,method="spearman"))
 ```
 
@@ -242,16 +242,33 @@ std.heatmap(cor(ambrosiMat,method="spearman"))
 ambrosiMat <- ambrosiMat[,1:12]+ambrosiMat[,13:24]
 #Get rid of failed sample
 ambrosiMat <- ambrosiMat[,-which(colnames(ambrosiMat)=="2_CD24-")]
+#Check failed sample removal
+std.heatmap(cor(ambrosiMat,method = "spearman"))
+```
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/loadData-2.png)
+
+``` r
 ambrosiMatNorm <-  median.normalize(ambrosiMat[rowMaxs(ambrosiMat)>2,])
 condits <- sapply(strsplit(colnames(ambrosiMat),"_"),function(x)x[2])
 ambrosiMat <- ambrosiMat[,order(condits)]
 ambrosiMatNorm <- ambrosiMatNorm[,order(condits)]
-condits <- sort(condits)
+condits <- condits[order(condits)]
 condits <- gsub("\\+","plus",condits)
 condits <- gsub("\\-","minus",condits)
 ```
 
 Now we have normalized counts in "ambrosiMatNorm", the conditions in "condits", and the unnormalized counts for differential expression in "ambrosiMat."
+
+### A few genes of interest
 
 ``` r
 head(ambrosiMat)
@@ -324,6 +341,8 @@ barplot(ambrosiMatNorm["Gper1",],las=2,main="Gper1")
 
 ![](BoneNotebook_files/figure-markdown_github/checkData-3.png)
 
+### PCA
+
 Let's redo the Principal component analysis (or singular value decomposition, svd) to check against figure 5 of the paper.
 
 ``` r
@@ -331,7 +350,7 @@ ambrosiCLN <- round.log(ambrosiMatNorm+1,2)
 ambrosiCLN <- ambrosiCLN[rowSds(ambrosiCLN)>1,]
 svAmbrosi <- svd((ambrosiCLN-rowMeans(ambrosiCLN))/rowSds(ambrosiCLN))
 
-std.heatmap(cor(ambrosiMatNorm,method = "pea"))
+std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -363,30 +382,22 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Loading necessary libraries...
 
-    ## Loading required package: org.Mm.eg.db
-
-    ## Loading required package: AnnotationDbi
-
-    ## 
-
     ## Loaded Package org.Mm.eg.db
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  8.88 sec 
-    ## iteration 2 done; time  7.12 sec 
-    ## iteration 3 done; time  6.95 sec 
-    ## iteration 4 done; time  7.06 sec 
-    ## iteration 5 done; time  7.25 sec 
-    ## iteration 6 done; time  7.41 sec 
-    ## iteration 7 done; time  7.53 sec 
-    ## iteration 8 done; time  7.62 sec 
-    ## iteration 9 done; time  9.63 sec 
-    ## iteration 10 done; time  7.25 sec
+    ## iteration 1 done; time  9.31 sec 
+    ## iteration 2 done; time  6.61 sec 
+    ## iteration 3 done; time  7.13 sec 
+    ## iteration 4 done; time  8.37 sec 
+    ## iteration 5 done; time  7.46 sec 
+    ## iteration 6 done; time  7.69 sec 
+    ## iteration 7 done; time  8.11 sec 
+    ## iteration 8 done; time  7.61 sec 
+    ## iteration 9 done; time  9.88 sec 
+    ## iteration 10 done; time  6.46 sec
 
     ## Labeling output ...
-
-    ## Loading required package: GO.db
 
     ## Loaded Package GO.db
 
@@ -403,25 +414,27 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  8.19 sec 
-    ## iteration 2 done; time  7.45 sec 
-    ## iteration 3 done; time  5.12 sec 
-    ## iteration 4 done; time  7.18 sec 
-    ## iteration 5 done; time  7.31 sec 
-    ## iteration 6 done; time  5.79 sec 
-    ## iteration 7 done; time  7.17 sec 
-    ## iteration 8 done; time  7.61 sec 
-    ## iteration 9 done; time  7.2 sec 
-    ## iteration 10 done; time  7.49 sec
+    ## iteration 1 done; time  5.55 sec 
+    ## iteration 2 done; time  7.7 sec 
+    ## iteration 3 done; time  6.51 sec 
+    ## iteration 4 done; time  7.12 sec 
+    ## iteration 5 done; time  5.83 sec 
+    ## iteration 6 done; time  6.68 sec 
+    ## iteration 7 done; time  5.66 sec 
+    ## iteration 8 done; time  7.37 sec 
+    ## iteration 9 done; time  7.68 sec 
+    ## iteration 10 done; time  6.99 sec
 
     ## Labeling output ...
 
     ## Loaded Package GO.db
 
+### GO enrichment of Principal Components
+
 So that reiterates the Ambrosi analysis. Now let's look at the continuous GO enrichment in the genes that contribute to PC1 (separates the osteocyte and progenitors from adipocytes)
 
 ``` r
-#Positive
+#PC1 Positive
 a <- eaciout[[1]][eaciout[[1]]$set.mean>0,]
 print(a[1:25,])
 ```
@@ -480,7 +493,7 @@ print(a[1:25,])
     ## GO:0030574       BP 0.005978991 0.003841013       10 1.026201e-11
 
 ``` r
-#Negative
+#PC1 Negative
 a <- eaciout[[1]][eaciout[[1]]$set.mean<0,]
 print(a[1:25,])
 ```
@@ -541,7 +554,7 @@ print(a[1:25,])
 Interesting... Now PC2 (separates osteocytes from progenitors)
 
 ``` r
-#Positive
+#PC2 Positive
 a <- eaciout[[2]][eaciout[[2]]$set.mean>0,]
 print(a[1:25,])
 ```
@@ -600,7 +613,7 @@ print(a[1:25,])
     ## GO:0045047       BP 0.003875734 0.009257969        9 1.058447e-06
 
 ``` r
-#Negative
+#PC2 Negative
 a <- eaciout[[2]][eaciout[[2]]$set.mean<0,]
 print(a[1:25,])
 ```
@@ -806,7 +819,7 @@ heatmap.2(cor(boneMatNorm,method = "spe"),col=cols,trace="none")
 ![](BoneNotebook_files/figure-markdown_github/IngrahamBone-1.png)
 
 ``` r
-std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Sets vs Each Other")
+std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spearman Correlation\n Ambrosi vs Candice")
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -818,6 +831,10 @@ std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Sets 
     ## dendogram.
 
 ![](BoneNotebook_files/figure-markdown_github/IngrahamBone-2.png)
+
+### Differential expression of Candice's data
+
+Use a DESeq2 False Discovery Rate of .1, breaking into up and down in KO groups.
 
 ``` r
 cond <- as.factor(SampleNameMat[3,])
@@ -841,18 +858,12 @@ DESeqOutput <-  DESeq(dds)
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 res <- res[res$log2FoldChange<0,]
+
+
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(normalized counts + 1)")
 ```
 
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
-    ## dendogram.
-
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
-    ## dendogram.
-
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-3.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.png)
 
 ``` r
 res <-  results(DESeqOutput)
@@ -862,41 +873,208 @@ res <- res[res$log2FoldChange>0,]
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
 ```
 
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
-    ## dendogram.
-
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
-    ## dendogram.
-
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-4.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.png)
 
 ``` r
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 
+
+hist(res$log2FoldChange,main = "Log2 Fold Changes Detected")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.png)
+
+``` r
+plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcano Plot")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.png)
+
+``` r
 #ESR1 not differentially expressed
-barplot((boneMatNorm["Esr1",]),main="ESR1")
+barplot((boneMatNorm["Esr1",]),main="Esr1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-5.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.png)
 
 ``` r
-hist(res$log2FoldChange)
+#Just a sanity Check
+barplot((boneMatNorm["Kiss1",]),main="Kiss1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-6.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.png)
 
 ``` r
-plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC")
+#also a sanity check
+std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 ```
 
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-7.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.png)
 
 ``` r
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
 dfGO <- as.data.frame(eG)
+print(dfGO[1:30,])
+```
+
+    ##                    ID
+    ## GO:0051607 GO:0051607
+    ## GO:0009615 GO:0009615
+    ## GO:0071346 GO:0071346
+    ## GO:0001649 GO:0001649
+    ## GO:0034341 GO:0034341
+    ## GO:0006220 GO:0006220
+    ## GO:0009147 GO:0009147
+    ## GO:0006303 GO:0006303
+    ## GO:0000726 GO:0000726
+    ## GO:0030199 GO:0030199
+    ## GO:0006221 GO:0006221
+    ## GO:0048333 GO:0048333
+    ## GO:0035282 GO:0035282
+    ## GO:0002831 GO:0002831
+    ## GO:0050688 GO:0050688
+    ## GO:0072527 GO:0072527
+    ## GO:0072528 GO:0072528
+    ## GO:0001958 GO:0001958
+    ## GO:0036075 GO:0036075
+    ## GO:0001503 GO:0001503
+    ## GO:0002697 GO:0002697
+    ## GO:0042832 GO:0042832
+    ## GO:0042455 GO:0042455
+    ## GO:0009148 GO:0009148
+    ## GO:0009163 GO:0009163
+    ## GO:0009220 GO:0009220
+    ## GO:0046132 GO:0046132
+    ## GO:0001562 GO:0001562
+    ## GO:0014812 GO:0014812
+    ## GO:0043900 GO:0043900
+    ##                                                         Description
+    ## GO:0051607                                defense response to virus
+    ## GO:0009615                                        response to virus
+    ## GO:0071346                    cellular response to interferon-gamma
+    ## GO:0001649                               osteoblast differentiation
+    ## GO:0034341                             response to interferon-gamma
+    ## GO:0006220                  pyrimidine nucleotide metabolic process
+    ## GO:0009147     pyrimidine nucleoside triphosphate metabolic process
+    ## GO:0006303 double-strand break repair via nonhomologous end joining
+    ## GO:0000726                               non-recombinational repair
+    ## GO:0030199                             collagen fibril organization
+    ## GO:0006221               pyrimidine nucleotide biosynthetic process
+    ## GO:0048333                          mesodermal cell differentiation
+    ## GO:0035282                                             segmentation
+    ## GO:0002831                regulation of response to biotic stimulus
+    ## GO:0050688                  regulation of defense response to virus
+    ## GO:0072527         pyrimidine-containing compound metabolic process
+    ## GO:0072528      pyrimidine-containing compound biosynthetic process
+    ## GO:0001958                                endochondral ossification
+    ## GO:0036075                                 replacement ossification
+    ## GO:0001503                                             ossification
+    ## GO:0002697                    regulation of immune effector process
+    ## GO:0042832                            defense response to protozoan
+    ## GO:0042455                      ribonucleoside biosynthetic process
+    ## GO:0009148  pyrimidine nucleoside triphosphate biosynthetic process
+    ## GO:0009163                          nucleoside biosynthetic process
+    ## GO:0009220           pyrimidine ribonucleotide biosynthetic process
+    ## GO:0046132           pyrimidine ribonucleoside biosynthetic process
+    ## GO:0001562                                    response to protozoan
+    ## GO:0014812                                    muscle cell migration
+    ## GO:0043900                     regulation of multi-organism process
+    ##            GeneRatio   BgRatio       pvalue     p.adjust       qvalue
+    ## GO:0051607    14/237 202/23577 1.876966e-08 5.345598e-05 4.712172e-05
+    ## GO:0009615    14/237 246/23577 2.181504e-07 3.106461e-04 2.738361e-04
+    ## GO:0071346     8/237  75/23577 8.751948e-07 8.308516e-04 7.323999e-04
+    ## GO:0001649    12/237 224/23577 3.050370e-06 2.171864e-03 1.914509e-03
+    ## GO:0034341     8/237  94/23577 4.901902e-06 2.792123e-03 2.461271e-03
+    ## GO:0006220     5/237  29/23577 9.595202e-06 4.554523e-03 4.014835e-03
+    ## GO:0009147     4/237  17/23577 2.137653e-05 8.697193e-03 7.666619e-03
+    ## GO:0006303     5/237  38/23577 3.767488e-05 1.341226e-02 1.182297e-02
+    ## GO:0000726     5/237  43/23577 6.935699e-05 1.650936e-02 1.455309e-02
+    ## GO:0030199     5/237  43/23577 6.935699e-05 1.650936e-02 1.455309e-02
+    ## GO:0006221     4/237  23/23577 7.585063e-05 1.650936e-02 1.455309e-02
+    ## GO:0048333     4/237  23/23577 7.585063e-05 1.650936e-02 1.455309e-02
+    ## GO:0035282     7/237 103/23577 8.291434e-05 1.650936e-02 1.455309e-02
+    ## GO:0002831     8/237 139/23577 8.419185e-05 1.650936e-02 1.455309e-02
+    ## GO:0050688     6/237  72/23577 8.695240e-05 1.650936e-02 1.455309e-02
+    ## GO:0072527     5/237  48/23577 1.184384e-04 2.108203e-02 1.858392e-02
+    ## GO:0072528     4/237  28/23577 1.686032e-04 2.796792e-02 2.465386e-02
+    ## GO:0001958     4/237  29/23577 1.940445e-04 2.796792e-02 2.465386e-02
+    ## GO:0036075     4/237  29/23577 1.940445e-04 2.796792e-02 2.465386e-02
+    ## GO:0001503    13/237 395/23577 1.964039e-04 2.796792e-02 2.465386e-02
+    ## GO:0002697    12/237 349/23577 2.317765e-04 3.143331e-02 2.770862e-02
+    ## GO:0042832     4/237  32/23577 2.869314e-04 3.714457e-02 3.274313e-02
+    ## GO:0042455     4/237  33/23577 3.239484e-04 3.991481e-02 3.518511e-02
+    ## GO:0009148     3/237  14/23577 3.363608e-04 3.991481e-02 3.518511e-02
+    ## GO:0009163     4/237  35/23577 4.080438e-04 4.402133e-02 3.880503e-02
+    ## GO:0009220     3/237  15/23577 4.173371e-04 4.402133e-02 3.880503e-02
+    ## GO:0046132     3/237  15/23577 4.173371e-04 4.402133e-02 3.880503e-02
+    ## GO:0001562     4/237  36/23577 4.554539e-04 4.513475e-02 3.978651e-02
+    ## GO:0014812     6/237  98/23577 4.716855e-04 4.513475e-02 3.978651e-02
+    ## GO:0043900    12/237 378/23577 4.754363e-04 4.513475e-02 3.978651e-02
+    ##                                                                                         geneID
+    ## GO:0051607 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
+    ## GO:0009615 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
+    ## GO:0071346                                          Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
+    ## GO:0001649                  Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Ibsp/Id3/Igf2/Itga11/Runx2/Satb2/Sfrp2
+    ## GO:0034341                                          Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
+    ## GO:0006220                                                         Cmpk2/Dctpp1/Nme1/Nme6/Uprt
+    ## GO:0009147                                                              Cmpk2/Dctpp1/Nme1/Nme6
+    ## GO:0006303                                                    Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
+    ## GO:0000726                                                    Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
+    ## GO:0030199                                                      Col1a1/Col2a1/Col5a2/Lox/Sfrp2
+    ## GO:0006221                                                                Cmpk2/Nme1/Nme6/Uprt
+    ## GO:0048333                                                             Bmp4/Bmpr1a/Inhba/Sfrp2
+    ## GO:0035282                                               Bmp4/Bmpr1a/Mafb/Nrp2/Pcsk6/Sfrp2/Ttn
+    ## GO:0002831                                     Ddx60/Eif2ak4/Gbp4/Mif/Parp9/Stat1/Trib1/Tspan6
+    ## GO:0050688                                               Ddx60/Eif2ak4/Gbp4/Parp9/Stat1/Tspan6
+    ## GO:0072527                                                         Cmpk2/Dctpp1/Nme1/Nme6/Uprt
+    ## GO:0072528                                                                Cmpk2/Nme1/Nme6/Uprt
+    ## GO:0001958                                                            Bmp4/Col1a1/Col2a1/Runx2
+    ## GO:0036075                                                            Bmp4/Col1a1/Col2a1/Runx2
+    ## GO:0001503           Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Col2a1/Ibsp/Id3/Igf2/Itga11/Runx2/Satb2/Sfrp2
+    ## GO:0002697                A2m/Cadm1/Ddx60/Eif2ak4/Exosc6/Gbp4/Igf2/Mif/Mzb1/Parp9/Stat1/Tspan6
+    ## GO:0042832                                                                Gbp10/Gbp6/Gbp7/Irf8
+    ## GO:0042455                                                                 Aprt/Nme1/Nme6/Uprt
+    ## GO:0009148                                                                     Cmpk2/Nme1/Nme6
+    ## GO:0009163                                                                 Aprt/Nme1/Nme6/Uprt
+    ## GO:0009220                                                                      Nme1/Nme6/Uprt
+    ## GO:0046132                                                                      Nme1/Nme6/Uprt
+    ## GO:0001562                                                                Gbp10/Gbp6/Gbp7/Irf8
+    ## GO:0014812                                                    Bmpr1a/Mif/Pgr/Postn/Rock1/Trib1
+    ## GO:0043900             Ddx60/Eif2ak2/Eif2ak4/Gbp4/Inhba/Irf8/Mif/Oas3/Parp9/Stat1/Trib1/Tspan6
+    ##            Count
+    ## GO:0051607    14
+    ## GO:0009615    14
+    ## GO:0071346     8
+    ## GO:0001649    12
+    ## GO:0034341     8
+    ## GO:0006220     5
+    ## GO:0009147     4
+    ## GO:0006303     5
+    ## GO:0000726     5
+    ## GO:0030199     5
+    ## GO:0006221     4
+    ## GO:0048333     4
+    ## GO:0035282     7
+    ## GO:0002831     8
+    ## GO:0050688     6
+    ## GO:0072527     5
+    ## GO:0072528     4
+    ## GO:0001958     4
+    ## GO:0036075     4
+    ## GO:0001503    13
+    ## GO:0002697    12
+    ## GO:0042832     4
+    ## GO:0042455     4
+    ## GO:0009148     3
+    ## GO:0009163     4
+    ## GO:0009220     3
+    ## GO:0046132     3
+    ## GO:0001562     4
+    ## GO:0014812     6
+    ## GO:0043900    12
+
+``` r
 ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon",dfGO[,2])),"geneID"],"/"))
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
 bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen",dfGO[,2])),"geneID"],"/"))
@@ -904,43 +1082,39 @@ bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|co
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
 ```
 
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
-    ## dendogram.
-
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
-    ## dendogram.
-
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-8.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 ```
 
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
-    ## dendogram.
-
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
-    ## dendogram.
-
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-9.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 ```
 
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
-    ## dendogram.
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
 
-    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
-    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
-    ## dendogram.
+#### Candice DE in the Ambrosi
 
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-10.png)
+``` r
+std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-1.png)
+
+``` r
+std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-2.png)
+
+``` r
+std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-3.png)
 
 Overlap
 -------
@@ -974,7 +1148,7 @@ print(overlaps[[2]])
     ## up       2    10     2    6
     ## down     3     3     3    2
 
-Not much. Which genes are they?
+Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteoclasts and down in the preadipocytes. Which genes are they?
 
 ``` r
 overlaps <- lapply(1:2,function(u){
@@ -1056,3 +1230,5 @@ print(overlaps[[2]])
     ##  "Gm2000"  "Mrpl33" "Rarres2" "S100a10"  "S100a4"  "Zfp768"    "Cst3" 
     ##     down2 
     ##  "Gemin6"
+
+Nothing jumps out at me...
