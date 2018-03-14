@@ -855,8 +855,8 @@ DESeqOutput <-  DESeq(dds)
     ## fitting model and testing
 
 ``` r
-res <-  results(DESeqOutput)
-res <- res[!is.na(res$padj),]
+resCandice <-  results(DESeqOutput)
+res <- resCandice[!is.na(resCandice$padj),]
 res <- res[res$log2FoldChange<0,]
 
 
@@ -1232,3 +1232,134 @@ print(overlaps[[2]])
     ##  "Gemin6"
 
 Nothing jumps out at me...
+
+Receptor search
+---------------
+
+Let's check the expression of a list of hormone receptors I compiled:
+
+``` r
+save.image("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+#load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+#I looked through the literature and found what may be all the hormone receptors
+receptors <- c("Esr1","Esr2","Gper1","Esrra","Esrrb","Pgr","Gnrhr","Trhr","Trhr2","Lhcgr","Ghrhr","Ghr","Ghsr","Nr4a1","Fshr","Prlhr","Prlhr","Pth1r","Pth2r","Thra","Thrb","Trhr","Tshr","Crhr1","Crhr2","Mc2r",   "Mchr1","Trhr2","Mc1r","Znhit3","Adgre1","Adgre4","Kiss1r")
+print(receptors)
+```
+
+    ##  [1] "Esr1"   "Esr2"   "Gper1"  "Esrra"  "Esrrb"  "Pgr"    "Gnrhr" 
+    ##  [8] "Trhr"   "Trhr2"  "Lhcgr"  "Ghrhr"  "Ghr"    "Ghsr"   "Nr4a1" 
+    ## [15] "Fshr"   "Prlhr"  "Prlhr"  "Pth1r"  "Pth2r"  "Thra"   "Thrb"  
+    ## [22] "Trhr"   "Tshr"   "Crhr1"  "Crhr2"  "Mc2r"   "Mchr1"  "Trhr2" 
+    ## [29] "Mc1r"   "Znhit3" "Adgre1" "Adgre4" "Kiss1r"
+
+``` r
+std.heatmap(log(ambrosiMatNorm[receptors[receptors%in%rownames(ambrosiMatNorm)],]+1,2))
+```
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/hormonereceptors-1.png)
+
+Now let's broaden the search to all the paracrine, autocrine etc receptors annotated!
+
+``` r
+descriptions <- getBM(c("mgi_symbol","mgi_description"),filters =c("mgi_symbol"),values=rownames(boneMat) ,mart = mart)
+descriptions[descriptions$mgi_symbol %in% receptors,]
+```
+
+    ##       mgi_symbol                                 mgi_description
+    ## 971       Adgre1          adhesion G protein-coupled receptor E1
+    ## 972       Adgre4          adhesion G protein-coupled receptor E4
+    ## 4065       Crhr1      corticotropin releasing hormone receptor 1
+    ## 4066       Crhr2      corticotropin releasing hormone receptor 2
+    ## 5673        Esr1                     estrogen receptor 1 (alpha)
+    ## 5674        Esr2                      estrogen receptor 2 (beta)
+    ## 5677       Esrra                estrogen related receptor, alpha
+    ## 5678       Esrrb                 estrogen related receptor, beta
+    ## 6452        Fshr           follicle stimulating hormone receptor
+    ## 6762         Ghr                         growth hormone receptor
+    ## 6764       Ghrhr       growth hormone releasing hormone receptor
+    ## 6766        Ghsr            growth hormone secretagogue receptor
+    ## 17471      Gnrhr         gonadotropin releasing hormone receptor
+    ## 17530      Gper1           G protein-coupled estrogen receptor 1
+    ## 19628     Kiss1r                                  KISS1 receptor
+    ## 20094      Lhcgr luteinizing hormone/choriogonadotropin receptor
+    ## 20706       Mc1r                         melanocortin 1 receptor
+    ## 20707       Mc2r                         melanocortin 2 receptor
+    ## 20721      Mchr1        melanin-concentrating hormone receptor 1
+    ## 22180      Nr4a1 nuclear receptor subfamily 4, group A, member 1
+    ## 24499        Pgr                           progesterone receptor
+    ## 25264      Prlhr            prolactin releasing hormone receptor
+    ## 25533      Pth1r                  parathyroid hormone 1 receptor
+    ## 25535      Pth2r                  parathyroid hormone 2 receptor
+    ## 29400       Thra                  thyroid hormone receptor alpha
+    ## 30322       Trhr          thyrotropin releasing hormone receptor
+    ## 30323      Trhr2        thyrotropin releasing hormone receptor 2
+    ## 30496       Tshr            thyroid stimulating hormone receptor
+    ## 32551     Znhit3                         zinc finger, HIT type 3
+
+``` r
+recdesc <- descriptions[grepl("receptor",descriptions$mgi_description),]
+recdesc <- recdesc[!grepl("interactor|non-receptor|interacting|ligand|associated",recdesc$mgi_description),]
+
+#There are lots of receptors expressed in the bone stromal cell populations
+heatmap.2(log(ambrosiMatNorm[recdesc$mgi_symbol[recdesc$mgi_symbol%in%rownames(ambrosiMatNorm)],]+1,2),Rowv=T,Colv = F,trace = "none",col=cols)
+```
+
+    ## Warning in heatmap.2(log(ambrosiMatNorm[recdesc$mgi_symbol[recdesc
+    ## $mgi_symbol %in% : Discrepancy: Colv is FALSE, while dendrogram is `both'.
+    ## Omitting column dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-1.png)
+
+``` r
+hordesc <- descriptions[grepl("hormone",descriptions$mgi_description),]
+
+resCandiceSub <- resCandice[!is.na(resCandice$padj),] 
+resCandiceSub <- resCandiceSub[resCandiceSub$padj<.2,] 
+#DE receptors hard coded above
+print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
+```
+
+    ## [1] "Ghr"   "Pgr"   "Pth1r"
+
+``` r
+#From the list of all receptors
+print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol])
+```
+
+    ##  [1] "Acvr1"    "Adgrg7"   "Bmpr1a"   "Ccr9"     "Csf2ra"   "Cxcr2"   
+    ##  [7] "Epha7"    "Ghr"      "Htr1b"    "Ifnar2"   "Il10rb"   "Il18rap" 
+    ## [13] "Impg2"    "Klra17"   "Klri2"    "Klrk1"    "Lifr"     "Lilr4b"  
+    ## [19] "Lilrb4a"  "Lrp4"     "Nrbf2"    "Ntrk3"    "Olfr164"  "Olfr419" 
+    ## [25] "Pgr"      "Pilrb2"   "Ptger4"   "Pth1r"    "Ptpre"    "Rack1"   
+    ## [31] "Rara"     "Rarres2"  "Rtp4"     "Ryr3"     "Tlr7"     "Tnfrsf22"
+    ## [37] "Vldlr"
+
+``` r
+dereceptors <-  c(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol],rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
+
+heatmap.2(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2),Rowv=T,Colv = F,trace = "none",col=cols, main="Differentially expressed receptors (FDR .2)")
+```
+
+    ## Warning in heatmap.2(log(ambrosiMatNorm[dereceptors[dereceptors %in%
+    ## rownames(ambrosiMatNorm)], : Discrepancy: Colv is FALSE, while dendrogram
+    ## is `both'. Omitting column dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-2.png)
+
+``` r
+heatmap.2(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+1,2),Rowv=T,Colv = F,trace = "none",col=cols,main="Differentially expressed receptors (FDR .2)")
+```
+
+    ## Warning in heatmap.2(log(boneMatNorm[dereceptors[dereceptors %in%
+    ## rownames(boneMatNorm)], : Discrepancy: Colv is FALSE, while dendrogram is
+    ## `both'. Omitting column dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-3.png)
