@@ -956,18 +956,42 @@ barplot((boneMatNorm["Esr1",]),main="Esr1")
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.png)
 
 ``` r
-#Just a sanity Check
-barplot((boneMatNorm["Kiss1",]),main="Kiss1")
+barplot((boneMatNorm["Gper1",]),main="Gper1")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.png)
+
+``` r
+#Just a sanity Check
+barplot(boneMatNorm["Ncoa1",],las=2,main="Ncoa1")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.png)
+
+``` r
+barplot(boneMatNorm["Ncoa2",],las=2,main="Ncoa2")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
+
+``` r
+barplot(boneMatNorm["Ncoa3",],las=2,main="Ncoa3")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
+
+``` r
+barplot((boneMatNorm["Kiss1",]),main="Kiss1")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
 
 ``` r
 #also a sanity check
 std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.png)
 
 ``` r
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
@@ -1139,37 +1163,37 @@ bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|co
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-14.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-15.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-16.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-17.png)
 
 #### Candice DE in the Ambrosi
 
@@ -1208,6 +1232,8 @@ std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalize
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-6.png)
+
+Ncoa1/2/3, the Steroid receptor coactivators are equally expressed across the conditions as well.
 
 Overlap
 -------

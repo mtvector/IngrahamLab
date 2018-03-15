@@ -139,6 +139,7 @@ barplot(ambrosiMatNorm["Esr1",],las=2,main="Esr1")
 barplot(ambrosiMatNorm["Esr2",],las=2,main="Esr2")
 barplot(ambrosiMatNorm["Gper1",],las=2,main="Gper1")
 
+
 ```
 
 ### PCA
@@ -233,7 +234,6 @@ for(i in 1:length(resList)){
   std.heatmap(mat[rownames(res[order(res$padj,decreasing = F),])[1:25],],main=paste(resultsNames(DESeqOutput)[i],"Up vs All\nLogFC vs mean"))
 }
 
-
 for(i in 1:length(resList)){
   print(resultsNames(DESeqOutput)[i])
   res <- resList[[i]]
@@ -306,7 +306,13 @@ plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcan
 
 #ESR1 not differentially expressed
 barplot((boneMatNorm["Esr1",]),main="Esr1")
+barplot((boneMatNorm["Gper1",]),main="Gper1")
+
 #Just a sanity Check
+barplot(boneMatNorm["Ncoa1",],las=2,main="Ncoa1")
+barplot(boneMatNorm["Ncoa2",],las=2,main="Ncoa2")
+barplot(boneMatNorm["Ncoa3",],las=2,main="Ncoa3")
+
 barplot((boneMatNorm["Kiss1",]),main="Kiss1")
 #also a sanity check
 std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
@@ -342,6 +348,8 @@ std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normaliz
 std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 ```
+
+Ncoa1/2/3, the Steroid receptor coactivators are equally expressed across the conditions as well.
 
 ## Overlap
 

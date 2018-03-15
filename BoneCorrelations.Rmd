@@ -28,20 +28,20 @@ library(matrixStats)
 mat <- log(ambrosiMatNorm+1,2)
 sum(rowSds(mat)>1)
 softThresh <- WGCNA::pickSoftThreshold(t(mat[rowSds(mat)>1,]))
-softThresh
-#hardThresh <- pickHardThreshold(t(log(ambrosiMatNorm+1,2)))
-AmbrosiBlocks <- blockwiseModules(t(log(mat[rowSds(mat)>1,]+1,2)),maxBlockSize = 8000,power = 10,deepSplit = 1)
 
+#hardThresh <- pickHardThreshold(t(log(ambrosiMatNorm+1,2)))
+AmbrosiBlocks <- blockwiseModules(t(mat[rowSds(mat)>1,]),maxBlockSize = 7000,power = softThresh$powerEstimate,deepSplit = 1)
+AmbrosiMatLog <- mat
 ```
 
 ```{r WGCNAtheIngrahamSet}
 mat <- log(boneMatNorm+1,2)
-sum(rowSds(mat)>1)
-softThresh <- WGCNA::pickSoftThreshold(t(mat[rowSds(mat)>1,]))
+sum(rowSds(mat)>.6)
+softThresh <- WGCNA::pickSoftThreshold(t(mat[rowSds(mat)>.6,]))
 softThresh
 #hardThresh <- pickHardThreshold(t(log(boneMatNorm+1,2)))
-IngrahamBlocks <- blockwiseModules(t(mat[rowSds(mat)>1,]),maxBlockSize = 8000,power = 8,deepSplit = 1,de)
-
+IngrahamBlocks <- blockwiseModules(t(mat[rowSds(mat)>.6,]),maxBlockSize = 7000,power = softThresh$powerEstimate,deepSplit = 1)
+IngrahamMatLog <- mat
 ```
 
 ```{r Trees}
@@ -56,5 +56,25 @@ lapply(1:length(AmbrosiBlocks$dendrograms),function(i) plotDendroAndColors(Ambro
 
 
 print(str(IngrahamBlocks))
+table(IngrahamBlocks$colors)
+
+```
+
+```{r exploreModules}
+mes <- t(IngrahamBlocks$MEs)
+
+matplot(IngrahamBlocks$MEs[,1:10])
+colMeans(IngrahamBlocks$MEs[1:4,])/colMeans(IngrahamBlocks$MEs[5:8,])
+
+rowMeans(mes[1:5,1:4])/rowMeans(mes[1:5,5:8])
+
+plot(cumsum(mes[8,]))
+plot(mes[8,])
+
+
+ind=sapply(IngrahamBlocks$colors,function(x)which(unique(IngrahamBlocks$colors)==x))==2
+
+std.heatmap(cor(t(IngrahamMatLog[ind,])))
+
 ```
 
