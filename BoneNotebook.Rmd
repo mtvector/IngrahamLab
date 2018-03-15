@@ -309,7 +309,7 @@ ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
 bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen",dfGO[,2])),"geneID"],"/"))
 
-std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(normalized counts+1) from mean")
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
 
@@ -381,7 +381,7 @@ Let's check the expression of a list of hormone receptors I compiled:
 
 ```{r hormonereceptors}
 save.image("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
-load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+#load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
 #I looked through the literature and found what may be all the hormone receptors
 receptors <- c("Esr1","Esr2","Gper1","Esrra","Esrrb","Pgr","Gnrhr","Trhr","Trhr2","Lhcgr","Ghrhr","Ghr","Ghsr","Nr4a1","Fshr","Prlhr","Pth1r","Pth2r","Prlr","Thra","Thrb","Trhr","Tshr","Crhr1","Crhr2","Mc2r", 	"Mchr1","Trhr2","Mc1r","Znhit3","Kiss1r","Ar")
 print(receptors)

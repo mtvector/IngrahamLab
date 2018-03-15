@@ -1,0 +1,51 @@
+
+---
+title: "BoneCorrelations"
+author: "Matthew Schmitz"
+date: "March 15, 2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache=TRUE)
+```
+
+
+So to get at the question of what is changing, perhaps we can use the variability of the FACS efficiency in the Ambrosi data, and the inter-individual animal variation to our advantage. I'll try to do this by looking for genes which covary across the samples, expecting to find sets related to cell type which are higher in their different sorted populations.
+
+Load all the processed data from BoneNotebook.Rmd's cache
+
+```{r LoadAll}
+load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+
+```
+
+Apply WGCNA:
+
+```{r WGCNAThatAmbrosi}
+library(WGCNA)
+
+#softThresh <- WGCNA::pickSoftThreshold(t(log(ambrosiMatNorm+1,2)))
+#hardThresh <- pickHardThreshold(t(log(ambrosiMatNorm+1,2)))
+#AmbrosiBlocks <- blockwiseModules(t(log(ambrosiMatNorm+1,2)),maxBlockSize = 2000,power = 10)
+
+```
+
+```{r WGCNAtheIngrahamSet}
+
+#softThresh <- WGCNA::pickSoftThreshold(t(log(boneMatNorm+1,2)))
+#hardThresh <- pickHardThreshold(t(log(boneMatNorm+1,2)))
+#IngrahamBlocks <- blockwiseModules(t(log(boneMatNorm[rowSds(boneMatNorm)>.5,]+1,2)),maxBlockSize = 2000,power = 8)
+
+```
+
+```{r Trees}
+#save.image(file = "~/code/IngrahamLab/BoneCorrelations_cache/wgcnas.RData")
+load(file = "~/code/IngrahamLab/BoneCorrelations_cache/wgcnas.RData")
+
+par(mfrow=c(2,2))
+lapply(1:length(IngrahamBlocks$dendrograms),function(i) plotDendroAndColors(IngrahamBlocks$dendrograms[[i]],colors=IngrahamBlocks$colors[IngrahamBlocks$blockGenes[[i]]]))
+
+print(str(IngrahamBlocks))
+```
+
