@@ -24,27 +24,36 @@ Apply WGCNA:
 
 ```{r WGCNAThatAmbrosi}
 library(WGCNA)
-
-#softThresh <- WGCNA::pickSoftThreshold(t(log(ambrosiMatNorm+1,2)))
+library(matrixStats)
+mat <- log(ambrosiMatNorm+1,2)
+sum(rowSds(mat)>1)
+softThresh <- WGCNA::pickSoftThreshold(t(mat[rowSds(mat)>1,]))
+softThresh
 #hardThresh <- pickHardThreshold(t(log(ambrosiMatNorm+1,2)))
-#AmbrosiBlocks <- blockwiseModules(t(log(ambrosiMatNorm+1,2)),maxBlockSize = 2000,power = 10)
+AmbrosiBlocks <- blockwiseModules(t(log(mat[rowSds(mat)>1,]+1,2)),maxBlockSize = 8000,power = 10,deepSplit = 1)
 
 ```
 
 ```{r WGCNAtheIngrahamSet}
-
-#softThresh <- WGCNA::pickSoftThreshold(t(log(boneMatNorm+1,2)))
+mat <- log(boneMatNorm+1,2)
+sum(rowSds(mat)>1)
+softThresh <- WGCNA::pickSoftThreshold(t(mat[rowSds(mat)>1,]))
+softThresh
 #hardThresh <- pickHardThreshold(t(log(boneMatNorm+1,2)))
-#IngrahamBlocks <- blockwiseModules(t(log(boneMatNorm[rowSds(boneMatNorm)>.5,]+1,2)),maxBlockSize = 2000,power = 8)
+IngrahamBlocks <- blockwiseModules(t(mat[rowSds(mat)>1,]),maxBlockSize = 8000,power = 8,deepSplit = 1,de)
 
 ```
 
 ```{r Trees}
-#save.image(file = "~/code/IngrahamLab/BoneCorrelations_cache/wgcnas.RData")
-load(file = "~/code/IngrahamLab/BoneCorrelations_cache/wgcnas.RData")
+save.image(file = "~/code/IngrahamLab/BoneCorrelations_cache/wgcnas.RData")
+#load(file = "~/code/IngrahamLab/BoneCorrelations_cache/wgcnas.RData")
 
 par(mfrow=c(2,2))
 lapply(1:length(IngrahamBlocks$dendrograms),function(i) plotDendroAndColors(IngrahamBlocks$dendrograms[[i]],colors=IngrahamBlocks$colors[IngrahamBlocks$blockGenes[[i]]]))
+
+par(mfrow=c(2,2))
+lapply(1:length(AmbrosiBlocks$dendrograms),function(i) plotDendroAndColors(AmbrosiBlocks$dendrograms[[i]],colors=AmbrosiBlocks$colors[AmbrosiBlocks$blockGenes[[i]]]))
+
 
 print(str(IngrahamBlocks))
 ```

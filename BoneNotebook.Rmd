@@ -229,6 +229,16 @@ for(i in 1:length(resList)){
   res <- resList[[i]]
   res <- res[!is.na(res$padj),]
   res <- res[res$padj<.1&res$log2FoldChange>0,]
+  mat <- log(ambrosiMatNorm+1,2)-rowMeans(log(ambrosiMatNorm+1,2))
+  std.heatmap(mat[rownames(res[order(res$padj,decreasing = F),])[1:25],],main=paste(resultsNames(DESeqOutput)[i],"Up vs All\nLogFC vs mean"))
+}
+
+
+for(i in 1:length(resList)){
+  print(resultsNames(DESeqOutput)[i])
+  res <- resList[[i]]
+  res <- res[!is.na(res$padj),]
+  res <- res[res$padj<.1&res$log2FoldChange>0,]
   std.heatmap(log(ambrosiMatNorm[rownames(res[order(res$padj,decreasing = F),])[1:25],]+1,2),main=paste(resultsNames(DESeqOutput)[i],"Up vs All"))
 }
 
