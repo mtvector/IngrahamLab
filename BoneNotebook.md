@@ -917,20 +917,32 @@ res <- resCandice[!is.na(resCandice$padj),]
 res <- res[res$log2FoldChange<0,]
 
 
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(normalized counts + 1)")
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(NormalizedCounts+1)")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.png)
+
+``` r
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.png)
 
 ``` r
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 boneUpDown <- list(rownames(res[res$padj<.1&res$log2FoldChange>0,]),rownames(res[res$padj<.1&res$log2FoldChange<0,]))
 res <- res[res$log2FoldChange>0,]
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.png)
+
+``` r
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.png)
 
 ``` r
 res <-  results(DESeqOutput)
@@ -940,58 +952,58 @@ res <- res[!is.na(res$padj),]
 hist(res$log2FoldChange,main = "Log2 Fold Changes Detected")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.png)
 
 ``` r
 plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcano Plot")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.png)
 
 ``` r
 #ESR1 not differentially expressed
 barplot((boneMatNorm["Esr1",]),main="Esr1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.png)
 
 ``` r
 barplot((boneMatNorm["Gper1",]),main="Gper1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
 
 ``` r
 #Just a sanity Check
 barplot(boneMatNorm["Ncoa1",],las=2,main="Ncoa1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
 
 ``` r
 barplot(boneMatNorm["Ncoa2",],las=2,main="Ncoa2")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
 
 ``` r
 barplot(boneMatNorm["Ncoa3",],las=2,main="Ncoa3")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.png)
 
 ``` r
 barplot((boneMatNorm["Kiss1",]),main="Kiss1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.png)
 
 ``` r
 #also a sanity check
 std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
 
 ``` r
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
@@ -1156,44 +1168,43 @@ print(dfGO[1:30,])
     ## GO:0043900    12
 
 ``` r
-ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon",dfGO[,2])),"geneID"],"/"))
+ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon|immune",dfGO[,2])),"geneID"],"/"))
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
-bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen",dfGO[,2])),"geneID"],"/"))
-
+bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen|muscle",dfGO[,2])),"geneID"],"/"))
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
-```
-
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.png)
-
-``` r
-std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
-```
-
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
-
-``` r
-std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-14.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-15.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-16.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-17.png)
+
+``` r
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-18.png)
+
+``` r
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-19.png)
 
 #### Candice DE in the Ambrosi
 
@@ -1551,6 +1562,8 @@ print(descriptions[dereceptors,])
 ``` r
 eacivector <- resCandiceSub$log2FoldChange
 names(eacivector) <- rownames(resCandiceSub)
+
+
 boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 ```
 
@@ -1560,16 +1573,16 @@ boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  0.14 sec 
-    ## iteration 2 done; time  0.12 sec 
-    ## iteration 3 done; time  0.11 sec 
-    ## iteration 4 done; time  0.13 sec 
-    ## iteration 5 done; time  0.23 sec 
-    ## iteration 6 done; time  0.13 sec 
+    ## iteration 1 done; time  0.13 sec 
+    ## iteration 2 done; time  0.11 sec 
+    ## iteration 3 done; time  0.12 sec 
+    ## iteration 4 done; time  0.12 sec 
+    ## iteration 5 done; time  0.22 sec 
+    ## iteration 6 done; time  0.12 sec 
     ## iteration 7 done; time  0.13 sec 
     ## iteration 8 done; time  0.22 sec 
     ## iteration 9 done; time  0.14 sec 
-    ## iteration 10 done; time  0.16 sec
+    ## iteration 10 done; time  0.13 sec
 
     ## Labeling output ...
 
