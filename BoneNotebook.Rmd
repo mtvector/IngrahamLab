@@ -309,6 +309,11 @@ ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
 bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen",dfGO[,2])),"geneID"],"/"))
 
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(normalized counts+1) from mean")
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
+
+
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
@@ -318,6 +323,11 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized c
 #### Candice DE in the Ambrosi
 
 ```{r checkInAmbrosi, warning=F}
+std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
+
+
 std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
 std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
@@ -345,7 +355,7 @@ print(overlaps[[2]])
 
 ```
 
-Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteoclasts and down in the preadipocytes. Which genes are they?
+Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteocytes and down in the preadipocytes. Which genes are they?
 
 ```{r OverlapDENames}
 
@@ -370,10 +380,10 @@ Nothing jumps out at me...
 Let's check the expression of a list of hormone receptors I compiled:
 
 ```{r hormonereceptors}
-#save.image("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
-#load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+save.image("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
 #I looked through the literature and found what may be all the hormone receptors
-receptors <- c("Esr1","Esr2","Gper1","Esrra","Esrrb","Pgr","Gnrhr","Trhr","Trhr2","Lhcgr","Ghrhr","Ghr","Ghsr","Nr4a1","Fshr","Prlhr","Prlhr","Pth1r","Pth2r","Thra","Thrb","Trhr","Tshr","Crhr1","Crhr2","Mc2r", 	"Mchr1","Trhr2","Mc1r","Znhit3","Adgre1","Adgre4","Kiss1r")
+receptors <- c("Esr1","Esr2","Gper1","Esrra","Esrrb","Pgr","Gnrhr","Trhr","Trhr2","Lhcgr","Ghrhr","Ghr","Ghsr","Nr4a1","Fshr","Prlhr","Pth1r","Pth2r","Prlr","Thra","Thrb","Trhr","Tshr","Crhr1","Crhr2","Mc2r", 	"Mchr1","Trhr2","Mc1r","Znhit3","Kiss1r","Ar")
 print(receptors)
 std.heatmap(log(ambrosiMatNorm[receptors[receptors%in%rownames(ambrosiMatNorm)],]+1,2))
 
@@ -383,7 +393,9 @@ Now let's broaden the search to all the paracrine, autocrine etc receptors annot
 
 ```{r moreReceptors}
 descriptions <- getBM(c("mgi_symbol","mgi_description"),filters =c("mgi_symbol"),values=rownames(boneMat) ,mart = mart)
+rownames(descriptions) <- descriptions$mgi_symbol
 descriptions[descriptions$mgi_symbol %in% receptors,]
+
 recdesc <- descriptions[grepl("receptor",descriptions$mgi_description),]
 recdesc <- recdesc[!grepl("interactor|non-receptor|interacting|ligand|associated",recdesc$mgi_description),]
 
@@ -393,16 +405,27 @@ heatmap.2(log(ambrosiMatNorm[recdesc$mgi_symbol[recdesc$mgi_symbol%in%rownames(a
 hordesc <- descriptions[grepl("hormone",descriptions$mgi_description),]
 
 resCandiceSub <- resCandice[!is.na(resCandice$padj),] 
-resCandiceSub <- resCandiceSub[resCandiceSub$padj<.2,] 
+resCandiceSub <- resCandiceSub[resCandiceSub$padj<.15,] 
+resCandiceSub <-  resCandiceSub[order(resCandiceSub$log2FoldChange,decreasing = T),]
+
 #DE receptors hard coded above
 print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
 #From the list of all receptors
 print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol])
 
 dereceptors <-  c(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol],rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
+#reverse order
+dereceptors <- rownames(resCandiceSub)[rownames(resCandiceSub)%in%dereceptors]
 
-heatmap.2(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2),Rowv=T,Colv = F,trace = "none",col=cols, main="Differentially expressed receptors\n Bone marrow (FDR .2)")
+std.heatmap(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+1,2)-rowMeans(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+1,2)),main="Differentially expressed receptors\n Bone marrow (FDR .15)\nlog2FC from mean")
 
-heatmap.2(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+1,2),Rowv=T,Colv = F,trace = "none",col=cols,main="Differentially expressed receptors\n Bone marrow (FDR .2)")
+std.heatmap(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)),main="Differentially expressed receptors\n Ambrosi  (FDR .15)\nlog2FC from mean")
 
+print(descriptions[dereceptors,])
+
+eacivector <- resCandiceSub$log2FoldChange
+names(eacivector) <- rownames(resCandiceSub)
+boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
+print(boneEACI$setscores[1:30,])
+print("done")
 ```

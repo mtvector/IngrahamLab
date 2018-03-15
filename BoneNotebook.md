@@ -1079,42 +1079,78 @@ ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
 bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen",dfGO[,2])),"geneID"],"/"))
 
-std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(normalized counts+1) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
 
+``` r
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.png)
+
+``` r
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.png)
+
+``` r
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
+
 #### Candice DE in the Ambrosi
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-1.png)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-2.png)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-3.png)
+
+``` r
+std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-4.png)
+
+``` r
+std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-5.png)
+
+``` r
+std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+```
+
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-6.png)
 
 Overlap
 -------
@@ -1148,7 +1184,7 @@ print(overlaps[[2]])
     ## up       2    10     2    6
     ## down     3     3     3    2
 
-Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteoclasts and down in the preadipocytes. Which genes are they?
+Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteocytes and down in the preadipocytes. Which genes are they?
 
 ``` r
 overlaps <- lapply(1:2,function(u){
@@ -1240,17 +1276,17 @@ Let's check the expression of a list of hormone receptors I compiled:
 
 ``` r
 save.image("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
-#load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
 #I looked through the literature and found what may be all the hormone receptors
-receptors <- c("Esr1","Esr2","Gper1","Esrra","Esrrb","Pgr","Gnrhr","Trhr","Trhr2","Lhcgr","Ghrhr","Ghr","Ghsr","Nr4a1","Fshr","Prlhr","Prlhr","Pth1r","Pth2r","Thra","Thrb","Trhr","Tshr","Crhr1","Crhr2","Mc2r",   "Mchr1","Trhr2","Mc1r","Znhit3","Adgre1","Adgre4","Kiss1r")
+receptors <- c("Esr1","Esr2","Gper1","Esrra","Esrrb","Pgr","Gnrhr","Trhr","Trhr2","Lhcgr","Ghrhr","Ghr","Ghsr","Nr4a1","Fshr","Prlhr","Pth1r","Pth2r","Prlr","Thra","Thrb","Trhr","Tshr","Crhr1","Crhr2","Mc2r",    "Mchr1","Trhr2","Mc1r","Znhit3","Kiss1r","Ar")
 print(receptors)
 ```
 
     ##  [1] "Esr1"   "Esr2"   "Gper1"  "Esrra"  "Esrrb"  "Pgr"    "Gnrhr" 
     ##  [8] "Trhr"   "Trhr2"  "Lhcgr"  "Ghrhr"  "Ghr"    "Ghsr"   "Nr4a1" 
-    ## [15] "Fshr"   "Prlhr"  "Prlhr"  "Pth1r"  "Pth2r"  "Thra"   "Thrb"  
+    ## [15] "Fshr"   "Prlhr"  "Pth1r"  "Pth2r"  "Prlr"   "Thra"   "Thrb"  
     ## [22] "Trhr"   "Tshr"   "Crhr1"  "Crhr2"  "Mc2r"   "Mchr1"  "Trhr2" 
-    ## [29] "Mc1r"   "Znhit3" "Adgre1" "Adgre4" "Kiss1r"
+    ## [29] "Mc1r"   "Znhit3" "Kiss1r" "Ar"
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[receptors[receptors%in%rownames(ambrosiMatNorm)],]+1,2))
@@ -1270,39 +1306,40 @@ Now let's broaden the search to all the paracrine, autocrine etc receptors annot
 
 ``` r
 descriptions <- getBM(c("mgi_symbol","mgi_description"),filters =c("mgi_symbol"),values=rownames(boneMat) ,mart = mart)
+rownames(descriptions) <- descriptions$mgi_symbol
 descriptions[descriptions$mgi_symbol %in% receptors,]
 ```
 
-    ##       mgi_symbol                                 mgi_description
-    ## 971       Adgre1          adhesion G protein-coupled receptor E1
-    ## 972       Adgre4          adhesion G protein-coupled receptor E4
-    ## 4065       Crhr1      corticotropin releasing hormone receptor 1
-    ## 4066       Crhr2      corticotropin releasing hormone receptor 2
-    ## 5673        Esr1                     estrogen receptor 1 (alpha)
-    ## 5674        Esr2                      estrogen receptor 2 (beta)
-    ## 5677       Esrra                estrogen related receptor, alpha
-    ## 5678       Esrrb                 estrogen related receptor, beta
-    ## 6452        Fshr           follicle stimulating hormone receptor
-    ## 6762         Ghr                         growth hormone receptor
-    ## 6764       Ghrhr       growth hormone releasing hormone receptor
-    ## 6766        Ghsr            growth hormone secretagogue receptor
-    ## 17471      Gnrhr         gonadotropin releasing hormone receptor
-    ## 17530      Gper1           G protein-coupled estrogen receptor 1
-    ## 19628     Kiss1r                                  KISS1 receptor
-    ## 20094      Lhcgr luteinizing hormone/choriogonadotropin receptor
-    ## 20706       Mc1r                         melanocortin 1 receptor
-    ## 20707       Mc2r                         melanocortin 2 receptor
-    ## 20721      Mchr1        melanin-concentrating hormone receptor 1
-    ## 22180      Nr4a1 nuclear receptor subfamily 4, group A, member 1
-    ## 24499        Pgr                           progesterone receptor
-    ## 25264      Prlhr            prolactin releasing hormone receptor
-    ## 25533      Pth1r                  parathyroid hormone 1 receptor
-    ## 25535      Pth2r                  parathyroid hormone 2 receptor
-    ## 29400       Thra                  thyroid hormone receptor alpha
-    ## 30322       Trhr          thyrotropin releasing hormone receptor
-    ## 30323      Trhr2        thyrotropin releasing hormone receptor 2
-    ## 30496       Tshr            thyroid stimulating hormone receptor
-    ## 32551     Znhit3                         zinc finger, HIT type 3
+    ##        mgi_symbol                                 mgi_description
+    ## Ar             Ar                               androgen receptor
+    ## Crhr1       Crhr1      corticotropin releasing hormone receptor 1
+    ## Crhr2       Crhr2      corticotropin releasing hormone receptor 2
+    ## Esr1         Esr1                     estrogen receptor 1 (alpha)
+    ## Esr2         Esr2                      estrogen receptor 2 (beta)
+    ## Esrra       Esrra                estrogen related receptor, alpha
+    ## Esrrb       Esrrb                 estrogen related receptor, beta
+    ## Fshr         Fshr           follicle stimulating hormone receptor
+    ## Ghr           Ghr                         growth hormone receptor
+    ## Ghrhr       Ghrhr       growth hormone releasing hormone receptor
+    ## Ghsr         Ghsr            growth hormone secretagogue receptor
+    ## Gnrhr       Gnrhr         gonadotropin releasing hormone receptor
+    ## Gper1       Gper1           G protein-coupled estrogen receptor 1
+    ## Kiss1r     Kiss1r                                  KISS1 receptor
+    ## Lhcgr       Lhcgr luteinizing hormone/choriogonadotropin receptor
+    ## Mc1r         Mc1r                         melanocortin 1 receptor
+    ## Mc2r         Mc2r                         melanocortin 2 receptor
+    ## Mchr1       Mchr1        melanin-concentrating hormone receptor 1
+    ## Nr4a1       Nr4a1 nuclear receptor subfamily 4, group A, member 1
+    ## Pgr           Pgr                           progesterone receptor
+    ## Prlhr       Prlhr            prolactin releasing hormone receptor
+    ## Prlr         Prlr                              prolactin receptor
+    ## Pth1r       Pth1r                  parathyroid hormone 1 receptor
+    ## Pth2r       Pth2r                  parathyroid hormone 2 receptor
+    ## Thra         Thra                  thyroid hormone receptor alpha
+    ## Trhr         Trhr          thyrotropin releasing hormone receptor
+    ## Trhr2       Trhr2        thyrotropin releasing hormone receptor 2
+    ## Tshr         Tshr            thyroid stimulating hormone receptor
+    ## Znhit3     Znhit3                         zinc finger, HIT type 3
 
 ``` r
 recdesc <- descriptions[grepl("receptor",descriptions$mgi_description),]
@@ -1322,44 +1359,208 @@ heatmap.2(log(ambrosiMatNorm[recdesc$mgi_symbol[recdesc$mgi_symbol%in%rownames(a
 hordesc <- descriptions[grepl("hormone",descriptions$mgi_description),]
 
 resCandiceSub <- resCandice[!is.na(resCandice$padj),] 
-resCandiceSub <- resCandiceSub[resCandiceSub$padj<.2,] 
+resCandiceSub <- resCandiceSub[resCandiceSub$padj<.15,] 
+resCandiceSub <-  resCandiceSub[order(resCandiceSub$log2FoldChange,decreasing = T),]
+
 #DE receptors hard coded above
 print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
 ```
 
-    ## [1] "Ghr"   "Pgr"   "Pth1r"
+    ## [1] "Pgr" "Ghr"
 
 ``` r
 #From the list of all receptors
 print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol])
 ```
 
-    ##  [1] "Acvr1"    "Adgrg7"   "Bmpr1a"   "Ccr9"     "Csf2ra"   "Cxcr2"   
-    ##  [7] "Epha7"    "Ghr"      "Htr1b"    "Ifnar2"   "Il10rb"   "Il18rap" 
-    ## [13] "Impg2"    "Klra17"   "Klri2"    "Klrk1"    "Lifr"     "Lilr4b"  
-    ## [19] "Lilrb4a"  "Lrp4"     "Nrbf2"    "Ntrk3"    "Olfr164"  "Olfr419" 
-    ## [25] "Pgr"      "Pilrb2"   "Ptger4"   "Pth1r"    "Ptpre"    "Rack1"   
-    ## [31] "Rara"     "Rarres2"  "Rtp4"     "Ryr3"     "Tlr7"     "Tnfrsf22"
-    ## [37] "Vldlr"
+    ##  [1] "Pgr"      "Ryr3"     "Ghr"      "Csf2ra"   "Vldlr"    "Epha7"   
+    ##  [7] "Bmpr1a"   "Olfr419"  "Acvr1"    "Ccr9"     "Lilr4b"   "Lilrb4a" 
+    ## [13] "Rtp4"     "Klri2"    "Ptpre"    "Adgrg7"   "Lifr"     "Ptger4"  
+    ## [19] "Tlr7"     "Il18rap"  "Ifnar2"   "Tnfrsf22" "Rack1"    "Rarres2"
 
 ``` r
 dereceptors <-  c(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol],rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
+#reverse order
+dereceptors <- rownames(resCandiceSub)[rownames(resCandiceSub)%in%dereceptors]
 
-heatmap.2(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2),Rowv=T,Colv = F,trace = "none",col=cols, main="Differentially expressed receptors (FDR .2)")
+std.heatmap(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+1,2)-rowMeans(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+1,2)),main="Differentially expressed receptors\n Bone marrow (FDR .15)\nlog2FC from mean")
 ```
 
-    ## Warning in heatmap.2(log(ambrosiMatNorm[dereceptors[dereceptors %in%
-    ## rownames(ambrosiMatNorm)], : Discrepancy: Colv is FALSE, while dendrogram
-    ## is `both'. Omitting column dendogram.
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
 
 ![](BoneNotebook_files/figure-markdown_github/moreReceptors-2.png)
 
 ``` r
-heatmap.2(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+1,2),Rowv=T,Colv = F,trace = "none",col=cols,main="Differentially expressed receptors (FDR .2)")
+std.heatmap(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)),main="Differentially expressed receptors\n Ambrosi  (FDR .15)\nlog2FC from mean")
 ```
 
-    ## Warning in heatmap.2(log(boneMatNorm[dereceptors[dereceptors %in%
-    ## rownames(boneMatNorm)], : Discrepancy: Colv is FALSE, while dendrogram is
-    ## `both'. Omitting column dendogram.
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
 
 ![](BoneNotebook_files/figure-markdown_github/moreReceptors-3.png)
+
+``` r
+print(descriptions[dereceptors,])
+```
+
+    ##          mgi_symbol
+    ## Pgr             Pgr
+    ## Ryr3           Ryr3
+    ## Ghr             Ghr
+    ## Csf2ra       Csf2ra
+    ## Vldlr         Vldlr
+    ## Epha7         Epha7
+    ## Bmpr1a       Bmpr1a
+    ## Olfr419     Olfr419
+    ## Acvr1         Acvr1
+    ## Ccr9           Ccr9
+    ## Lilr4b       Lilr4b
+    ## Lilrb4a     Lilrb4a
+    ## Rtp4           Rtp4
+    ## Klri2         Klri2
+    ## Ptpre         Ptpre
+    ## Adgrg7       Adgrg7
+    ## Lifr           Lifr
+    ## Ptger4       Ptger4
+    ## Tlr7           Tlr7
+    ## Il18rap     Il18rap
+    ## Ifnar2       Ifnar2
+    ## Tnfrsf22   Tnfrsf22
+    ## Rack1         Rack1
+    ## Rarres2     Rarres2
+    ##                                                                             mgi_description
+    ## Pgr                                                                   progesterone receptor
+    ## Ryr3                                                                   ryanodine receptor 3
+    ## Ghr                                                                 growth hormone receptor
+    ## Csf2ra   colony stimulating factor 2 receptor, alpha, low-affinity (granulocyte-macrophage)
+    ## Vldlr                                                 very low density lipoprotein receptor
+    ## Epha7                                                                       Eph receptor A7
+    ## Bmpr1a                                         bone morphogenetic protein receptor, type 1A
+    ## Olfr419                                                              olfactory receptor 419
+    ## Acvr1                                                            activin A receptor, type 1
+    ## Ccr9                                                       chemokine (C-C motif) receptor 9
+    ## Lilr4b                       leukocyte immunoglobulin-like receptor, subfamily B, member 4B
+    ## Lilrb4a                      leukocyte immunoglobulin-like receptor, subfamily B, member 4A
+    ## Rtp4                                                         receptor transporter protein 4
+    ## Klri2                                    killer cell lectin-like receptor family I member 2
+    ## Ptpre                                        protein tyrosine phosphatase, receptor type, E
+    ## Adgrg7                                               adhesion G protein-coupled receptor G7
+    ## Lifr                                                    leukemia inhibitory factor receptor
+    ## Ptger4                                             prostaglandin E receptor 4 (subtype EP4)
+    ## Tlr7                                                                   toll-like receptor 7
+    ## Il18rap                                           interleukin 18 receptor accessory protein
+    ## Ifnar2                                               interferon (alpha and beta) receptor 2
+    ## Tnfrsf22                              tumor necrosis factor receptor superfamily, member 22
+    ## Rack1                                                     receptor for activated C kinase 1
+    ## Rarres2                             retinoic acid receptor responder (tazarotene induced) 2
+
+``` r
+eacivector <- resCandiceSub$log2FoldChange
+names(eacivector) <- rownames(resCandiceSub)
+boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
+```
+
+    ## Loading necessary libraries...
+
+    ## Loaded Package org.Mm.eg.db
+
+    ## Converting annotations to data.frames ...
+
+    ## iteration 1 done; time  0.14 sec 
+    ## iteration 2 done; time  0.12 sec 
+    ## iteration 3 done; time  0.11 sec 
+    ## iteration 4 done; time  0.13 sec 
+    ## iteration 5 done; time  0.23 sec 
+    ## iteration 6 done; time  0.13 sec 
+    ## iteration 7 done; time  0.13 sec 
+    ## iteration 8 done; time  0.22 sec 
+    ## iteration 9 done; time  0.14 sec 
+    ## iteration 10 done; time  0.16 sec
+
+    ## Labeling output ...
+
+    ## Loaded Package GO.db
+
+``` r
+print(boneEACI$setscores[1:30,])
+```
+
+    ##                                                                                      Term
+    ## GO:0098589                                                                membrane region
+    ## GO:0030016                                                                      myofibril
+    ## GO:0003725                                                    double-stranded RNA binding
+    ## GO:0008289                                                                  lipid binding
+    ## GO:0006310                                                              DNA recombination
+    ## GO:0005581                                                                collagen trimer
+    ## GO:0042578                                            phosphoric ester hydrolase activity
+    ## GO:0007600                                                             sensory perception
+    ## GO:0004857                                                      enzyme inhibitor activity
+    ## GO:0005509                                                            calcium ion binding
+    ## GO:0098803                                                      respiratory chain complex
+    ## GO:0007517                                                       muscle organ development
+    ## GO:0006959                                                        humoral immune response
+    ## GO:0000981 RNA polymerase II transcription factor activity, sequence-specific DNA binding
+    ## GO:0034341                                                   response to interferon-gamma
+    ## GO:0071346                                          cellular response to interferon-gamma
+    ## GO:0048285                                                              organelle fission
+    ## GO:0070011                            peptidase activity, acting on L-amino acid peptides
+    ## GO:0070925                                                             organelle assembly
+    ## GO:0005911                                                             cell-cell junction
+    ## GO:0042113                                                              B cell activation
+    ## GO:0004896                                                     cytokine receptor activity
+    ## GO:0051346                                      negative regulation of hydrolase activity
+    ## GO:0005768                                                                       endosome
+    ## GO:0061695                 transferase complex, transferring phosphorus-containing groups
+    ## GO:0005125                                                              cytokine activity
+    ## GO:0006364                                                                rRNA processing
+    ## GO:0016072                                                         rRNA metabolic process
+    ## GO:0061024                                                          membrane organization
+    ## GO:0110053                                      regulation of actin filament organization
+    ##            Ontology   set.mean    set.sd set.size         pval
+    ## GO:0098589       CC  1.1417777 0.6345951        9 0.000000e+00
+    ## GO:0030016       CC  0.8808677 0.5985175        8 2.220446e-16
+    ## GO:0003725       MF  0.8443588 0.5347318       10 4.218847e-15
+    ## GO:0008289       MF  0.8164468 0.7047133       10 3.241851e-14
+    ## GO:0006310       BP -0.7976905 1.1273195        8 1.004607e-13
+    ## GO:0005581       CC  0.7738845 0.5514743        6 6.390444e-13
+    ## GO:0042578       MF  0.7132789 0.9057416        8 3.411404e-11
+    ## GO:0007600       BP  0.7037376 0.3964610        9 6.202017e-11
+    ## GO:0004857       MF  0.7026524 1.3360505       10 6.635048e-11
+    ## GO:0005509       MF  0.6819946 1.7011065       12 2.352751e-10
+    ## GO:0098803       CC -0.6071392 0.3043756        8 1.460309e-08
+    ## GO:0007517       BP -0.5832722 0.5646709       10 5.211220e-08
+    ## GO:0006959       BP -0.5603598 0.2857874       10 1.689403e-07
+    ## GO:0000981       MF  0.5414719 0.2841491       13 4.956026e-07
+    ## GO:0034341       BP  0.5195084 0.4763865        9 1.410495e-06
+    ## GO:0071346       BP  0.5195084 0.4763865        9 1.410495e-06
+    ## GO:0048285       BP  0.4970212 0.8359452       11 3.947094e-06
+    ## GO:0070011       MF  0.4848701 1.7677915        7 6.762967e-06
+    ## GO:0070925       BP -0.4603655 0.8047180       11 1.710891e-05
+    ## GO:0005911       CC -0.4544254 1.6709171        9 2.192600e-05
+    ## GO:0042113       BP -0.4450806 0.6814534       10 3.220131e-05
+    ## GO:0004896       MF  0.3772351 0.3099029        6 4.672216e-04
+    ## GO:0051346       BP  0.3747251 0.4962448       11 5.098874e-04
+    ## GO:0005768       CC  0.3383463 1.1939109       10 1.708014e-03
+    ## GO:0061695       CC -0.2841826 0.2426887        9 7.831061e-03
+    ## GO:0005125       MF  0.2777417 0.2610850        6 1.009547e-02
+    ## GO:0006364       BP -0.2703104 0.3200235       13 1.140266e-02
+    ## GO:0016072       BP -0.2703104 0.3200235       13 1.140266e-02
+    ## GO:0061024       BP -0.2661001 0.2170975       15 1.274162e-02
+    ## GO:0110053       BP  0.2659554 0.2418588       10 1.378548e-02
+
+``` r
+print("done")
+```
+
+    ## [1] "done"
