@@ -66,6 +66,35 @@ rn.merge <- function(x,y,fill=0,simple.intersect=F){
   out <- rbind(out,rbind(zx,zy))
   return(out)}
 }
+
+cor.compare <- function(x,y,min=0, varX=NULL ,interest.set =NULL, ...){
+  d <- rn.compare(x,y)
+  x <- d[[1]]
+  y <- d[[2]]
+  i = intersect(rownames(x), rownames(y))
+  i = i[rowMaxs(x[i,],na.rm = T)>=min | rowMaxs(y[i,],na.rm = )>=min]
+  if(!is.null(interest.set)){
+    i = interest.set[interest.set%in%i]
+  }
+  if(!is.null(varX)){
+    i = i[order(rowMeans(cbind(rowSds(x[i,]), rowSds(y[i,]))),decreasing = T)]
+    i = i[1:ifelse(varX>length(i),length(i),varX)]
+  }
+  print("Num Genes:")
+  print(length(i))
+  return(cor(as.matrix(x[i,]),as.matrix(y[i,]), ...))
+}
+
+rn.compare <- function(x,y,fill=0){
+  rn <- as.character(intersect(rownames(x),rownames(y)))
+  zerosx <- setdiff(rownames(x),rownames(y))
+  zerosy <- setdiff(rownames(y),rownames(x))
+  zx <- matrix(fill, nrow=length(zerosx), ncol =ncol(y), dimnames = list(zerosx,NULL))
+  zy <- matrix(fill, nrow=length(zerosy), ncol =ncol(x), dimnames = list(zerosy,NULL))
+  nx <- rbind(x,zy)
+  ny <- rbind(y,zx)
+  return(list(nx[rownames(ny),,drop=F],ny[rownames(nx),,drop=F]))
+}
 ```
 
 ``` r
@@ -1573,16 +1602,16 @@ boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  0.13 sec 
-    ## iteration 2 done; time  0.11 sec 
-    ## iteration 3 done; time  0.12 sec 
-    ## iteration 4 done; time  0.12 sec 
-    ## iteration 5 done; time  0.22 sec 
-    ## iteration 6 done; time  0.12 sec 
-    ## iteration 7 done; time  0.13 sec 
-    ## iteration 8 done; time  0.22 sec 
-    ## iteration 9 done; time  0.14 sec 
-    ## iteration 10 done; time  0.13 sec
+    ## iteration 1 done; time  0.12 sec 
+    ## iteration 2 done; time  0.12 sec 
+    ## iteration 3 done; time  0.13 sec 
+    ## iteration 4 done; time  0.13 sec 
+    ## iteration 5 done; time  0.13 sec 
+    ## iteration 6 done; time  0.16 sec 
+    ## iteration 7 done; time  0.12 sec 
+    ## iteration 8 done; time  0.13 sec 
+    ## iteration 9 done; time  0.12 sec 
+    ## iteration 10 done; time  0.15 sec
 
     ## Labeling output ...
 
@@ -1660,3 +1689,41 @@ print("done")
 ```
 
     ## [1] "done"
+
+``` r
+std.heatmap(cor.compare(boneMatNorm,ambrosiMatNorm,method="spearman"))
+```
+
+    ## [1] "Num Genes:"
+    ## [1] 32611
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-4.png)
+
+``` r
+IngrahamMatLog <- log(boneMatNorm+1,2)
+AmbrosiMatLog <- log(ambrosiMatNorm+1,2)
+
+informativeList <- unlist(union(unlist(ambrosiUpDown),unlist(boneUpDown)))
+std.heatmap(cor.compare(AmbrosiMatLog-rowMeans(AmbrosiMatLog),IngrahamMatLog-rowMeans(IngrahamMatLog),interest.set = informativeList,method="spearman"))
+```
+
+    ## [1] "Num Genes:"
+    ## [1] 3847
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-5.png)
