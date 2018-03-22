@@ -118,8 +118,9 @@ allRownames <- Reduce(union,lapply(dsList,rownames))
 
 #Use Biomart to get the 
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol","description"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!=""& !grepl("predicted gene", rnSymbol$description),]
 
 #Load the table from ENA with the names of each sample
 sampleMat <- read.table(file = "~/code/data/GEOData/seq/AmbrosiBone/PRJEB12408.txt",sep="\t",header = T,stringsAsFactors = F)
@@ -135,7 +136,7 @@ print(sampleMat)
 #
 #ambrosiMat <-  as.matrix(Reduce(rn.merge,dsAgList))
 txList <-  tximport(fileList,type="salmon",txOut = T)
-ambrosiMat <-  summarizeToGene(txList,rnSymbol)$counts[-1,]
+ambrosiMat <-  summarizeToGene(txList,rnSymbolGenes)$counts[-1,]
 
 colnames(ambrosiMat) <- sampleMat$sample_title
 
@@ -290,8 +291,8 @@ dsList <- lapply(paste0(datapath,fileList),read.csv2, sep="\t",header=T,row.name
 allRownames <- Reduce(union,lapply(dsList,rownames))
 
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
-rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol",'description'),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!=""& !grepl("predicted gene", rnSymbol$description),]
 ```
 
 ```{r BiomartSeparate}
@@ -312,7 +313,7 @@ dsAgList <- lapply(dsAgList,function(x){
   storage.mode(x) <- "numeric"
   x
   })
-boneMat <- summarizeToGene(dsAgList,rnSymbol)$counts[-1,]
+boneMat <- summarizeToGene(dsAgList,rnSymbolGenes)$counts[-1,]
 
 sampleNames <- c("1807_BM_fl_A1","1810_BM_KO_E1","1811_BM_KO_G1","1815_BM_fl_B1","1818_BM_fl_C1","1825_BM_KO_F1","1984_BM_fl_D1","1985_BM_KO_H1")
 SampleNameMat <- sapply(strsplit(sampleNames,"_"),function(i)i)
@@ -618,6 +619,7 @@ optiMat <- readRDS("~/Optimat.Rds")
 std.heatmap(cor.compare(ambrosiMatNormLog,boneMatNormLog,min = 1),method="pearson")
 normOptiMat <- sapply(1:ncol(optiMat),function(i) optiMat[-12,i]/sum(optiMat[-12,i]))
 colnames(normOptiMat) <- colnames(optiMat)
+rownames(normOptiMat) <- colnames(ambrosiMatNorm)
 std.heatmap(normOptiMat)
 
 

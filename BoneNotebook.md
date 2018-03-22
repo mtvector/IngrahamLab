@@ -108,8 +108,9 @@ allRownames <- Reduce(union,lapply(dsList,rownames))
 
 #Use Biomart to get the 
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol","description"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!=""& !grepl("predicted gene", rnSymbol$description),]
 
 #Load the table from ENA with the names of each sample
 sampleMat <- read.table(file = "~/code/data/GEOData/seq/AmbrosiBone/PRJEB12408.txt",sep="\t",header = T,stringsAsFactors = F)
@@ -260,11 +261,11 @@ txList <-  tximport(fileList,type="salmon",txOut = T)
     ## 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
 
 ``` r
-ambrosiMat <-  summarizeToGene(txList,rnSymbol)$counts[-1,]
+ambrosiMat <-  summarizeToGene(txList,rnSymbolGenes)$counts[-1,]
 ```
 
     ## removing duplicated transcript rows from tx2gene
-    ## transcripts missing from tx2gene: 1293
+    ## transcripts missing from tx2gene: 12967
     ## summarizing abundance
     ## summarizing counts
     ## summarizing length
@@ -284,7 +285,7 @@ std.heatmap(cor(ambrosiMat,method="spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/loadData-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/loadData-1.png)
 
 ``` r
 #Correlation between tech replicates super high. Pool the reads from the technical replicates.
@@ -303,7 +304,7 @@ std.heatmap(cor(ambrosiMat,method = "spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/loadData-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/loadData-2.png)
 
 ``` r
 ambrosiMatNorm <-  median.normalize(ambrosiMat[rowMaxs(ambrosiMat)>2,])
@@ -376,19 +377,19 @@ print(condits)
 barplot(ambrosiMatNorm["Esr1",],las=2,main="Esr1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkData-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkData-1.png)
 
 ``` r
 barplot(ambrosiMatNorm["Esr2",],las=2,main="Esr2")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkData-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkData-2.png)
 
 ``` r
 barplot(ambrosiMatNorm["Gper1",],las=2,main="Gper1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkData-3.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkData-3.png)
 
 ### PCA
 
@@ -410,7 +411,7 @@ std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/svd-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/svd-1.png)
 
 ``` r
 conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
@@ -419,7 +420,7 @@ plot(svAmbrosi$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
 legend("bottomright",legend = unique(names(conditNums)),col=1:4,fill = 1:4)
 ```
 
-![](BoneNotebook_files/figure-markdown_github/svd-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/svd-2.png)
 
 ``` r
 eaciout <- list()
@@ -435,16 +436,16 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  8.66 sec 
-    ## iteration 2 done; time  7.16 sec 
-    ## iteration 3 done; time  7.26 sec 
-    ## iteration 4 done; time  7.31 sec 
-    ## iteration 5 done; time  6.82 sec 
-    ## iteration 6 done; time  7.26 sec 
-    ## iteration 7 done; time  7.31 sec 
-    ## iteration 8 done; time  7.66 sec 
-    ## iteration 9 done; time  7.16 sec 
-    ## iteration 10 done; time  6.93 sec
+    ## iteration 1 done; time  9.51 sec 
+    ## iteration 2 done; time  7.51 sec 
+    ## iteration 3 done; time  7.78 sec 
+    ## iteration 4 done; time  8.01 sec 
+    ## iteration 5 done; time  7.24 sec 
+    ## iteration 6 done; time  7.81 sec 
+    ## iteration 7 done; time  7.58 sec 
+    ## iteration 8 done; time  7.77 sec 
+    ## iteration 9 done; time  7.83 sec 
+    ## iteration 10 done; time  8.03 sec
 
     ## Labeling output ...
 
@@ -463,16 +464,16 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  5.74 sec 
-    ## iteration 2 done; time  7.3 sec 
-    ## iteration 3 done; time  9.03 sec 
-    ## iteration 4 done; time  7.08 sec 
-    ## iteration 5 done; time  7.11 sec 
-    ## iteration 6 done; time  7.14 sec 
-    ## iteration 7 done; time  5.39 sec 
-    ## iteration 8 done; time  6.91 sec 
-    ## iteration 9 done; time  7 sec 
-    ## iteration 10 done; time  7.18 sec
+    ## iteration 1 done; time  5.94 sec 
+    ## iteration 2 done; time  7.86 sec 
+    ## iteration 3 done; time  9.61 sec 
+    ## iteration 4 done; time  7.36 sec 
+    ## iteration 5 done; time  7.45 sec 
+    ## iteration 6 done; time  7.24 sec 
+    ## iteration 7 done; time  5.73 sec 
+    ## iteration 8 done; time  8.26 sec 
+    ## iteration 9 done; time  9.45 sec 
+    ## iteration 10 done; time  8.23 sec
 
     ## Labeling output ...
 
@@ -814,7 +815,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-1.png)
 
     ## [1] "condSca1minus"
 
@@ -826,7 +827,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-2.png)
 
     ## [1] "condZFPplus"
 
@@ -838,7 +839,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-3.pdf)![](BoneNotebook_files/figure-markdown_github/hmDEs-4.pdf)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-3.png)![](BoneNotebook_files/figure-markdown_github/hmDEs-4.png)
 
 ``` r
 for(i in 1:length(resList)){
@@ -870,7 +871,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-5.pdf)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-5.png)
 
     ## [1] "condSca1minus"
 
@@ -882,7 +883,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-6.pdf)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-6.png)
 
     ## [1] "condZFPplus"
 
@@ -894,7 +895,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-7.pdf)![](BoneNotebook_files/figure-markdown_github/hmDEs-8.pdf)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-7.png)![](BoneNotebook_files/figure-markdown_github/hmDEs-8.png)
 
 Candice's Data
 --------------
@@ -909,8 +910,8 @@ dsList <- lapply(paste0(datapath,fileList),read.csv2, sep="\t",header=T,row.name
 allRownames <- Reduce(union,lapply(dsList,rownames))
 
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
-rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol",'description'),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!=""& !grepl("predicted gene", rnSymbol$description),]
 ```
 
 ``` r
@@ -931,12 +932,12 @@ dsAgList <- lapply(dsAgList,function(x){
   storage.mode(x) <- "numeric"
   x
   })
-boneMat <- summarizeToGene(dsAgList,rnSymbol)$counts[-1,]
+boneMat <- summarizeToGene(dsAgList,rnSymbolGenes)$counts[-1,]
 ```
 
     ## removing duplicated transcript rows from tx2gene
 
-    ## transcripts missing from tx2gene: 1301
+    ## transcripts missing from tx2gene: 13832
 
     ## summarizing abundance
 
@@ -954,7 +955,7 @@ boneMatNorm <- boneMatNorm[,order(colnames(boneMatNorm))]
 heatmap.2(cor(boneMatNorm,method = "spe"),col=cols,trace="none")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/BiomartSeparate-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/BiomartSeparate-1.png)
 
 ``` r
 std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spearman Correlation\n Ambrosi vs Candice")
@@ -968,7 +969,7 @@ std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spear
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/BiomartSeparate-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/BiomartSeparate-2.png)
 
 ### Differential expression of Candice's data
 
@@ -1007,13 +1008,13 @@ res <- res[res$log2FoldChange<0,]
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(NormalizedCounts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.png)
 
 ``` r
 res <-  results(DESeqOutput)
@@ -1023,13 +1024,13 @@ res <- res[res$log2FoldChange>0,]
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.png)
 
 ``` r
 res <-  results(DESeqOutput)
@@ -1039,58 +1040,58 @@ res <- res[!is.na(res$padj),]
 hist(res$log2FoldChange,main = "Log2 Fold Changes Detected",breaks = 40)
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.png)
 
 ``` r
 plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcano Plot")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.png)
 
 ``` r
 #ESR1 not differentially expressed
 barplot((boneMatNorm["Esr1",]),main="Esr1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.png)
 
 ``` r
 barplot((boneMatNorm["Gper1",]),main="Gper1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
 
 ``` r
 #Just a sanity Check
 barplot(boneMatNorm["Ncoa1",],las=2,main="Ncoa1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
 
 ``` r
 barplot(boneMatNorm["Ncoa2",],las=2,main="Ncoa2")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
 
 ``` r
 barplot(boneMatNorm["Ncoa3",],las=2,main="Ncoa3")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.png)
 
 ``` r
 barplot((boneMatNorm["Kiss1",]),main="Kiss1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.png)
 
 ``` r
 #also a sanity check
 std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.pdf)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
 
 ``` r
 entrezmm <- getBM(attributes = c('mgi_symbol', "entrezgene"), filters = "mgi_symbol",
@@ -1105,19 +1106,19 @@ eKG
     ## #...@organism     mmu 
     ## #...@ontology     KEGG 
     ## #...@keytype      kegg 
-    ## #...@gene     chr [1:249] "67851" "668661" "224904" "232345" "11370" "11504" ...
+    ## #...@gene     chr [1:258] "67851" "668661" "224904" "232345" "11370" "11504" ...
     ## #...pvalues adjusted by 'BH' with cutoff <0.1 
-    ## #...8 enriched terms found
-    ## 'data.frame':    8 obs. of  9 variables:
-    ##  $ ID         : chr  "mmu00190" "mmu05012" "mmu04714" "mmu04723" ...
-    ##  $ Description: chr  "Oxidative phosphorylation" "Parkinson's disease" "Thermogenesis" "Retrograde endocannabinoid signaling" ...
-    ##  $ GeneRatio  : chr  "12/124" "12/124" "13/124" "9/124" ...
-    ##  $ BgRatio    : chr  "134/8204" "144/8204" "230/8204" "150/8204" ...
-    ##  $ pvalue     : num  7.38e-07 1.60e-06 4.10e-05 4.26e-04 8.63e-04 ...
-    ##  $ p.adjust   : num  0.000121 0.000131 0.002243 0.017479 0.028303 ...
-    ##  $ qvalue     : num  0.000113 0.000122 0.002087 0.016268 0.026341 ...
-    ##  $ geneID     : chr  "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "14710/17716/17717/17719/17720/17721/17722/54405/104130" ...
-    ##  $ Count      : int  12 12 13 9 3 9 6 6
+    ## #...9 enriched terms found
+    ## 'data.frame':    9 obs. of  9 variables:
+    ##  $ ID         : chr  "mmu03010" "mmu00190" "mmu05012" "mmu04714" ...
+    ##  $ Description: chr  "Ribosome" "Oxidative phosphorylation" "Parkinson's disease" "Thermogenesis" ...
+    ##  $ GeneRatio  : chr  "14/134" "12/134" "12/134" "13/134" ...
+    ##  $ BgRatio    : chr  "177/8204" "134/8204" "144/8204" "230/8204" ...
+    ##  $ pvalue     : num  1.01e-06 1.70e-06 3.64e-06 9.23e-05 7.51e-04 ...
+    ##  $ p.adjust   : num  0.00014 0.00014 0.0002 0.00381 0.02478 ...
+    ##  $ qvalue     : num  0.000132 0.000132 0.000189 0.003595 0.023397 ...
+    ##  $ geneID     : chr  "66845/68565/19896/19899/19921/19951/57808/67248/11837/68052/267019/57294/27050/20102" "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" ...
+    ##  $ Count      : int  14 12 12 13 9 3 7 8 6
     ## #...Citation
     ##   Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
     ##   clusterProfiler: an R package for comparing biological themes among
@@ -1128,27 +1129,29 @@ eKG
 eKG$Description
 ```
 
-    ## [1] "Oxidative phosphorylation"           
-    ## [2] "Parkinson's disease"                 
-    ## [3] "Thermogenesis"                       
-    ## [4] "Retrograde endocannabinoid signaling"
-    ## [5] "Non-homologous end-joining"          
-    ## [6] "Ribosome"                            
-    ## [7] "TGF-beta signaling pathway"          
-    ## [8] "Pyrimidine metabolism"
+    ## [1] "Ribosome"                            
+    ## [2] "Oxidative phosphorylation"           
+    ## [3] "Parkinson's disease"                 
+    ## [4] "Thermogenesis"                       
+    ## [5] "Retrograde endocannabinoid signaling"
+    ## [6] "Non-homologous end-joining"          
+    ## [7] "Pyrimidine metabolism"               
+    ## [8] "Measles"                             
+    ## [9] "TGF-beta signaling pathway"
 
 ``` r
 eKG$geneID
 ```
 
-    ## [1] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"      
-    ## [2] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"      
-    ## [3] "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"
-    ## [4] "14710/17716/17717/17719/17720/17721/17722/54405/104130"                        
-    ## [5] "227525/21673/14375"                                                            
-    ## [6] "66845/68565/19896/19899/19951/57808/68052/54127/20102"                         
-    ## [7] "12159/12166/13179/15903/16323/19877"                                           
-    ## [8] "22169/66422/18102/54369/66420/331487"
+    ## [1] "66845/68565/19896/19899/19921/19951/57808/67248/11837/68052/267019/57294/27050/20102"
+    ## [2] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"            
+    ## [3] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"            
+    ## [4] "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"      
+    ## [5] "14710/17716/17717/17719/17720/17721/17722/54405/104130"                              
+    ## [6] "227525/21673/14375"                                                                  
+    ## [7] "22169/66422/18102/54369/66420/20022/331487"                                          
+    ## [8] "70192/19106/27103/71586/23960/246728/246727/20846"                                   
+    ## [9] "12159/12166/13179/15903/16323/19877"
 
 ``` r
 library(ReactomePA)
@@ -1180,110 +1183,125 @@ as.data.frame(enrichPathway(rownames(entrezres)[entrezres$padj<.1],organism="mou
 ```
 
     ##                          ID
-    ## R-MMU-1799339 R-MMU-1799339
-    ## R-MMU-975956   R-MMU-975956
     ## R-MMU-72689     R-MMU-72689
-    ## R-MMU-2022090 R-MMU-2022090
     ## R-MMU-156827   R-MMU-156827
     ## R-MMU-72706     R-MMU-72706
-    ## R-MMU-927802   R-MMU-927802
-    ## R-MMU-975957   R-MMU-975957
-    ## R-MMU-216083   R-MMU-216083
+    ## R-MMU-1799339 R-MMU-1799339
+    ## R-MMU-975956   R-MMU-975956
     ## R-MMU-72613     R-MMU-72613
     ## R-MMU-72737     R-MMU-72737
-    ## R-MMU-1474244 R-MMU-1474244
+    ## R-MMU-927802   R-MMU-927802
+    ## R-MMU-975957   R-MMU-975957
+    ## R-MMU-72766     R-MMU-72766
+    ## R-MMU-72695     R-MMU-72695
     ## R-MMU-6791226 R-MMU-6791226
     ## R-MMU-72312     R-MMU-72312
     ## R-MMU-8868773 R-MMU-8868773
-    ## R-MMU-1474228 R-MMU-1474228
+    ## R-MMU-72649     R-MMU-72649
+    ## R-MMU-72702     R-MMU-72702
+    ## R-MMU-72662     R-MMU-72662
     ## R-MMU-3000178 R-MMU-3000178
-    ## R-MMU-72766     R-MMU-72766
+    ## R-MMU-2022090 R-MMU-2022090
+    ## R-MMU-1474244 R-MMU-1474244
+    ## R-MMU-216083   R-MMU-216083
+    ## R-MMU-1474228 R-MMU-1474228
     ## R-MMU-8948216 R-MMU-8948216
-    ## R-MMU-1474290 R-MMU-1474290
-    ##                                                                                Description
-    ## R-MMU-1799339                  SRP-dependent cotranslational protein targeting to membrane
-    ## R-MMU-975956  Nonsense Mediated Decay (NMD) independent of the Exon Junction Complex (EJC)
-    ## R-MMU-72689                                       Formation of a pool of free 40S subunits
-    ## R-MMU-2022090                 Assembly of collagen fibrils and other multimeric structures
-    ## R-MMU-156827             L13a-mediated translational silencing of Ceruloplasmin expression
-    ## R-MMU-72706                        GTP hydrolysis and joining of the 60S ribosomal subunit
-    ## R-MMU-927802                                                 Nonsense-Mediated Decay (NMD)
-    ## R-MMU-975957     Nonsense Mediated Decay (NMD) enhanced by the Exon Junction Complex (EJC)
-    ## R-MMU-216083                                            Integrin cell surface interactions
-    ## R-MMU-72613                                              Eukaryotic Translation Initiation
-    ## R-MMU-72737                                           Cap-dependent Translation Initiation
-    ## R-MMU-1474244                                            Extracellular matrix organization
-    ## R-MMU-6791226                Major pathway of rRNA processing in the nucleolus and cytosol
-    ## R-MMU-72312                                                                rRNA processing
-    ## R-MMU-8868773                                   rRNA processing in the nucleus and cytosol
-    ## R-MMU-1474228                                      Degradation of the extracellular matrix
-    ## R-MMU-3000178                                                            ECM proteoglycans
-    ## R-MMU-72766                                                                    Translation
-    ## R-MMU-8948216                                                 Collagen chain trimerization
-    ## R-MMU-1474290                                                           Collagen formation
-    ##               GeneRatio  BgRatio       pvalue   p.adjust     qvalue
-    ## R-MMU-1799339     7/115  81/8657 9.392844e-05 0.01517573 0.01357588
-    ## R-MMU-975956      7/115  81/8657 9.392844e-05 0.01517573 0.01357588
-    ## R-MMU-72689       7/115  88/8657 1.588771e-04 0.01517573 0.01357588
-    ## R-MMU-2022090     5/115  44/8657 2.723079e-04 0.01517573 0.01357588
-    ## R-MMU-156827      7/115  98/8657 3.104767e-04 0.01517573 0.01357588
-    ## R-MMU-72706       7/115  99/8657 3.304807e-04 0.01517573 0.01357588
-    ## R-MMU-927802      7/115 101/8657 3.735921e-04 0.01517573 0.01357588
-    ## R-MMU-975957      7/115 101/8657 3.735921e-04 0.01517573 0.01357588
-    ## R-MMU-216083      6/115  76/8657 4.947051e-04 0.01517573 0.01357588
-    ## R-MMU-72613       7/115 106/8657 5.013003e-04 0.01517573 0.01357588
-    ## R-MMU-72737       7/115 106/8657 5.013003e-04 0.01517573 0.01357588
-    ## R-MMU-1474244    11/115 272/8657 9.462287e-04 0.02449479 0.02191252
-    ## R-MMU-6791226     7/115 121/8657 1.103369e-03 0.02449479 0.02191252
-    ## R-MMU-72312       7/115 121/8657 1.103369e-03 0.02449479 0.02191252
-    ## R-MMU-8868773     7/115 121/8657 1.103369e-03 0.02449479 0.02191252
-    ## R-MMU-1474228     7/115 129/8657 1.601308e-03 0.03332721 0.02981382
-    ## R-MMU-3000178     4/115  40/8657 1.867856e-03 0.03590823 0.03212274
-    ## R-MMU-72766       9/115 212/8657 1.992506e-03 0.03590823 0.03212274
-    ## R-MMU-8948216     4/115  41/8657 2.048818e-03 0.03590823 0.03212274
-    ## R-MMU-1474290     5/115  74/8657 2.945957e-03 0.04905018 0.04387925
-    ##                                                                            geneID
-    ## R-MMU-1799339                           19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-975956                            19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-72689                             19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-2022090                                       12842/12824/12832/12837/16948
-    ## R-MMU-156827                            19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-72706                             19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-927802                            19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-975957                            19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-216083                                 12842/12824/12832/12837/15891/319480
-    ## R-MMU-72613                             19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-72737                             19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-1474244 232345/12159/12842/12824/12832/12837/13179/15891/319480/16613/16948
-    ## R-MMU-6791226                           14791/72544/19896/19899/19951/57808/20826
-    ## R-MMU-72312                             14791/72544/19896/19899/19951/57808/20826
-    ## R-MMU-8868773                           14791/72544/19896/19899/19951/57808/20826
-    ## R-MMU-1474228                          232345/12842/12824/12832/12837/13179/16613
-    ## R-MMU-3000178                                             12842/12824/12832/13179
-    ## R-MMU-72766                 66845/68565/19896/19899/19951/57808/68052/54127/20102
-    ## R-MMU-8948216                                             12842/12824/12832/12837
-    ## R-MMU-1474290                                       12842/12824/12832/12837/16948
+    ##                                                                                                          Description
+    ## R-MMU-72689                                                                 Formation of a pool of free 40S subunits
+    ## R-MMU-156827                                       L13a-mediated translational silencing of Ceruloplasmin expression
+    ## R-MMU-72706                                                  GTP hydrolysis and joining of the 60S ribosomal subunit
+    ## R-MMU-1799339                                            SRP-dependent cotranslational protein targeting to membrane
+    ## R-MMU-975956                            Nonsense Mediated Decay (NMD) independent of the Exon Junction Complex (EJC)
+    ## R-MMU-72613                                                                        Eukaryotic Translation Initiation
+    ## R-MMU-72737                                                                     Cap-dependent Translation Initiation
+    ## R-MMU-927802                                                                           Nonsense-Mediated Decay (NMD)
+    ## R-MMU-975957                               Nonsense Mediated Decay (NMD) enhanced by the Exon Junction Complex (EJC)
+    ## R-MMU-72766                                                                                              Translation
+    ## R-MMU-72695                                      Formation of the ternary complex, and subsequently, the 43S complex
+    ## R-MMU-6791226                                          Major pathway of rRNA processing in the nucleolus and cytosol
+    ## R-MMU-72312                                                                                          rRNA processing
+    ## R-MMU-8868773                                                             rRNA processing in the nucleus and cytosol
+    ## R-MMU-72649                                                                 Translation initiation complex formation
+    ## R-MMU-72702                                                           Ribosomal scanning and start codon recognition
+    ## R-MMU-72662   Activation of the mRNA upon binding of the cap-binding complex and eIFs, and subsequent binding to 43S
+    ## R-MMU-3000178                                                                                      ECM proteoglycans
+    ## R-MMU-2022090                                           Assembly of collagen fibrils and other multimeric structures
+    ## R-MMU-1474244                                                                      Extracellular matrix organization
+    ## R-MMU-216083                                                                      Integrin cell surface interactions
+    ## R-MMU-1474228                                                                Degradation of the extracellular matrix
+    ## R-MMU-8948216                                                                           Collagen chain trimerization
+    ##               GeneRatio  BgRatio       pvalue     p.adjust       qvalue
+    ## R-MMU-72689      12/121  88/8657 2.686592e-09 9.056897e-07 8.071199e-07
+    ## R-MMU-156827     12/121  98/8657 9.449668e-09 9.056897e-07 8.071199e-07
+    ## R-MMU-72706      12/121  99/8657 1.062758e-08 9.056897e-07 8.071199e-07
+    ## R-MMU-1799339    11/121  81/8657 1.335826e-08 9.056897e-07 8.071199e-07
+    ## R-MMU-975956     11/121  81/8657 1.335826e-08 9.056897e-07 8.071199e-07
+    ## R-MMU-72613      12/121 106/8657 2.330642e-08 1.128697e-06 1.005856e-06
+    ## R-MMU-72737      12/121 106/8657 2.330642e-08 1.128697e-06 1.005856e-06
+    ## R-MMU-927802     11/121 101/8657 1.384501e-07 5.214955e-06 4.647390e-06
+    ## R-MMU-975957     11/121 101/8657 1.384501e-07 5.214955e-06 4.647390e-06
+    ## R-MMU-72766      14/121 212/8657 1.362494e-06 4.618856e-05 4.116167e-05
+    ## R-MMU-72695       6/121  47/8657 4.426370e-05 1.111058e-03 9.901367e-04
+    ## R-MMU-6791226     9/121 121/8657 4.588438e-05 1.111058e-03 9.901367e-04
+    ## R-MMU-72312       9/121 121/8657 4.588438e-05 1.111058e-03 9.901367e-04
+    ## R-MMU-8868773     9/121 121/8657 4.588438e-05 1.111058e-03 9.901367e-04
+    ## R-MMU-72649       6/121  54/8657 9.831420e-05 2.083032e-03 1.856327e-03
+    ## R-MMU-72702       6/121  54/8657 9.831420e-05 2.083032e-03 1.856327e-03
+    ## R-MMU-72662       6/121  55/8657 1.091046e-04 2.175674e-03 1.938887e-03
+    ## R-MMU-3000178     5/121  40/8657 2.184614e-04 4.114357e-03 3.666575e-03
+    ## R-MMU-2022090     5/121  44/8657 3.448500e-04 6.152850e-03 5.483210e-03
+    ## R-MMU-1474244    12/121 272/8657 4.026846e-04 6.825504e-03 6.082657e-03
+    ## R-MMU-216083      6/121  76/8657 6.482689e-04 1.046491e-02 9.325973e-03
+    ## R-MMU-1474228     7/121 129/8657 2.144219e-03 3.304047e-02 2.944454e-02
+    ## R-MMU-8948216     4/121  41/8657 2.466764e-03 3.635796e-02 3.240098e-02
+    ##                                                                                             geneID
+    ## R-MMU-72689               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-156827              53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-72706               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-1799339                   19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-975956                    19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-72613               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-72737               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-927802                    19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-975957                    19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-72766   53356/66845/68565/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
+    ## R-MMU-72695                                                   53356/68052/267019/57294/27050/20102
+    ## R-MMU-6791226                                14791/72544/19896/19899/19921/19951/57808/11837/20826
+    ## R-MMU-72312                                  14791/72544/19896/19899/19921/19951/57808/11837/20826
+    ## R-MMU-8868773                                14791/72544/19896/19899/19921/19951/57808/11837/20826
+    ## R-MMU-72649                                                   53356/68052/267019/57294/27050/20102
+    ## R-MMU-72702                                                   53356/68052/267019/57294/27050/20102
+    ## R-MMU-72662                                                   53356/68052/267019/57294/27050/20102
+    ## R-MMU-3000178                                                        12111/12842/12824/12832/13179
+    ## R-MMU-2022090                                                        12842/12824/12832/12837/16948
+    ## R-MMU-1474244            232345/12111/12159/12842/12824/12832/12837/13179/15891/319480/16613/16948
+    ## R-MMU-216083                                                  12842/12824/12832/12837/15891/319480
+    ## R-MMU-1474228                                           232345/12842/12824/12832/12837/13179/16613
+    ## R-MMU-8948216                                                              12842/12824/12832/12837
     ##               Count
-    ## R-MMU-1799339     7
-    ## R-MMU-975956      7
-    ## R-MMU-72689       7
+    ## R-MMU-72689      12
+    ## R-MMU-156827     12
+    ## R-MMU-72706      12
+    ## R-MMU-1799339    11
+    ## R-MMU-975956     11
+    ## R-MMU-72613      12
+    ## R-MMU-72737      12
+    ## R-MMU-927802     11
+    ## R-MMU-975957     11
+    ## R-MMU-72766      14
+    ## R-MMU-72695       6
+    ## R-MMU-6791226     9
+    ## R-MMU-72312       9
+    ## R-MMU-8868773     9
+    ## R-MMU-72649       6
+    ## R-MMU-72702       6
+    ## R-MMU-72662       6
+    ## R-MMU-3000178     5
     ## R-MMU-2022090     5
-    ## R-MMU-156827      7
-    ## R-MMU-72706       7
-    ## R-MMU-927802      7
-    ## R-MMU-975957      7
+    ## R-MMU-1474244    12
     ## R-MMU-216083      6
-    ## R-MMU-72613       7
-    ## R-MMU-72737       7
-    ## R-MMU-1474244    11
-    ## R-MMU-6791226     7
-    ## R-MMU-72312       7
-    ## R-MMU-8868773     7
     ## R-MMU-1474228     7
-    ## R-MMU-3000178     4
-    ## R-MMU-72766       9
     ## R-MMU-8948216     4
-    ## R-MMU-1474290     5
 
 ``` r
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
@@ -1295,157 +1313,157 @@ print(dfGO[1:30,])
     ## GO:0051607 GO:0051607
     ## GO:0009615 GO:0009615
     ## GO:0071346 GO:0071346
-    ## GO:0001649 GO:0001649
     ## GO:0034341 GO:0034341
     ## GO:0006220 GO:0006220
+    ## GO:0001649 GO:0001649
     ## GO:0009147 GO:0009147
     ## GO:0006303 GO:0006303
     ## GO:0000726 GO:0000726
     ## GO:0030199 GO:0030199
     ## GO:0006221 GO:0006221
     ## GO:0048333 GO:0048333
-    ## GO:0002831 GO:0002831
+    ## GO:0035282 GO:0035282
     ## GO:0050688 GO:0050688
+    ## GO:0002831 GO:0002831
     ## GO:0072527 GO:0072527
+    ## GO:0043900 GO:0043900
     ## GO:0072528 GO:0072528
     ## GO:0001958 GO:0001958
     ## GO:0036075 GO:0036075
-    ## GO:0001503 GO:0001503
-    ## GO:0002697 GO:0002697
+    ## GO:0044419 GO:0044419
     ## GO:0042832 GO:0042832
-    ## GO:0045666 GO:0045666
+    ## GO:0050830 GO:0050830
+    ## GO:0043901 GO:0043901
     ## GO:0042455 GO:0042455
     ## GO:0009148 GO:0009148
     ## GO:0009163 GO:0009163
     ## GO:0009220 GO:0009220
     ## GO:0046132 GO:0046132
-    ## GO:0010976 GO:0010976
     ## GO:0001562 GO:0001562
-    ## GO:0014812 GO:0014812
     ##                                                         Description
     ## GO:0051607                                defense response to virus
     ## GO:0009615                                        response to virus
     ## GO:0071346                    cellular response to interferon-gamma
-    ## GO:0001649                               osteoblast differentiation
     ## GO:0034341                             response to interferon-gamma
     ## GO:0006220                  pyrimidine nucleotide metabolic process
+    ## GO:0001649                               osteoblast differentiation
     ## GO:0009147     pyrimidine nucleoside triphosphate metabolic process
     ## GO:0006303 double-strand break repair via nonhomologous end joining
     ## GO:0000726                               non-recombinational repair
     ## GO:0030199                             collagen fibril organization
     ## GO:0006221               pyrimidine nucleotide biosynthetic process
     ## GO:0048333                          mesodermal cell differentiation
-    ## GO:0002831                regulation of response to biotic stimulus
+    ## GO:0035282                                             segmentation
     ## GO:0050688                  regulation of defense response to virus
+    ## GO:0002831                regulation of response to biotic stimulus
     ## GO:0072527         pyrimidine-containing compound metabolic process
+    ## GO:0043900                     regulation of multi-organism process
     ## GO:0072528      pyrimidine-containing compound biosynthetic process
     ## GO:0001958                                endochondral ossification
     ## GO:0036075                                 replacement ossification
-    ## GO:0001503                                             ossification
-    ## GO:0002697                    regulation of immune effector process
+    ## GO:0044419               interspecies interaction between organisms
     ## GO:0042832                            defense response to protozoan
-    ## GO:0045666            positive regulation of neuron differentiation
+    ## GO:0050830              defense response to Gram-positive bacterium
+    ## GO:0043901            negative regulation of multi-organism process
     ## GO:0042455                      ribonucleoside biosynthetic process
     ## GO:0009148  pyrimidine nucleoside triphosphate biosynthetic process
     ## GO:0009163                          nucleoside biosynthetic process
     ## GO:0009220           pyrimidine ribonucleotide biosynthetic process
     ## GO:0046132           pyrimidine ribonucleoside biosynthetic process
-    ## GO:0010976     positive regulation of neuron projection development
     ## GO:0001562                                    response to protozoan
-    ## GO:0014812                                    muscle cell migration
     ##            GeneRatio   BgRatio       pvalue     p.adjust       qvalue
-    ## GO:0051607    14/237 202/23577 1.876966e-08 5.486371e-05 4.836644e-05
-    ## GO:0009615    14/237 246/23577 2.181504e-07 3.188267e-04 2.810695e-04
-    ## GO:0071346     8/237  75/23577 8.751948e-07 8.527315e-04 7.517463e-04
-    ## GO:0001649    12/237 224/23577 3.050370e-06 2.229058e-03 1.965081e-03
-    ## GO:0034341     8/237  94/23577 4.901902e-06 2.865652e-03 2.526285e-03
-    ## GO:0006220     5/237  29/23577 9.595202e-06 4.674463e-03 4.120887e-03
-    ## GO:0009147     4/237  17/23577 2.137653e-05 8.926227e-03 7.869134e-03
-    ## GO:0006303     5/237  38/23577 3.767488e-05 1.376546e-02 1.213528e-02
-    ## GO:0000726     5/237  43/23577 6.935699e-05 1.815442e-02 1.600447e-02
-    ## GO:0030199     5/237  43/23577 6.935699e-05 1.815442e-02 1.600447e-02
-    ## GO:0006221     4/237  23/23577 7.585063e-05 1.815442e-02 1.600447e-02
-    ## GO:0048333     4/237  23/23577 7.585063e-05 1.815442e-02 1.600447e-02
-    ## GO:0002831     8/237 139/23577 8.419185e-05 1.815442e-02 1.600447e-02
-    ## GO:0050688     6/237  72/23577 8.695240e-05 1.815442e-02 1.600447e-02
-    ## GO:0072527     5/237  48/23577 1.184384e-04 2.307970e-02 2.034647e-02
-    ## GO:0072528     4/237  28/23577 1.686032e-04 3.021519e-02 2.663694e-02
-    ## GO:0001958     4/237  29/23577 1.940445e-04 3.021519e-02 2.663694e-02
-    ## GO:0036075     4/237  29/23577 1.940445e-04 3.021519e-02 2.663694e-02
-    ## GO:0001503    13/237 395/23577 1.964039e-04 3.021519e-02 2.663694e-02
-    ## GO:0002697    12/237 349/23577 2.317765e-04 3.387414e-02 2.986258e-02
-    ## GO:0042832     4/237  32/23577 2.869314e-04 3.993812e-02 3.520842e-02
-    ## GO:0045666    13/237 414/23577 3.088866e-04 4.096594e-02 3.611453e-02
-    ## GO:0042455     4/237  33/23577 3.239484e-04 4.096594e-02 3.611453e-02
-    ## GO:0009148     3/237  14/23577 3.363608e-04 4.096594e-02 3.611453e-02
-    ## GO:0009163     4/237  35/23577 4.080438e-04 4.482904e-02 3.952014e-02
-    ## GO:0009220     3/237  15/23577 4.173371e-04 4.482904e-02 3.952014e-02
-    ## GO:0046132     3/237  15/23577 4.173371e-04 4.482904e-02 3.952014e-02
-    ## GO:0010976    11/237 321/23577 4.324608e-04 4.482904e-02 3.952014e-02
-    ## GO:0001562     4/237  36/23577 4.554539e-04 4.482904e-02 3.952014e-02
-    ## GO:0014812     6/237  98/23577 4.716855e-04 4.482904e-02 3.952014e-02
-    ##                                                                                         geneID
-    ## GO:0051607 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
-    ## GO:0009615 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
-    ## GO:0071346                                          Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
-    ## GO:0001649                  Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Ibsp/Id3/Igf2/Itga11/Runx2/Satb2/Sfrp2
-    ## GO:0034341                                          Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
-    ## GO:0006220                                                         Cmpk2/Dctpp1/Nme1/Nme6/Uprt
-    ## GO:0009147                                                              Cmpk2/Dctpp1/Nme1/Nme6
-    ## GO:0006303                                                    Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
-    ## GO:0000726                                                    Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
-    ## GO:0030199                                                      Col1a1/Col2a1/Col5a2/Lox/Sfrp2
-    ## GO:0006221                                                                Cmpk2/Nme1/Nme6/Uprt
-    ## GO:0048333                                                             Bmp4/Bmpr1a/Inhba/Sfrp2
-    ## GO:0002831                                     Ddx60/Eif2ak4/Gbp4/Mif/Parp9/Stat1/Trib1/Tspan6
-    ## GO:0050688                                               Ddx60/Eif2ak4/Gbp4/Parp9/Stat1/Tspan6
-    ## GO:0072527                                                         Cmpk2/Dctpp1/Nme1/Nme6/Uprt
-    ## GO:0072528                                                                Cmpk2/Nme1/Nme6/Uprt
-    ## GO:0001958                                                            Bmp4/Col1a1/Col2a1/Runx2
-    ## GO:0036075                                                            Bmp4/Col1a1/Col2a1/Runx2
-    ## GO:0001503           Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Col2a1/Ibsp/Id3/Igf2/Itga11/Runx2/Satb2/Sfrp2
-    ## GO:0002697                A2m/Cadm1/Ddx60/Eif2ak4/Exosc6/Gbp4/Igf2/Mif/Mzb1/Parp9/Stat1/Tspan6
-    ## GO:0042832                                                                Gbp10/Gbp6/Gbp7/Irf8
-    ## GO:0045666   Adamts1/Baiap2/Bmp4/Dixdc1/Fkbp1b/Gdi1/Mif/Nap1l2/Nme1/Plppr5/Prpf19/Sema5a/Vldlr
-    ## GO:0042455                                                                 Aprt/Nme1/Nme6/Uprt
-    ## GO:0009148                                                                     Cmpk2/Nme1/Nme6
-    ## GO:0009163                                                                 Aprt/Nme1/Nme6/Uprt
-    ## GO:0009220                                                                      Nme1/Nme6/Uprt
-    ## GO:0046132                                                                      Nme1/Nme6/Uprt
-    ## GO:0010976                 Adamts1/Baiap2/Bmp4/Dixdc1/Fkbp1b/Gdi1/Mif/Nme1/Plppr5/Sema5a/Vldlr
-    ## GO:0001562                                                                Gbp10/Gbp6/Gbp7/Irf8
-    ## GO:0014812                                                    Bmpr1a/Mif/Pgr/Postn/Rock1/Trib1
+    ## GO:0051607    15/243 202/23577 3.157935e-09 9.152741e-06 8.009334e-06
+    ## GO:0009615    16/243 246/23577 6.314413e-09 9.152741e-06 8.009334e-06
+    ## GO:0071346     8/243  75/23577 1.055996e-06 1.020445e-03 8.929654e-04
+    ## GO:0034341     8/243  94/23577 5.889357e-06 4.268312e-03 3.735092e-03
+    ## GO:0006220     5/243  29/23577 1.082890e-05 6.278595e-03 5.494240e-03
+    ## GO:0001649    11/243 224/23577 2.254231e-05 9.764248e-03 8.544448e-03
+    ## GO:0009147     4/243  17/23577 2.357700e-05 9.764248e-03 8.544448e-03
+    ## GO:0006303     5/243  38/23577 4.243819e-05 1.537854e-02 1.345737e-02
+    ## GO:0000726     5/243  43/23577 7.804379e-05 1.935407e-02 1.693626e-02
+    ## GO:0030199     5/243  43/23577 7.804379e-05 1.935407e-02 1.693626e-02
+    ## GO:0006221     4/243  23/23577 8.355669e-05 1.935407e-02 1.693626e-02
+    ## GO:0048333     4/243  23/23577 8.355669e-05 1.935407e-02 1.693626e-02
+    ## GO:0035282     7/243 103/23577 9.690644e-05 1.935407e-02 1.693626e-02
+    ## GO:0050688     6/243  72/23577 9.974272e-05 1.935407e-02 1.693626e-02
+    ## GO:0002831     8/243 139/23577 1.001418e-04 1.935407e-02 1.693626e-02
+    ## GO:0072527     5/243  48/23577 1.331328e-04 2.412199e-02 2.110855e-02
+    ## GO:0043900    13/243 378/23577 1.634455e-04 2.787227e-02 2.439032e-02
+    ## GO:0072528     4/243  28/23577 1.855446e-04 2.988299e-02 2.614985e-02
+    ## GO:0001958     4/243  29/23577 2.134991e-04 3.094670e-02 2.708068e-02
+    ## GO:0036075     4/243  29/23577 2.134991e-04 3.094670e-02 2.708068e-02
+    ## GO:0044419    12/243 350/23577 2.989092e-04 3.921132e-02 3.431284e-02
+    ## GO:0042832     4/243  32/23577 3.155078e-04 3.921132e-02 3.431284e-02
+    ## GO:0050830     6/243  89/23577 3.207643e-04 3.921132e-02 3.431284e-02
+    ## GO:0043901     8/243 165/23577 3.246194e-04 3.921132e-02 3.431284e-02
+    ## GO:0042455     4/243  33/23577 3.561396e-04 4.035305e-02 3.531194e-02
+    ## GO:0009148     3/243  14/23577 3.619108e-04 4.035305e-02 3.531194e-02
+    ## GO:0009163     4/243  35/23577 4.484112e-04 4.487979e-02 3.927317e-02
+    ## GO:0009220     3/243  15/23577 4.489527e-04 4.487979e-02 3.927317e-02
+    ## GO:0046132     3/243  15/23577 4.489527e-04 4.487979e-02 3.927317e-02
+    ## GO:0001562     4/243  36/23577 5.004110e-04 4.679650e-02 4.095044e-02
+    ##                                                                                                      geneID
+    ## GO:0051607        Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl1/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
+    ## GO:0009615 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl1/Oasl2/Parp9/Rps15a/Rtp4/Stat1/Tspan6/Zbp1
+    ## GO:0071346                                                       Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
+    ## GO:0034341                                                       Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
+    ## GO:0006220                                                                      Cmpk2/Dctpp1/Nme1/Nme6/Uprt
+    ## GO:0001649                                    Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Ibsp/Id3/Itga11/Runx2/Satb2/Sfrp2
+    ## GO:0009147                                                                           Cmpk2/Dctpp1/Nme1/Nme6
+    ## GO:0006303                                                                 Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
+    ## GO:0000726                                                                 Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
+    ## GO:0030199                                                                   Col1a1/Col2a1/Col5a2/Lox/Sfrp2
+    ## GO:0006221                                                                             Cmpk2/Nme1/Nme6/Uprt
+    ## GO:0048333                                                                          Bmp4/Bmpr1a/Inhba/Sfrp2
+    ## GO:0035282                                                            Bmp4/Bmpr1a/Mafb/Nrp2/Pcsk6/Sfrp2/Ttn
+    ## GO:0050688                                                            Ddx60/Eif2ak4/Gbp4/Parp9/Stat1/Tspan6
+    ## GO:0002831                                                  Ddx60/Eif2ak4/Gbp4/Mif/Parp9/Stat1/Trib1/Tspan6
+    ## GO:0072527                                                                      Cmpk2/Dctpp1/Nme1/Nme6/Uprt
+    ## GO:0043900                    Ddx60/Eif2ak2/Eif2ak4/Gbp4/Inhba/Irf8/Mif/Oas3/Oasl1/Parp9/Stat1/Trib1/Tspan6
+    ## GO:0072528                                                                             Cmpk2/Nme1/Nme6/Uprt
+    ## GO:0001958                                                                         Bmp4/Col1a1/Col2a1/Runx2
+    ## GO:0036075                                                                         Bmp4/Col1a1/Col2a1/Runx2
+    ## GO:0044419                           Cul4a/Eif2ak2/Eif2ak4/Eif3g/Gbp6/Gbp7/Irf8/Oas3/Oasl1/Romo1/Stat1/Zbp1
+    ## GO:0042832                                                                             Gbp10/Gbp6/Gbp7/Irf8
+    ## GO:0050830                                                              Gbp10/Gbp6/Gbp7/Rarres2/Romo1/Rpl39
+    ## GO:0043901                                               Eif2ak2/Eif2ak4/Irf8/Oas3/Oasl1/Stat1/Trib1/Tspan6
+    ## GO:0042455                                                                              Aprt/Nme1/Nme6/Uprt
+    ## GO:0009148                                                                                  Cmpk2/Nme1/Nme6
+    ## GO:0009163                                                                              Aprt/Nme1/Nme6/Uprt
+    ## GO:0009220                                                                                   Nme1/Nme6/Uprt
+    ## GO:0046132                                                                                   Nme1/Nme6/Uprt
+    ## GO:0001562                                                                             Gbp10/Gbp6/Gbp7/Irf8
     ##            Count
-    ## GO:0051607    14
-    ## GO:0009615    14
+    ## GO:0051607    15
+    ## GO:0009615    16
     ## GO:0071346     8
-    ## GO:0001649    12
     ## GO:0034341     8
     ## GO:0006220     5
+    ## GO:0001649    11
     ## GO:0009147     4
     ## GO:0006303     5
     ## GO:0000726     5
     ## GO:0030199     5
     ## GO:0006221     4
     ## GO:0048333     4
-    ## GO:0002831     8
+    ## GO:0035282     7
     ## GO:0050688     6
+    ## GO:0002831     8
     ## GO:0072527     5
+    ## GO:0043900    13
     ## GO:0072528     4
     ## GO:0001958     4
     ## GO:0036075     4
-    ## GO:0001503    13
-    ## GO:0002697    12
+    ## GO:0044419    12
     ## GO:0042832     4
-    ## GO:0045666    13
+    ## GO:0050830     6
+    ## GO:0043901     8
     ## GO:0042455     4
     ## GO:0009148     3
     ## GO:0009163     4
     ## GO:0009220     3
     ## GO:0046132     3
-    ## GO:0010976    11
     ## GO:0001562     4
-    ## GO:0014812     6
 
 ``` r
 ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon|immune",dfGO[,2])),"geneID"],"/"))
@@ -1462,7 +1480,7 @@ std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/EnrichGO-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-1.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
@@ -1476,7 +1494,7 @@ std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGe
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/EnrichGO-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-2.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
@@ -1490,7 +1508,7 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/EnrichGO-3.pdf)
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-3.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
@@ -1504,7 +1522,7 @@ std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized 
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/EnrichGO-4.pdf)
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-4.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
@@ -1518,7 +1536,7 @@ std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(norm
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/EnrichGO-5.pdf)
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-5.png)
 
 ``` r
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
@@ -1532,7 +1550,7 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized c
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/EnrichGO-6.pdf)
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-6.png)
 
 #### Candice DE in the Ambrosi
 
@@ -1540,37 +1558,37 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized c
 std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="IFN response\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-1.png)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-2.png)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-3.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-3.png)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="IFN response\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-4.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-4.png)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-5.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-5.png)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-6.pdf)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-6.png)
 
 Ncoa1/2/3, the Steroid receptor coactivators are equally expressed across the conditions as well.
 
@@ -1594,8 +1612,8 @@ print(overlaps[[1]])
 ```
 
     ##      CD24- CD24+ Sca1- ZFP+
-    ## up       8    18    20    9
-    ## down     5    18    12   17
+    ## up       8    17    19    9
+    ## down     4    18    11   17
 
 ``` r
 #Down in KO
@@ -1603,8 +1621,8 @@ print(overlaps[[2]])
 ```
 
     ##      CD24- CD24+ Sca1- ZFP+
-    ## up       1    11     2    6
-    ## down     4     3     3    2
+    ## up       1     7     2    6
+    ## down     3     4     2    2
 
 Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteocytes and down in the preadipocytes. Which genes are they?
 
@@ -1624,37 +1642,31 @@ print(overlaps[[1]])
     ##        up1        up2        up3        up4        up5        up6 
     ##    "Cadm3" "Calcoco1"     "Ccr9"   "Clec4e"      "Dcn"    "Evi2b" 
     ##        up7        up8      down1      down2      down3      down4 
-    ##   "Jchain"    "Pqlc3"    "Cmpk2"  "Gm10925"     "Myl1"    "Oasl2" 
-    ##      down5 
-    ##   "Tceanc" 
+    ##   "Jchain"    "Pqlc3"    "Cmpk2"     "Myl1"    "Oasl2"   "Tceanc" 
     ## 
     ## $`CD24+`
     ##       up1       up2       up3       up4       up5       up6       up7 
-    ##     "A2m"  "Col2a1"   "Evi2b"  "Fkbp1b"  "Gm4070"   "Gvin1"    "Ibsp" 
+    ##     "A2m"  "Col2a1"   "Evi2b"  "Fkbp1b"   "Gvin1"    "Ibsp"    "Lifr" 
     ##       up8       up9      up10      up11      up12      up13      up14 
-    ##    "Lifr"   "Lpin1" "mt-Cytb" "mt-Nd4l"  "mt-Nd5"  "mt-Nd6"   "Oasl2" 
-    ##      up15      up16      up17      up18     down1     down2     down3 
-    ##  "Papss2"    "Peg3"   "Satb2"     "Ttn"   "Cadm3"   "Chit1"   "Cmpk2" 
-    ##     down4     down5     down6     down7     down8     down9    down10 
-    ##  "Col1a1"  "Col5a2"     "Dcn"  "Fam78b"  "Ifi207"   "Ifit1"   "Inhba" 
-    ##    down11    down12    down13    down14    down15    down16    down17 
-    ##     "Lox"    "Mlip"    "Myl1"    "Oas3"   "Postn"   "Pqlc3"      "Xk" 
-    ##    down18 
-    ## "Zscan29" 
+    ##   "Lpin1" "mt-Cytb" "mt-Nd4l"  "mt-Nd5"  "mt-Nd6"   "Oasl2"  "Papss2" 
+    ##      up15      up16      up17     down1     down2     down3     down4 
+    ##    "Peg3"   "Satb2"     "Ttn"   "Cadm3"   "Chit1"   "Cmpk2"  "Col1a1" 
+    ##     down5     down6     down7     down8     down9    down10    down11 
+    ##  "Col5a2"     "Dcn"  "Fam78b"  "Ifi207"   "Ifit1"   "Inhba"     "Lox" 
+    ##    down12    down13    down14    down15    down16    down17    down18 
+    ##    "Mlip"    "Myl1"    "Oas3"   "Postn"   "Pqlc3"      "Xk" "Zscan29" 
     ## 
     ## $`Sca1-`
     ##        up1        up2        up3        up4        up5        up6 
     ##     "Bmp3"    "Chit1"     "Cir1"    "Cmpk2"   "Col1a1"   "Col2a1" 
     ##        up7        up8        up9       up10       up11       up12 
-    ##  "Gm10925"   "Gm2810"     "Ibsp"     "Mlip"  "mt-Cytb"  "mt-Nd4l" 
+    ##   "Gm2810"     "Ibsp"     "Mlip"  "mt-Cytb"  "mt-Nd4l"   "mt-Nd5" 
     ##       up13       up14       up15       up16       up17       up18 
-    ##   "mt-Nd5"   "mt-Nd6"     "Myl1"     "Oas3"    "Satb2"    "Smpd3" 
-    ##       up19       up20      down1      down2      down3      down4 
-    ##   "Tceanc"       "Xk" "Calcoco1"     "Ccr9"    "Cerkl"    "Ddx60" 
-    ##      down5      down6      down7      down8      down9     down10 
-    ##    "Evi2b"   "Fkbp1b"   "Gm4070"    "Gvin1"   "Jchain"     "Pi15" 
-    ##     down11     down12 
-    ##     "Zbp1"   "Zfp125" 
+    ##   "mt-Nd6"     "Myl1"     "Oas3"    "Satb2"    "Smpd3"   "Tceanc" 
+    ##       up19      down1      down2      down3      down4      down5 
+    ##       "Xk" "Calcoco1"     "Ccr9"    "Cerkl"    "Ddx60"    "Evi2b" 
+    ##      down6      down7      down8      down9     down10     down11 
+    ##   "Fkbp1b"    "Gvin1"   "Jchain"     "Pi15"     "Zbp1"   "Zfp125" 
     ## 
     ## $`ZFP+`
     ##        up1        up2        up3        up4        up5        up6 
@@ -1674,22 +1686,22 @@ print(overlaps[[2]])
 ```
 
     ## $`CD24-`
-    ##        up     down1     down2     down3     down4 
-    ##    "Ly6d" "Ankrd35"  "Gm2000"  "Rpl35a" "Spata33" 
+    ##       up    down1    down2    down3 
+    ##   "Ly6d" "Rpl35a"  "Rpl39" "Rps15a" 
     ## 
     ## $`CD24+`
     ##       up1       up2       up3       up4       up5       up6       up7 
-    ## "Adamts1"    "Cst3" "Eif2ak4"   "Endou"   "Gm128"  "Gm2000"   "Nop10" 
-    ##       up8       up9      up10      up11     down1     down2     down3 
-    ##    "Scd2" "Spata33"  "Tspan6"  "Zfp108" "S100a10"  "S100a4"   "Sap30" 
+    ## "Adamts1"    "Cst3" "Eif2ak4"   "Nop10"    "Scd2"  "Tspan6"  "Zfp108" 
+    ##     down1     down2     down3     down4 
+    ##   "Romo1" "S100a10"  "S100a4"   "Sap30" 
     ## 
     ## $`Sca1-`
-    ##       up1       up2     down1     down2     down3 
-    ##    "Emg1" "Tmem147"    "Ly6d" "Rarres2" "Spata33" 
+    ##       up1       up2     down1     down2 
+    ##    "Emg1" "Tmem147"    "Ly6d" "Rarres2" 
     ## 
     ## $`ZFP+`
     ##       up1       up2       up3       up4       up5       up6     down1 
-    ##  "Gm2000"  "Mrpl33" "Rarres2" "S100a10"  "S100a4" "Spata33"    "Cst3" 
+    ##   "Atox1"  "Mrpl33" "Rarres2"   "Romo1" "S100a10"  "S100a4"    "Cst3" 
     ##     down2 
     ##  "Gemin6"
 
@@ -1726,7 +1738,7 @@ std.heatmap(log(ambrosiMatNorm[receptors[receptors%in%rownames(ambrosiMatNorm)],
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hormonereceptors-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/hormonereceptors-1.png)
 
 Now let's broaden the search to all the paracrine, autocrine etc receptors annotated!
 
@@ -1779,7 +1791,7 @@ heatmap.2(log(ambrosiMatNorm[recdesc$mgi_symbol[recdesc$mgi_symbol%in%rownames(a
     ## $mgi_symbol %in% : Discrepancy: Colv is FALSE, while dendrogram is `both'.
     ## Omitting column dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-1.png)
 
 ``` r
 hordesc <- descriptions[grepl("hormone",descriptions$mgi_description),]
@@ -1801,8 +1813,9 @@ print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol])
 
     ##  [1] "Pgr"      "Ryr3"     "Ghr"      "Csf2ra"   "Vldlr"    "Epha7"   
     ##  [7] "Bmpr1a"   "Olfr419"  "Ccr9"     "Acvr1"    "Lilr4b"   "Lilrb4a" 
-    ## [13] "Rtp4"     "Klri2"    "Ptpre"    "Adgrg7"   "Lifr"     "Ptger4"  
-    ## [19] "Tlr7"     "Il18rap"  "Ifnar2"   "Tnfrsf22" "Rack1"    "Rarres2"
+    ## [13] "Rtp4"     "Rara"     "Klri2"    "Ptpre"    "Klrk1"    "Adgrg7"  
+    ## [19] "Lifr"     "Ptger4"   "Tlr7"     "Il18rap"  "Tnfrsf22" "Rack1"   
+    ## [25] "Rarres2"
 
 ``` r
 dereceptors <-  c(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol],rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
@@ -1820,7 +1833,7 @@ std.heatmap(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-2.png)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)),main="Differentially expressed receptors\n Ambrosi  (FDR .15)\nlog2FC from mean")
@@ -1834,7 +1847,7 @@ std.heatmap(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNor
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-3.pdf)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-3.png)
 
 ``` r
 print(descriptions[dereceptors,])
@@ -1854,14 +1867,15 @@ print(descriptions[dereceptors,])
     ## Lilr4b       Lilr4b
     ## Lilrb4a     Lilrb4a
     ## Rtp4           Rtp4
+    ## Rara           Rara
     ## Klri2         Klri2
     ## Ptpre         Ptpre
+    ## Klrk1         Klrk1
     ## Adgrg7       Adgrg7
     ## Lifr           Lifr
     ## Ptger4       Ptger4
     ## Tlr7           Tlr7
     ## Il18rap     Il18rap
-    ## Ifnar2       Ifnar2
     ## Tnfrsf22   Tnfrsf22
     ## Rack1         Rack1
     ## Rarres2     Rarres2
@@ -1879,14 +1893,15 @@ print(descriptions[dereceptors,])
     ## Lilr4b                       leukocyte immunoglobulin-like receptor, subfamily B, member 4B
     ## Lilrb4a                      leukocyte immunoglobulin-like receptor, subfamily B, member 4A
     ## Rtp4                                                         receptor transporter protein 4
+    ## Rara                                                          retinoic acid receptor, alpha
     ## Klri2                                    killer cell lectin-like receptor family I member 2
     ## Ptpre                                        protein tyrosine phosphatase, receptor type, E
+    ## Klrk1                                killer cell lectin-like receptor subfamily K, member 1
     ## Adgrg7                                               adhesion G protein-coupled receptor G7
     ## Lifr                                                    leukemia inhibitory factor receptor
     ## Ptger4                                             prostaglandin E receptor 4 (subtype EP4)
     ## Tlr7                                                                   toll-like receptor 7
     ## Il18rap                                           interleukin 18 receptor accessory protein
-    ## Ifnar2                                               interferon (alpha and beta) receptor 2
     ## Tnfrsf22                              tumor necrosis factor receptor superfamily, member 22
     ## Rack1                                                     receptor for activated C kinase 1
     ## Rarres2                             retinoic acid receptor responder (tazarotene induced) 2
@@ -1905,15 +1920,15 @@ boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  0.13 sec 
-    ## iteration 2 done; time  0.13 sec 
-    ## iteration 3 done; time  0.58 sec 
+    ## iteration 1 done; time  1.35 sec 
+    ## iteration 2 done; time  0.14 sec 
+    ## iteration 3 done; time  0.12 sec 
     ## iteration 4 done; time  0.12 sec 
-    ## iteration 5 done; time  0.12 sec 
+    ## iteration 5 done; time  0.13 sec 
     ## iteration 6 done; time  0.13 sec 
-    ## iteration 7 done; time  1.02 sec 
-    ## iteration 8 done; time  0.15 sec 
-    ## iteration 9 done; time  0.13 sec 
+    ## iteration 7 done; time  0.13 sec 
+    ## iteration 8 done; time  0.13 sec 
+    ## iteration 9 done; time  0.28 sec 
     ## iteration 10 done; time  0.13 sec
 
     ## Labeling output ...
@@ -1924,68 +1939,68 @@ boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 print(boneEACI$setscores[1:30,])
 ```
 
-    ##                                                                                      Term
-    ## GO:0002443                                                    leukocyte mediated immunity
-    ## GO:0030016                                                                      myofibril
-    ## GO:0006325                                                         chromatin organization
-    ## GO:0030509                                                          BMP signaling pathway
-    ## GO:0005581                                                                collagen trimer
-    ## GO:0003725                                                    double-stranded RNA binding
-    ## GO:0070925                                                             organelle assembly
-    ## GO:0005509                                                            calcium ion binding
-    ## GO:0004857                                                      enzyme inhibitor activity
-    ## GO:0008289                                                                  lipid binding
-    ## GO:0005746                                                mitochondrial respiratory chain
-    ## GO:0042578                                            phosphoric ester hydrolase activity
-    ## GO:0007600                                                             sensory perception
-    ## GO:0007517                                                       muscle organ development
-    ## GO:0002757                                 immune response-activating signal transduction
-    ## GO:0006959                                                        humoral immune response
-    ## GO:0034341                                                   response to interferon-gamma
-    ## GO:0071346                                          cellular response to interferon-gamma
-    ## GO:0000981 RNA polymerase II transcription factor activity, sequence-specific DNA binding
-    ## GO:0005911                                                             cell-cell junction
-    ## GO:0061695                 transferase complex, transferring phosphorus-containing groups
-    ## GO:0005768                                                                       endosome
-    ## GO:0004896                                                     cytokine receptor activity
-    ## GO:0051346                                      negative regulation of hydrolase activity
-    ## GO:0070011                            peptidase activity, acting on L-amino acid peptides
-    ## GO:0006364                                                                rRNA processing
-    ## GO:0016072                                                         rRNA metabolic process
-    ## GO:0110053                                      regulation of actin filament organization
-    ## GO:0000785                                                                      chromatin
-    ## GO:0006897                                                                    endocytosis
+    ##                                                                                                             Term
+    ## GO:0098589                                                                                       membrane region
+    ## GO:0005509                                                                                   calcium ion binding
+    ## GO:0003725                                                                           double-stranded RNA binding
+    ## GO:0005581                                                                                       collagen trimer
+    ## GO:0030016                                                                                             myofibril
+    ## GO:0015078                                                       hydrogen ion transmembrane transporter activity
+    ## GO:0019843                                                                                          rRNA binding
+    ## GO:0002449                                                                          lymphocyte mediated immunity
+    ## GO:0048285                                                                                     organelle fission
+    ## GO:0034341                                                                          response to interferon-gamma
+    ## GO:0071346                                                                 cellular response to interferon-gamma
+    ## GO:0007600                                                                                    sensory perception
+    ## GO:0008289                                                                                         lipid binding
+    ## GO:0005681                                                                                  spliceosomal complex
+    ## GO:0000981                        RNA polymerase II transcription factor activity, sequence-specific DNA binding
+    ## GO:0005911                                                                                    cell-cell junction
+    ## GO:1990204                                                                                oxidoreductase complex
+    ## GO:0110053                                                             regulation of actin filament organization
+    ## GO:0010769                                          regulation of cell morphogenesis involved in differentiation
+    ## GO:0000785                                                                                             chromatin
+    ## GO:0070011                                                   peptidase activity, acting on L-amino acid peptides
+    ## GO:0061695                                        transferase complex, transferring phosphorus-containing groups
+    ## GO:0042113                                                                                     B cell activation
+    ## GO:0016705 oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen
+    ## GO:0001654                                                                                       eye development
+    ## GO:0051301                                                                                         cell division
+    ## GO:0043467                                          regulation of generation of precursor metabolites and energy
+    ## GO:0042578                                                                   phosphoric ester hydrolase activity
+    ## GO:0016055                                                                                 Wnt signaling pathway
+    ## GO:0198738                                                                            cell-cell signaling by wnt
     ##            Ontology   set.mean    set.sd set.size         pval
-    ## GO:0002443       BP -0.9954146 0.6366566       10 3.674513e-20
-    ## GO:0030016       CC  0.8459851 0.5786451        8 6.439294e-15
-    ## GO:0006325       BP  0.8044725 1.1155622        9 1.258993e-13
-    ## GO:0030509       BP  0.7952500 0.6024379       10 2.382539e-13
-    ## GO:0005581       CC  0.7702965 0.5482416        6 1.292744e-12
-    ## GO:0003725       MF  0.7619528 0.5576502       10 2.249312e-12
-    ## GO:0070925       BP -0.7406773 0.7151371       12 7.556430e-12
-    ## GO:0005509       MF  0.7168456 1.7007092       12 4.059664e-11
-    ## GO:0004857       MF  0.6978408 1.3420436       10 1.305525e-10
-    ## GO:0008289       MF  0.6944786 0.6855774        9 1.600193e-10
-    ## GO:0005746       CC -0.6830137 0.2951290        8 2.707670e-10
-    ## GO:0042578       MF  0.6277188 0.8830850        8 7.491885e-09
-    ## GO:0007600       BP  0.5873318 0.5344867       10 6.414024e-08
-    ## GO:0007517       BP -0.5783418 0.6075108       10 8.851823e-08
-    ## GO:0002757       BP  0.5765160 0.6205972       12 1.114077e-07
-    ## GO:0006959       BP -0.5332741 0.2975609        9 8.097519e-07
-    ## GO:0034341       BP  0.5175384 0.4724600        9 1.908573e-06
-    ## GO:0071346       BP  0.5175384 0.4724600        9 1.908573e-06
-    ## GO:0000981       MF  0.4776079 0.2863302       13 1.110627e-05
-    ## GO:0005911       CC -0.4554144 1.6558877        9 2.502335e-05
-    ## GO:0061695       CC -0.4064851 0.2710684        9 1.678087e-04
-    ## GO:0005768       CC  0.3805958 1.2037117       10 4.664835e-04
-    ## GO:0004896       MF  0.3774080 0.3093462        6 5.206825e-04
-    ## GO:0051346       BP  0.3569401 0.4797096       11 1.034297e-03
-    ## GO:0070011       MF  0.3446402 1.7236180        6 1.537369e-03
-    ## GO:0006364       BP -0.2721660 0.3173356       12 1.161101e-02
-    ## GO:0016072       BP -0.2721660 0.3173356       12 1.161101e-02
-    ## GO:0110053       BP  0.2691592 0.2505020       10 1.347095e-02
-    ## GO:0000785       CC -0.2642623 0.2032817       12 1.425297e-02
-    ## GO:0006897       BP  0.2581345 0.2289144       13 1.781961e-02
+    ## GO:0098589       CC  1.1974654 0.6277870        9 0.000000e+00
+    ## GO:0005509       MF  1.1497516 1.1351717       12 0.000000e+00
+    ## GO:0003725       MF  0.8704810 0.5197230       10 0.000000e+00
+    ## GO:0005581       CC  0.8574391 0.5255333        6 2.220446e-16
+    ## GO:0030016       CC  0.8458390 0.5763350        8 4.440892e-16
+    ## GO:0015078       MF -0.8006743 0.2144011        9 1.449466e-14
+    ## GO:0019843       MF -0.7558211 0.1986168       11 3.823360e-13
+    ## GO:0002449       BP -0.5898845 1.2793780        8 1.428357e-08
+    ## GO:0048285       BP  0.5833068 0.8816670       13 2.354918e-08
+    ## GO:0034341       BP  0.5460414 0.4676675        9 1.730189e-07
+    ## GO:0071346       BP  0.5460414 0.4676675        9 1.730189e-07
+    ## GO:0007600       BP  0.5240520 0.3683686        9 5.295603e-07
+    ## GO:0008289       MF  0.4912054 0.7669608       11 2.598986e-06
+    ## GO:0005681       CC -0.4907059 0.3476755        7 2.374721e-06
+    ## GO:0000981       MF  0.4729394 0.2945684       13 6.039757e-06
+    ## GO:0005911       CC -0.4543680 1.6562069        9 1.242261e-05
+    ## GO:1990204       CC -0.4054323 0.2838993        8 9.594303e-05
+    ## GO:0110053       BP  0.3972824 0.2889531       10 1.451251e-04
+    ## GO:0010769       BP  0.3918799 0.2843453       13 1.786456e-04
+    ## GO:0000785       CC -0.3585742 0.3936405       13 5.581995e-04
+    ## GO:0070011       MF  0.3450697 1.7231954        6 9.722858e-04
+    ## GO:0061695       CC -0.3336838 0.2622644        9 1.316335e-03
+    ## GO:0042113       BP -0.3320844 0.6587143       10 1.388396e-03
+    ## GO:0016705       MF  0.3188707 0.3514336        5 2.310484e-03
+    ## GO:0001654       BP  0.3042500 0.2518834       10 3.650647e-03
+    ## GO:0051301       BP  0.3034110 0.1987903       11 3.745675e-03
+    ## GO:0043467       BP -0.2898783 0.2357221        9 5.235120e-03
+    ## GO:0042578       MF  0.2788441 0.6169008        8 7.740857e-03
+    ## GO:0016055       BP  0.2777861 0.8015413        8 7.977514e-03
+    ## GO:0198738       BP  0.2777861 0.8015413        8 7.977514e-03
 
 ``` r
 print("done")
@@ -1998,7 +2013,7 @@ std.heatmap(cor.compare(boneMatNorm,ambrosiMatNorm,method="spearman"))
 ```
 
     ## [1] "Num Genes:"
-    ## [1] 32607
+    ## [1] 22492
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
@@ -2008,7 +2023,7 @@ std.heatmap(cor.compare(boneMatNorm,ambrosiMatNorm,method="spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-4.pdf)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-4.png)
 
 ``` r
 IngrahamMatLog <- log(boneMatNorm+1,2)
@@ -2019,7 +2034,7 @@ std.heatmap(cor.compare(AmbrosiMatLog-rowMeans(AmbrosiMatLog),IngrahamMatLog-row
 ```
 
     ## [1] "Num Genes:"
-    ## [1] 3836
+    ## [1] 3718
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
@@ -2029,7 +2044,7 @@ std.heatmap(cor.compare(AmbrosiMatLog-rowMeans(AmbrosiMatLog),IngrahamMatLog-row
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-5.pdf)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-5.png)
 
 ``` r
 goresultsup <- getBM(attributes = c( 'mgi_symbol', 'go_id', 'name_1006'), filters = 'mgi_symbol',
@@ -2044,77 +2059,77 @@ sort(table(goresultsup$name_1006),decreasing = T)[15:50]
 ```
 
     ## 
-    ##                                                   nucleotide binding 
-    ##                                                                   28 
     ##                                                          ATP binding 
-    ##                                                                   26 
+    ##                                                                   28 
     ##                                                   biological_process 
-    ##                                                                   24 
+    ##                                                                   28 
+    ##                                                   cellular_component 
+    ##                                                                   28 
     ##                                                        intracellular 
-    ##                                                                   24 
-    ##                           regulation of transcription, DNA-templated 
+    ##                                                                   25 
+    ##                                                        mitochondrion 
     ##                                                                   24 
     ##                                                 transferase activity 
     ##                                                                   24 
-    ##                                                        mitochondrion 
+    ##                           regulation of transcription, DNA-templated 
     ##                                                                   23 
     ##                                            defense response to virus 
-    ##                                                                   22 
+    ##                                                                   21 
+    ##                                                          nucleoplasm 
+    ##                                                                   21 
     ## positive regulation of transcription from RNA polymerase II promoter 
+    ##                                                                   21 
+    ##                                          oxidation-reduction process 
     ##                                                                   20 
     ##                                                            transport 
-    ##                                                                   20 
-    ##                                            identical protein binding 
-    ##                                                                   18 
+    ##                                                                   19 
     ##                                                endoplasmic reticulum 
-    ##                                                                   17 
+    ##                                                                   18 
     ##                                               innate immune response 
+    ##                                                                   18 
+    ##                                              oxidoreductase activity 
+    ##                                                                   18 
+    ##                                    protein homodimerization activity 
+    ##                                                                   18 
+    ##                                                          RNA binding 
+    ##                                                                   18 
+    ##                                            identical protein binding 
+    ##                                                                   17 
+    ##                                                immune system process 
     ##                                                                   17 
     ## negative regulation of transcription from RNA polymerase II promoter 
     ##                                                                   17 
-    ##                                                 nucleic acid binding 
-    ##                                                                   17 
-    ##                                                          nucleoplasm 
-    ##                                                                   17 
-    ##                                          oxidation-reduction process 
-    ##                                                                   17 
-    ##                                                          RNA binding 
-    ##                                                                   17 
-    ##                                                immune system process 
-    ##                                                                   16 
     ##                                                  signal transduction 
     ##                                                                   16 
     ##                                         transcription, DNA-templated 
     ##                                                                   16 
+    ##                                                          DNA binding 
+    ##                                                                   15 
     ##                                   multicellular organism development 
     ##                                                                   15 
-    ##                                              oxidoreductase activity 
-    ##                                                                   15 
-    ##                                    protein homodimerization activity 
+    ##                                                 nucleic acid binding 
     ##                                                                   15 
     ##                                                   hydrolase activity 
     ##                                                                   14 
-    ##                  positive regulation of transcription, DNA-templated 
-    ##                                                                   14 
     ##         transcription factor activity, sequence-specific DNA binding 
     ##                                                                   14 
-    ##                                                          DNA binding 
+    ##                                                 cell differentiation 
+    ##                                                                   13 
+    ##                                                         cytoskeleton 
+    ##                                                                   13 
+    ##                                                          GTP binding 
     ##                                                                   13 
     ##                                                      immune response 
     ##                                                                   13 
-    ##                                integral component of plasma membrane 
+    ##                  positive regulation of transcription, DNA-templated 
     ##                                                                   13 
-    ##                                                 cell differentiation 
-    ##                                                                   12 
-    ##                                                          GTP binding 
-    ##                                                                   12 
-    ##                                                        cell adhesion 
-    ##                                                                   11 
-    ##                                                         cytoskeleton 
-    ##                                                                   11 
     ##                                                 extracellular matrix 
     ##                                                                   11 
     ##                                                      Golgi apparatus 
+    ##                                                                   11 
+    ##                                integral component of plasma membrane 
+    ##                                                                   11 
+    ##                             intracellular membrane-bounded organelle 
     ##                                                                   11
 
 ``` r
@@ -2122,78 +2137,78 @@ sort(table(goresultsdown$name_1006),decreasing = T)[15:50]
 ```
 
     ## 
-    ##         structural constituent of ribosome 
-    ##                                         30 
-    ##                                translation 
-    ##                                         30 
-    ##             integral component of membrane 
-    ##                                         29 
     ##                              intracellular 
+    ##                                         37 
+    ##                                nucleoplasm 
+    ##                                         35 
+    ##                          metal ion binding 
+    ##                                         33 
+    ##             integral component of membrane 
     ##                                         29 
     ##                         biological_process 
     ##                                         26 
     ##                            plasma membrane 
-    ##                                         21 
-    ##                      endoplasmic reticulum 
-    ##                                         19 
+    ##                                         23 
+    ##               mitochondrial inner membrane 
+    ##                                         22 
     ##                                  nucleolus 
-    ##                                         19 
+    ##                                         22 
+    ##                      endoplasmic reticulum 
+    ##                                         21 
+    ##                             focal adhesion 
+    ##                                         21 
     ## regulation of transcription, DNA-templated 
     ##                                         19 
     ##               transcription, DNA-templated 
     ##                                         18 
+    ##          cytosolic large ribosomal subunit 
+    ##                                         17 
     ##                                DNA binding 
     ##                                         17 
-    ##                             focal adhesion 
-    ##                                         15 
-    ##               mitochondrial inner membrane 
-    ##                                         15 
+    ##                       extracellular matrix 
+    ##                                         17 
+    ##                       transferase activity 
+    ##                                         17 
     ##                       extracellular region 
-    ##                                         14 
-    ##                         hydrolase activity 
     ##                                         14 
     ##                         cellular_component 
     ##                                         13 
-    ##          cytosolic large ribosomal subunit 
+    ##          cytosolic small ribosomal subunit 
+    ##                                         13 
+    ##                         hydrolase activity 
+    ##                                         13 
+    ##                            rRNA processing 
+    ##                                         13 
+    ##                                  transport 
     ##                                         13 
     ##                  identical protein binding 
-    ##                                         13 
-    ##                       transferase activity 
     ##                                         12 
-    ##                       extracellular matrix 
-    ##                                         11 
-    ##                            rRNA processing 
-    ##                                         11 
-    ##                                  transport 
-    ##                                         11 
-    ##                               cytoskeleton 
-    ##                                         10 
-    ##          cytosolic small ribosomal subunit 
-    ##                                         10 
-    ##          protein homodimerization activity 
-    ##                                         10 
-    ##                         nucleotide binding 
-    ##                                          9 
     ##                oxidation-reduction process 
+    ##                                         12 
+    ##                         nucleotide binding 
+    ##                                         11 
+    ##          protein homodimerization activity 
+    ##                                         11 
+    ##                            mRNA processing 
+    ##                                         10 
+    ##                          apoptotic process 
+    ##                                          9 
+    ##             endoplasmic reticulum membrane 
+    ##                                          9 
+    ##                        extracellular space 
     ##                                          9 
     ##            perinuclear region of cytoplasm 
     ##                                          9 
-    ##                        extracellular space 
-    ##                                          8 
-    ##                            mRNA processing 
-    ##                                          8 
     ##  positive regulation of cell proliferation 
+    ##                                          9 
+    ##                               RNA splicing 
+    ##                                          9 
+    ##                                ATP binding 
     ##                                          8 
-    ##             endoplasmic reticulum membrane 
-    ##                                          7 
-    ##   intracellular membrane-bounded organelle 
-    ##                                          7 
-    ##     negative regulation of gene expression 
-    ##                                          7 
+    ##                               cytoskeleton 
+    ##                                          8 
     ##                       nucleic acid binding 
-    ##                                          7 
-    ##     positive regulation of gene expression 
-    ##                                          7
+    ##                                          8
 
 ``` r
 library(GOsummaries)
@@ -2201,7 +2216,7 @@ gs = gosummaries(list(rownames(resCandiceSub[resCandiceSub$log2FoldChange>0,]),r
 plot(gs, fontsize = 8)
 ```
 
-![](BoneNotebook_files/figure-markdown_github/goPie-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/goPie-1.png)
 
 ``` r
 ind <- intersect(rownames(boneMatNorm),rownames(ambrosiMatNorm))
@@ -2219,7 +2234,7 @@ std.heatmap(coefMat)
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/whichCellType-1.pdf)
+![](BoneNotebook_files/figure-markdown_github/whichCellType-1.png)
 
 ``` r
 boneMatNormLog <- log(boneMatNorm+1,2)
@@ -2265,7 +2280,7 @@ std.heatmap(cor.compare(ambrosiMatNormLog,boneMatNormLog,min = 1),method="pearso
 ```
 
     ## [1] "Num Genes:"
-    ## [1] 24003
+    ## [1] 18791
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
@@ -2281,11 +2296,12 @@ std.heatmap(cor.compare(ambrosiMatNormLog,boneMatNormLog,min = 1),method="pearso
 
     ## Warning in title(...): "method" is not a graphical parameter
 
-![](BoneNotebook_files/figure-markdown_github/whichCellType-2.pdf)
+![](BoneNotebook_files/figure-markdown_github/whichCellType-2.png)
 
 ``` r
 normOptiMat <- sapply(1:ncol(optiMat),function(i) optiMat[-12,i]/sum(optiMat[-12,i]))
 colnames(normOptiMat) <- colnames(optiMat)
+rownames(normOptiMat) <- colnames(ambrosiMatNorm)
 std.heatmap(normOptiMat)
 ```
 
@@ -2297,7 +2313,7 @@ std.heatmap(normOptiMat)
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/whichCellType-3.pdf)
+![](BoneNotebook_files/figure-markdown_github/whichCellType-3.png)
 
 ``` r
 grad.descent <- function(x, maxit){
