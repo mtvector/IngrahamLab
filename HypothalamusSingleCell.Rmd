@@ -1,0 +1,41 @@
+---
+title: "HypothalamusSingleCell"
+author: "mtvector"
+date: "March 20, 2018"
+output: github_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache=TRUE)
+```
+
+
+```{r loadLibraries,message=F,warning=F}
+library(DESeq2)
+library(EBSeq)
+library(matrixStats)
+library(biomaRt)
+library(gplots)
+library(clusterProfiler)
+library(RColorBrewer)
+cols <-  colorRampPalette(rev(brewer.pal(11,"RdBu")))(50)
+```
+
+
+
+```{r loadSingleCell}
+
+system("~/code/other/scRNA.seq.datasets/bash/campbell.sh")
+source("~/code/other/scRNA.seq.datasets/R/campbell.R")
+#file.copy("./GSE93374_Merged_all_020816_DGE.txt","~/code/data/GEOData/seq/SCsets/")
+file.remove("./GSE93374_Merged_all_020816_DGE.txt")
+file.remove("./GSE93374_cell_metadata.txt")
+
+system("~/code/other/scRNA.seq.datasets/bash/chen.sh")
+#file.copy("./GSE87544_Merged_17samples_14437cells_count.txt","~/code/data/GEOData/seq/SCsets/")
+file.remove("./GSE87544_Merged_17samples_14437cells_count.txt")
+#file.copy("./GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv","~/code/data/GEOData/seq/SCsets/")
+file.remove("./GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv")
+
+```
+
+

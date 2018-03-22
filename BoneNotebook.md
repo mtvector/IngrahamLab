@@ -20,6 +20,7 @@ library(biomaRt)
 library(gplots)
 library(clusterProfiler)
 library(RColorBrewer)
+library(tximport)
 cols <-  colorRampPalette(rev(brewer.pal(11,"RdBu")))(50)
 
 #see Github lengning
@@ -101,6 +102,7 @@ rn.compare <- function(x,y,fill=0){
 datapath <- "~/code/data/GEOData/seq/AmbrosiBone/out/"
 fileList <- dir(datapath)
 fileList <- paste0(datapath,"/",fileList,"/","quant.sf")
+
 dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
 allRownames <- Reduce(union,lapply(dsList,rownames))
 
@@ -241,15 +243,33 @@ print(sampleMat)
     ## 24      NA      3_Sca1-
 
 ``` r
-dsAgList <-  lapply(dsList,function(x){
-  rnsgs <-  rnSymbolGenes[rnSymbolGenes$ensembl_transcript_id_version %in% rownames(x),]
-  x <- x[rnsgs$ensembl_transcript_id_version,]
-  ret <- aggregate(as.integer(x$NumReads), by=list(rnsgs$mgi_symbol),sum)
-  rownames(ret) <- ret[,1]
-  ret[,-1,drop=F]
-})
+# dsAgList <-  lapply(dsList,function(x){
+#   rnsgs <-  rnSymbolGenes[rnSymbolGenes$ensembl_transcript_id_version %in% rownames(x),]
+#   x - x[rnsgs$ensembl_transcript_id_version,]
+#   ret <- aggregate(as.integer(x$NumReads), by=list(rnsgs$mgi_symbol),sum)
+#   rownames(ret) <- ret[,1]
+#   ret[,-1,drop=F]
+# })
+#
+#ambrosiMat <-  as.matrix(Reduce(rn.merge,dsAgList))
+txList <-  tximport(fileList,type="salmon",txOut = T)
+```
 
-ambrosiMat <-  as.matrix(Reduce(rn.merge,dsAgList))
+    ## reading in files with read_tsv
+
+    ## 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+
+``` r
+ambrosiMat <-  summarizeToGene(txList,rnSymbol)$counts[-1,]
+```
+
+    ## removing duplicated transcript rows from tx2gene
+    ## transcripts missing from tx2gene: 1293
+    ## summarizing abundance
+    ## summarizing counts
+    ## summarizing length
+
+``` r
 colnames(ambrosiMat) <- sampleMat$sample_title
 
 #There's a failed sample in there
@@ -264,7 +284,7 @@ std.heatmap(cor(ambrosiMat,method="spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/loadData-1.png)
+![](BoneNotebook_files/figure-markdown_github/loadData-1.pdf)
 
 ``` r
 #Correlation between tech replicates super high. Pool the reads from the technical replicates.
@@ -283,7 +303,7 @@ std.heatmap(cor(ambrosiMat,method = "spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/loadData-2.png)
+![](BoneNotebook_files/figure-markdown_github/loadData-2.pdf)
 
 ``` r
 ambrosiMatNorm <-  median.normalize(ambrosiMat[rowMaxs(ambrosiMat)>2,])
@@ -303,46 +323,46 @@ Now we have normalized counts in "ambrosiMatNorm", the conditions in "condits", 
 head(ambrosiMat)
 ```
 
-    ##               1_CD24- 3_CD24- 1_CD24+ 2_CD24+ 3_CD24+ 1_Sca1- 2_Sca1-
-    ## 0610009B22Rik     168     291     240     499     360     174     347
-    ## 0610009O20Rik     499     784    1293     467    1054     575     663
-    ## 0610010F05Rik       0     376       7     130       0     282     207
-    ## 0610010K14Rik     688     113     270     553     225     170      95
-    ## 0610012G03Rik      12      27      77      38      22      69       2
-    ## 0610030E20Rik     177      83      55       4     565      34     872
-    ##               3_Sca1- 1_ZFP+ 2_ZFP+ 3_ZFP+
-    ## 0610009B22Rik     301    441    436    562
-    ## 0610009O20Rik     219    520    982    744
-    ## 0610010F05Rik     105    211     11      6
-    ## 0610010K14Rik     147    590    956    441
-    ## 0610012G03Rik       0     64     71     27
-    ## 0610030E20Rik      17    367    387    434
+    ##                 1_CD24-   3_CD24-    1_CD24+    2_CD24+    3_CD24+
+    ## 0610009B22Rik 168.00000 291.00000  240.00000 499.000000  360.00000
+    ## 0610009O20Rik 499.00000 784.00000 1293.00000 467.000000 1054.00000
+    ## 0610010F05Rik   0.00000 379.00000    7.00000 132.000000    0.00000
+    ## 0610010K14Rik 697.63399 117.73001  273.36182 561.736115  226.69839
+    ## 0610012G03Rik  12.02473  27.97399   77.97179  39.534603   22.93296
+    ## 0610030E20Rik 181.16982  83.18100   60.10451   5.043553  565.96365
+    ##                 1_Sca1-    2_Sca1-  3_Sca1-    1_ZFP+   2_ZFP+    3_ZFP+
+    ## 0610009B22Rik 174.00000 347.000000 301.5604 441.00000 437.0000 562.00000
+    ## 0610009O20Rik 575.00000 663.000000 219.0000 520.00000 982.0000 744.00000
+    ## 0610010F05Rik 284.00000 209.000001 107.0000 216.00000  11.0000   7.00000
+    ## 0610010K14Rik 177.14379  99.160890 151.7189 598.96206 967.5398 448.18364
+    ## 0610012G03Rik  69.56521   2.412995   0.0000  64.76743  71.5059  28.75185
+    ## 0610030E20Rik  34.00000 873.346671  19.0000 368.30748 390.3008 438.34378
 
 ``` r
 head(ambrosiMatNorm)
 ```
 
-    ##                 1_CD24-  3_CD24-     1_CD24+    2_CD24+   3_CD24+
-    ## 0610009B22Rik 155.75224 351.9009  213.711565 397.571556  346.1890
-    ## 0610009O20Rik 462.62122 948.0767 1151.371055 372.075985 1013.5645
-    ## 0610010F05Rik   0.00000 454.6898    6.233254 103.575756    0.0000
-    ## 0610010K14Rik 637.84249 136.6488  240.425510 440.595332  216.3681
-    ## 0610012G03Rik  11.12516  32.6506   68.565794  30.275990   21.1560
-    ## 0610030E20Rik 164.09611 100.3704   48.975567   3.186946  543.3244
+    ##                 1_CD24-   3_CD24-    1_CD24+    2_CD24+    3_CD24+
+    ## 0610009B22Rik 155.31431 352.25089  212.88925 397.418205  347.91985
+    ## 0610009O20Rik 461.32047 949.01959 1146.94084 371.932468 1018.63200
+    ## 0610010F05Rik   0.00000 458.77350    6.20927 105.128663    0.00000
+    ## 0610010K14Rik 644.95558 142.51031  242.48247 447.383083  219.09131
+    ## 0610012G03Rik  11.11674  33.86208   69.16398  31.486515   22.16342
+    ## 0610030E20Rik 167.48967 100.68929   53.31502   4.016833  546.97218
     ##                 1_Sca1-    2_Sca1-   3_Sca1-    1_ZFP+     2_ZFP+
-    ## 0610009B22Rik 236.77779 329.973453 392.32423 304.28535 296.780898
-    ## 0610009O20Rik 782.45532 630.468010 285.44520 358.79451 668.437711
-    ## 0610010F05Rik 383.74331 196.842953 136.85729 145.58777   7.487591
-    ## 0610010K14Rik 231.33462  90.338553 191.60020 407.09377 650.739768
-    ## 0610012G03Rik  93.89464   1.901864   0.00000  44.15932  48.328999
-    ## 0610030E20Rik  46.26692 829.212827  22.15785 253.22613 263.427082
+    ## 0610009B22Rik 235.30292 329.986313 393.85481 303.75905 297.504949
+    ## 0610009O20Rik 777.58148 630.492581 286.02629 358.17393 668.535147
+    ## 0610010F05Rik 384.05764 198.752564 139.74801 148.77994   7.488683
+    ## 0610010K14Rik 239.55431  94.298952 198.15342 412.56269 658.690778
+    ## 0610012G03Rik  94.07412   2.294684   0.00000  44.61155  48.680458
+    ## 0610030E20Rik  45.97873 830.525787  24.81507 253.68873 265.712629
     ##                   3_ZFP+
-    ## 0610009B22Rik 428.225695
-    ## 0610009O20Rik 566.903767
-    ## 0610010F05Rik   4.571805
-    ## 0610010K14Rik 336.027636
-    ## 0610012G03Rik  20.573121
-    ## 0610030E20Rik 330.693864
+    ## 0610009B22Rik 426.661806
+    ## 0610009O20Rik 564.833423
+    ## 0610010F05Rik   5.314293
+    ## 0610010K14Rik 340.254163
+    ## 0610012G03Rik  21.827964
+    ## 0610030E20Rik 332.783894
 
 ``` r
 print(condits)
@@ -356,19 +376,19 @@ print(condits)
 barplot(ambrosiMatNorm["Esr1",],las=2,main="Esr1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkData-1.png)
+![](BoneNotebook_files/figure-markdown_github/checkData-1.pdf)
 
 ``` r
 barplot(ambrosiMatNorm["Esr2",],las=2,main="Esr2")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkData-2.png)
+![](BoneNotebook_files/figure-markdown_github/checkData-2.pdf)
 
 ``` r
 barplot(ambrosiMatNorm["Gper1",],las=2,main="Gper1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkData-3.png)
+![](BoneNotebook_files/figure-markdown_github/checkData-3.pdf)
 
 ### PCA
 
@@ -390,7 +410,7 @@ std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/svd-1.png)
+![](BoneNotebook_files/figure-markdown_github/svd-1.pdf)
 
 ``` r
 conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
@@ -399,7 +419,7 @@ plot(svAmbrosi$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
 legend("bottomright",legend = unique(names(conditNums)),col=1:4,fill = 1:4)
 ```
 
-![](BoneNotebook_files/figure-markdown_github/svd-2.png)
+![](BoneNotebook_files/figure-markdown_github/svd-2.pdf)
 
 ``` r
 eaciout <- list()
@@ -415,16 +435,16 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  9.31 sec 
-    ## iteration 2 done; time  6.61 sec 
-    ## iteration 3 done; time  7.13 sec 
-    ## iteration 4 done; time  8.37 sec 
-    ## iteration 5 done; time  7.46 sec 
-    ## iteration 6 done; time  7.69 sec 
-    ## iteration 7 done; time  8.11 sec 
-    ## iteration 8 done; time  7.61 sec 
-    ## iteration 9 done; time  9.88 sec 
-    ## iteration 10 done; time  6.46 sec
+    ## iteration 1 done; time  8.66 sec 
+    ## iteration 2 done; time  7.16 sec 
+    ## iteration 3 done; time  7.26 sec 
+    ## iteration 4 done; time  7.31 sec 
+    ## iteration 5 done; time  6.82 sec 
+    ## iteration 6 done; time  7.26 sec 
+    ## iteration 7 done; time  7.31 sec 
+    ## iteration 8 done; time  7.66 sec 
+    ## iteration 9 done; time  7.16 sec 
+    ## iteration 10 done; time  6.93 sec
 
     ## Labeling output ...
 
@@ -443,16 +463,16 @@ eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  5.55 sec 
-    ## iteration 2 done; time  7.7 sec 
-    ## iteration 3 done; time  6.51 sec 
-    ## iteration 4 done; time  7.12 sec 
-    ## iteration 5 done; time  5.83 sec 
-    ## iteration 6 done; time  6.68 sec 
-    ## iteration 7 done; time  5.66 sec 
-    ## iteration 8 done; time  7.37 sec 
-    ## iteration 9 done; time  7.68 sec 
-    ## iteration 10 done; time  6.99 sec
+    ## iteration 1 done; time  5.74 sec 
+    ## iteration 2 done; time  7.3 sec 
+    ## iteration 3 done; time  9.03 sec 
+    ## iteration 4 done; time  7.08 sec 
+    ## iteration 5 done; time  7.11 sec 
+    ## iteration 6 done; time  7.14 sec 
+    ## iteration 7 done; time  5.39 sec 
+    ## iteration 8 done; time  6.91 sec 
+    ## iteration 9 done; time  7 sec 
+    ## iteration 10 done; time  7.18 sec
 
     ## Labeling output ...
 
@@ -474,52 +494,52 @@ print(a[1:25,])
     ## GO:0035455                            response to interferon-alpha
     ## GO:0035641                         locomotory exploration behavior
     ## GO:0070006                          metalloaminopeptidase activity
-    ## GO:0097440                                         apical dendrite
-    ## GO:0005161         platelet-derived growth factor receptor binding
     ## GO:0043034                                               costamere
+    ## GO:0005161         platelet-derived growth factor receptor binding
     ## GO:0030742                           GTP-dependent protein binding
-    ## GO:0051497            negative regulation of stress fiber assembly
-    ## GO:0038191                                      neuropilin binding
     ## GO:0043649                     dicarboxylic acid catabolic process
-    ## GO:0034312                               diol biosynthetic process
+    ## GO:0051497            negative regulation of stress fiber assembly
+    ## GO:0097440                                         apical dendrite
+    ## GO:0038191                                      neuropilin binding
     ## GO:0060716             labyrinthine layer blood vessel development
+    ## GO:0034312                               diol biosynthetic process
     ## GO:0052744 phosphatidylinositol monophosphate phosphatase activity
     ## GO:0097320                              plasma membrane tubulation
     ## GO:2001212                            regulation of vasculogenesis
-    ## GO:0051654             establishment of mitochondrion localization
     ## GO:0000062                                  fatty-acyl-CoA binding
     ## GO:0042581                                        specific granule
     ## GO:1990126       retrograde transport, endosome to plasma membrane
-    ## GO:0004602                         glutathione peroxidase activity
+    ## GO:0051654             establishment of mitochondrion localization
     ## GO:0031579                              membrane raft organization
-    ## GO:0070742                         C2H2 zinc finger domain binding
+    ## GO:0004602                         glutathione peroxidase activity
     ## GO:0030574                              collagen catabolic process
+    ## GO:0021846                         cell proliferation in forebrain
     ##            Ontology    set.mean      set.sd set.size         pval
-    ## GO:1904181       BP 0.009540787 0.007417680       11 0.000000e+00
-    ## GO:0010935       BP 0.008475386 0.004506944       10 0.000000e+00
-    ## GO:0035455       BP 0.008179649 0.004484593       16 0.000000e+00
-    ## GO:0035641       BP 0.008100013 0.003036715       12 0.000000e+00
-    ## GO:0070006       MF 0.008029393 0.003411502        9 0.000000e+00
-    ## GO:0097440       CC 0.007949549 0.007752464       16 0.000000e+00
-    ## GO:0005161       MF 0.007456639 0.004110238       10 0.000000e+00
-    ## GO:0043034       CC 0.007389192 0.003687449       12 0.000000e+00
-    ## GO:0030742       MF 0.007069072 0.005912372       16 8.881784e-16
-    ## GO:0051497       BP 0.006992098 0.004851236       19 1.776357e-15
-    ## GO:0038191       MF 0.006893799 0.009470836       11 4.218847e-15
-    ## GO:0043649       BP 0.006881281 0.004254370        9 4.884981e-15
-    ## GO:0034312       BP 0.006841511 0.007135685       10 6.883383e-15
-    ## GO:0060716       BP 0.006819999 0.003310984       13 8.437695e-15
-    ## GO:0052744       MF 0.006663684 0.003078559        9 3.352874e-14
-    ## GO:0097320       BP 0.006592918 0.004659027       11 6.239453e-14
-    ## GO:2001212       BP 0.006488661 0.007587465       11 1.534328e-13
-    ## GO:0051654       BP 0.006345124 0.003899079       10 5.182521e-13
-    ## GO:0000062       MF 0.006270325 0.003657101       10 9.672263e-13
-    ## GO:0042581       CC 0.006249306 0.008390978       11 1.151079e-12
-    ## GO:1990126       BP 0.006207893 0.004112114       10 1.619149e-12
-    ## GO:0004602       MF 0.006167700 0.005206195        9 2.250200e-12
-    ## GO:0031579       BP 0.006133647 0.006401470        9 2.968958e-12
-    ## GO:0070742       MF 0.006083792 0.003113963       10 4.443113e-12
-    ## GO:0030574       BP 0.005978991 0.003841013       10 1.026201e-11
+    ## GO:1904181       BP 0.009550961 0.007362549       11 0.000000e+00
+    ## GO:0010935       BP 0.008480568 0.004542898       10 0.000000e+00
+    ## GO:0035455       BP 0.008176674 0.004452738       16 0.000000e+00
+    ## GO:0035641       BP 0.008128965 0.003041400       12 0.000000e+00
+    ## GO:0070006       MF 0.008062144 0.003396604        9 0.000000e+00
+    ## GO:0043034       CC 0.007416668 0.003652416       12 0.000000e+00
+    ## GO:0005161       MF 0.007303739 0.004115494       10 0.000000e+00
+    ## GO:0030742       MF 0.007236354 0.005686460       16 0.000000e+00
+    ## GO:0043649       BP 0.007048522 0.004348495        9 6.661338e-16
+    ## GO:0051497       BP 0.006929356 0.004769006       19 1.998401e-15
+    ## GO:0097440       CC 0.006927306 0.008652274       17 1.998401e-15
+    ## GO:0038191       MF 0.006925863 0.009478934       11 1.998401e-15
+    ## GO:0060716       BP 0.006921120 0.003255819       13 1.998401e-15
+    ## GO:0034312       BP 0.006855821 0.007104589       10 3.774758e-15
+    ## GO:0052744       MF 0.006738662 0.002955610        9 1.110223e-14
+    ## GO:0097320       BP 0.006549348 0.004641722       11 5.995204e-14
+    ## GO:2001212       BP 0.006467521 0.007580034       11 1.225686e-13
+    ## GO:0000062       MF 0.006281751 0.003783333       10 5.995204e-13
+    ## GO:0042581       CC 0.006236637 0.008351424       11 8.757439e-13
+    ## GO:1990126       BP 0.006187573 0.004099407       10 1.318279e-12
+    ## GO:0051654       BP 0.006159705 0.003921547       10 1.660672e-12
+    ## GO:0031579       BP 0.006144897 0.006097797        9 1.876721e-12
+    ## GO:0004602       MF 0.006067209 0.005298084        9 3.548717e-12
+    ## GO:0030574       BP 0.005944741 0.003864840       10 9.534373e-12
+    ## GO:0021846       BP 0.005903418 0.007465946       18 1.325007e-11
 
 ``` r
 #PC1 Negative
@@ -532,53 +552,53 @@ print(a[1:25,])
     ## GO:0042555                                                            MCM complex
     ## GO:0006271                      DNA strand elongation involved in DNA replication
     ## GO:0050699                                                      WW domain binding
-    ## GO:1904666                        regulation of ubiquitin protein ligase activity
-    ## GO:0003688                                         DNA replication origin binding
     ## GO:0000940                                 condensed chromosome outer kinetochore
+    ## GO:0031643                                     positive regulation of myelination
+    ## GO:0003688                                         DNA replication origin binding
     ## GO:0043142                          single-stranded DNA-dependent ATPase activity
-    ## GO:0018279                          protein N-linked glycosylation via asparagine
     ## GO:0051084                            'de novo' posttranslational protein folding
     ## GO:0030206                               chondroitin sulfate biosynthetic process
-    ## GO:0005381                            iron ion transmembrane transporter activity
+    ## GO:1904666                        regulation of ubiquitin protein ligase activity
     ## GO:0050911 detection of chemical stimulus involved in sensory perception of smell
     ## GO:0000800                                                        lateral element
     ## GO:0005861                                                       troponin complex
-    ## GO:0000796                                                      condensin complex
-    ## GO:0010369                                                           chromocenter
+    ## GO:0002076                                                 osteoblast development
     ## GO:0061436                                          establishment of skin barrier
+    ## GO:0000796                                                      condensin complex
     ## GO:0006198                                                 cAMP catabolic process
+    ## GO:0010369                                                           chromocenter
     ## GO:0034501                                    protein localization to kinetochore
+    ## GO:0018279                          protein N-linked glycosylation via asparagine
     ## GO:0005251                           delayed rectifier potassium channel activity
     ## GO:0004936                                     alpha-adrenergic receptor activity
-    ## GO:0002076                                                 osteoblast development
-    ## GO:0000788                                                     nuclear nucleosome
-    ## GO:0030660                                      Golgi-associated vesicle membrane
+    ## GO:0030033                                                   microvillus assembly
+    ## GO:0045120                                                             pronucleus
     ##            Ontology     set.mean      set.sd set.size         pval
-    ## GO:0003417       BP -0.007967512 0.006352869        9 8.584292e-20
-    ## GO:0042555       CC -0.007117453 0.005453724        9 4.088892e-16
-    ## GO:0006271       BP -0.006729894 0.003356418       10 1.428011e-14
-    ## GO:0050699       MF -0.006396089 0.003498829       16 2.611191e-13
-    ## GO:1904666       BP -0.005958809 0.006240366       10 9.474176e-12
-    ## GO:0003688       MF -0.005547820 0.003035995       11 2.217455e-10
-    ## GO:0000940       CC -0.005490464 0.004229837       12 3.384681e-10
-    ## GO:0043142       MF -0.005382783 0.003040660       14 7.403315e-10
-    ## GO:0018279       BP -0.005111796 0.003613892       15 4.971787e-09
-    ## GO:0051084       BP -0.005036021 0.007144489        9 8.328118e-09
-    ## GO:0030206       BP -0.004959965 0.006360453        7 1.387495e-08
-    ## GO:0005381       MF -0.004840068 0.005395183        7 3.056610e-08
-    ## GO:0050911       BP -0.004585086 0.002184751       13 1.543337e-07
-    ## GO:0000800       CC -0.004517803 0.006280772       14 2.333871e-07
-    ## GO:0005861       CC -0.004391017 0.004463366        7 5.009579e-07
-    ## GO:0000796       CC -0.004283040 0.004002026        7 9.448995e-07
-    ## GO:0010369       CC -0.004168870 0.002691569       10 1.819085e-06
-    ## GO:0061436       BP -0.004163811 0.003091336       15 1.871943e-06
-    ## GO:0006198       BP -0.004158412 0.003669916       11 1.929993e-06
-    ## GO:0034501       BP -0.004122025 0.002529116       17 2.368724e-06
-    ## GO:0005251       MF -0.003957793 0.004980709       11 5.848861e-06
-    ## GO:0004936       MF -0.003871622 0.004216625        4 9.272037e-06
-    ## GO:0002076       BP -0.003861260 0.006792761       10 9.794147e-06
-    ## GO:0000788       CC -0.003679761 0.003527436       15 2.501785e-05
-    ## GO:0030660       CC -0.003433781 0.002415805       17 8.352381e-05
+    ## GO:0003417       BP -0.007913482 0.006350914        9 8.242433e-20
+    ## GO:0042555       CC -0.007165374 0.005537788        9 1.579214e-16
+    ## GO:0006271       BP -0.006697905 0.003346225       10 1.226746e-14
+    ## GO:0050699       MF -0.006399908 0.003496455       16 1.695746e-13
+    ## GO:0000940       CC -0.006360513 0.004464935       12 2.379024e-13
+    ## GO:0031643       BP -0.005818542 0.003866918       12 2.044247e-11
+    ## GO:0003688       MF -0.005554578 0.003062234       11 1.558571e-10
+    ## GO:0043142       MF -0.005363276 0.003052580       14 6.421543e-10
+    ## GO:0051084       BP -0.005140655 0.007101077        9 3.143476e-09
+    ## GO:0030206       BP -0.004989020 0.006338731        7 8.940523e-09
+    ## GO:1904666       BP -0.004803296 0.007399239       11 3.089380e-08
+    ## GO:0050911       BP -0.004620843 0.002097693       13 1.000393e-07
+    ## GO:0000800       CC -0.004529402 0.006367887       14 1.773971e-07
+    ## GO:0005861       CC -0.004385660 0.004648931        7 4.271912e-07
+    ## GO:0002076       BP -0.004371176 0.006836826       10 4.660641e-07
+    ## GO:0061436       BP -0.004240701 0.003095505       15 1.009057e-06
+    ## GO:0000796       CC -0.004222971 0.003853109        7 1.118854e-06
+    ## GO:0006198       BP -0.004200151 0.003667048       11 1.277187e-06
+    ## GO:0010369       CC -0.004170686 0.002705810       10 1.513719e-06
+    ## GO:0034501       BP -0.004121958 0.002540034       17 1.999980e-06
+    ## GO:0018279       BP -0.003973351 0.005387521       15 4.590650e-06
+    ## GO:0005251       MF -0.003906662 0.004965269       11 6.604611e-06
+    ## GO:0004936       MF -0.003844353 0.004192067        4 9.230585e-06
+    ## GO:0030033       BP -0.003498827 0.009998889       10 5.403767e-05
+    ## GO:0045120       CC -0.003392271 0.007256207       13 9.040247e-05
 
 Interesting... Now PC2 (separates osteocytes from progenitors)
 
@@ -590,56 +610,56 @@ print(a[1:25,])
 
     ##                                                                           Term
     ## GO:0000076                                          DNA replication checkpoint
-    ## GO:0019825                                                      oxygen binding
     ## GO:0042168                                              heme metabolic process
+    ## GO:0019825                                                      oxygen binding
     ## GO:0042555                                                         MCM complex
     ## GO:0043034                                                           costamere
-    ## GO:0035641                                     locomotory exploration behavior
-    ## GO:0052744             phosphatidylinositol monophosphate phosphatase activity
     ## GO:0060004                                                              reflex
-    ## GO:0000940                              condensed chromosome outer kinetochore
+    ## GO:0035641                                     locomotory exploration behavior
     ## GO:0048821                                             erythrocyte development
+    ## GO:0052744             phosphatidylinositol monophosphate phosphatase activity
+    ## GO:0000940                              condensed chromosome outer kinetochore
+    ## GO:0006271                   DNA strand elongation involved in DNA replication
     ## GO:0007076                                     mitotic chromosome condensation
     ## GO:0002098                                    tRNA wobble uridine modification
-    ## GO:0072576                                                 liver morphogenesis
     ## GO:0043142                       single-stranded DNA-dependent ATPase activity
     ## GO:0030539                                          male genitalia development
     ## GO:0043567 regulation of insulin-like growth factor receptor signaling pathway
-    ## GO:0007064                                   mitotic sister chromatid cohesion
     ## GO:0008139                               nuclear localization sequence binding
-    ## GO:0006271                   DNA strand elongation involved in DNA replication
+    ## GO:0007064                                   mitotic sister chromatid cohesion
     ## GO:0034508                                         centromere complex assembly
+    ## GO:0005847        mRNA cleavage and polyadenylation specificity factor complex
     ## GO:0071108                                 protein K48-linked deubiquitination
     ## GO:0003688                                      DNA replication origin binding
     ## GO:0042588                                                     zymogen granule
-    ## GO:0001833                                  inner cell mass cell proliferation
-    ## GO:0045047                                             protein targeting to ER
+    ## GO:0032769                       negative regulation of monooxygenase activity
+    ## GO:0043240                                     Fanconi anaemia nuclear complex
     ##            Ontology    set.mean      set.sd set.size         pval
-    ## GO:0000076       BP 0.009615196 0.005016409       10 0.000000e+00
-    ## GO:0019825       MF 0.008360877 0.004446153       13 0.000000e+00
-    ## GO:0042168       BP 0.007882931 0.009897122       14 0.000000e+00
-    ## GO:0042555       CC 0.007180768 0.005252514        9 0.000000e+00
-    ## GO:0043034       CC 0.006840889 0.003487247       12 0.000000e+00
-    ## GO:0035641       BP 0.006407021 0.002836283       12 6.661338e-16
-    ## GO:0052744       MF 0.005673013 0.003687309        9 9.268142e-13
-    ## GO:0060004       BP 0.005626890 0.003281712       14 1.411316e-12
-    ## GO:0000940       CC 0.005521746 0.004888167       12 3.635092e-12
-    ## GO:0048821       BP 0.005447644 0.010238490       21 7.008172e-12
-    ## GO:0007076       BP 0.005226645 0.005956587        9 4.719292e-11
-    ## GO:0002098       BP 0.005148514 0.003893779        9 9.095724e-11
-    ## GO:0072576       BP 0.005012840 0.006779259       10 2.779141e-10
-    ## GO:0043142       MF 0.004847823 0.002419726       14 1.040463e-09
-    ## GO:0030539       BP 0.004834055 0.003078178       12 1.159404e-09
-    ## GO:0043567       BP 0.004631164 0.002766449       16 5.523590e-09
-    ## GO:0007064       BP 0.004542517 0.004914272       13 1.071005e-08
-    ## GO:0008139       MF 0.004487473 0.002662749       10 1.605859e-08
-    ## GO:0006271       BP 0.004446402 0.002178446       10 2.165933e-08
-    ## GO:0034508       BP 0.004368292 0.003428045       17 3.798905e-08
-    ## GO:0071108       BP 0.004277346 0.002371514       11 7.221574e-08
-    ## GO:0003688       MF 0.004141285 0.002382171       11 1.843726e-07
-    ## GO:0042588       CC 0.003986197 0.002123809       12 5.183815e-07
-    ## GO:0001833       BP 0.003900993 0.004003917       11 9.005245e-07
-    ## GO:0045047       BP 0.003875734 0.009257969        9 1.058447e-06
+    ## GO:0000076       BP 0.009693135 0.004932242       10 0.000000e+00
+    ## GO:0042168       BP 0.007914790 0.009950480       14 0.000000e+00
+    ## GO:0019825       MF 0.007654870 0.004611019       13 0.000000e+00
+    ## GO:0042555       CC 0.007441273 0.004535643        9 0.000000e+00
+    ## GO:0043034       CC 0.006902043 0.003410221       12 0.000000e+00
+    ## GO:0060004       BP 0.006565326 0.003320756       13 2.220446e-16
+    ## GO:0035641       BP 0.006333117 0.002822265       12 1.776357e-15
+    ## GO:0048821       BP 0.005632202 0.010486405       21 1.544986e-12
+    ## GO:0052744       MF 0.005609784 0.003603374        9 1.891154e-12
+    ## GO:0000940       CC 0.005590678 0.004938136       12 2.245759e-12
+    ## GO:0006271       BP 0.005444022 0.002063442       10 8.237189e-12
+    ## GO:0007076       BP 0.005298614 0.006001636        9 2.891776e-11
+    ## GO:0002098       BP 0.005133174 0.003917011        9 1.160048e-10
+    ## GO:0043142       MF 0.004823193 0.002418823       14 1.398381e-09
+    ## GO:0030539       BP 0.004799560 0.003085027       12 1.680430e-09
+    ## GO:0043567       BP 0.004590763 0.002749857       16 8.207849e-09
+    ## GO:0008139       MF 0.004501030 0.002706107       10 1.589782e-08
+    ## GO:0007064       BP 0.004474369 0.004951665       13 1.930226e-08
+    ## GO:0034508       BP 0.004467597 0.003425169       17 2.027394e-08
+    ## GO:0005847       CC 0.004274121 0.002753735        8 8.006887e-08
+    ## GO:0071108       BP 0.004062983 0.002363101       11 3.358228e-07
+    ## GO:0003688       MF 0.004058608 0.002412097       11 3.456995e-07
+    ## GO:0042588       CC 0.004049460 0.002115837       12 3.672673e-07
+    ## GO:0032769       BP 0.004039837 0.002196960       12 3.913548e-07
+    ## GO:0043240       CC 0.003699106 0.006487035       12 3.388582e-06
 
 ``` r
 #PC2 Negative
@@ -647,58 +667,58 @@ a <- eaciout[[2]][eaciout[[2]]$set.mean<0,]
 print(a[1:25,])
 ```
 
-    ##                                                                     Term
-    ## GO:0048845                             venous blood vessel morphogenesis
-    ## GO:0042608                                       T cell receptor binding
-    ## GO:0004745                                retinol dehydrogenase activity
-    ## GO:0005779                    integral component of peroxisomal membrane
-    ## GO:0070402                                                 NADPH binding
-    ## GO:0016755          transferase activity, transferring amino-acyl groups
-    ## GO:0045948               positive regulation of translational initiation
-    ## GO:0030687                          preribosome, large subunit precursor
-    ## GO:0035859                                       Seh1-associated complex
-    ## GO:0032823             regulation of natural killer cell differentiation
-    ## GO:0048875                          chemical homeostasis within a tissue
-    ## GO:0006677                            glycosylceramide metabolic process
-    ## GO:0090502           RNA phosphodiester bond hydrolysis, endonucleolytic
-    ## GO:0008356                                      asymmetric cell division
-    ## GO:0009931    calcium-dependent protein serine/threonine kinase activity
-    ## GO:0007214                     gamma-aminobutyric acid signaling pathway
-    ## GO:0050774                 negative regulation of dendrite morphogenesis
-    ## GO:0036158                                     outer dynein arm assembly
-    ## GO:0031624                          ubiquitin conjugating enzyme binding
-    ## GO:0045236                               CXCR chemokine receptor binding
-    ## GO:0031338                                  regulation of vesicle fusion
-    ## GO:0051443 positive regulation of ubiquitin-protein transferase activity
-    ## GO:0031902                                        late endosome membrane
-    ## GO:0016922                     ligand-dependent nuclear receptor binding
-    ## GO:0031588                   nucleotide-activated protein kinase complex
+    ##                                                                  Term
+    ## GO:0042608                                    T cell receptor binding
+    ## GO:0004745                             retinol dehydrogenase activity
+    ## GO:0005779                 integral component of peroxisomal membrane
+    ## GO:0070402                                              NADPH binding
+    ## GO:0016755       transferase activity, transferring amino-acyl groups
+    ## GO:0045948            positive regulation of translational initiation
+    ## GO:0030687                       preribosome, large subunit precursor
+    ## GO:0048845                          venous blood vessel morphogenesis
+    ## GO:1904424                                  regulation of GTP binding
+    ## GO:0048875                       chemical homeostasis within a tissue
+    ## GO:0032823          regulation of natural killer cell differentiation
+    ## GO:0035859                                    Seh1-associated complex
+    ## GO:0006677                         glycosylceramide metabolic process
+    ## GO:0090502        RNA phosphodiester bond hydrolysis, endonucleolytic
+    ## GO:0004467                  long-chain fatty acid-CoA ligase activity
+    ## GO:0008356                                   asymmetric cell division
+    ## GO:0009931 calcium-dependent protein serine/threonine kinase activity
+    ## GO:0031902                                     late endosome membrane
+    ## GO:0007214                  gamma-aminobutyric acid signaling pathway
+    ## GO:0004115                3',5'-cyclic-AMP phosphodiesterase activity
+    ## GO:0046966                           thyroid hormone receptor binding
+    ## GO:0097546                                               ciliary base
+    ## GO:0036158                                  outer dynein arm assembly
+    ## GO:0045236                            CXCR chemokine receptor binding
+    ## GO:0050774              negative regulation of dendrite morphogenesis
     ##            Ontology     set.mean      set.sd set.size         pval
-    ## GO:0048845       BP -0.007359190 0.003754399       10 2.243250e-20
-    ## GO:0042608       MF -0.007310068 0.002537374       12 3.991114e-20
-    ## GO:0004745       MF -0.006907912 0.004696231       10 3.871873e-18
-    ## GO:0005779       CC -0.006847480 0.003861627       11 7.533488e-18
-    ## GO:0070402       MF -0.006843770 0.003351163       11 7.846286e-18
-    ## GO:0016755       MF -0.006580065 0.006133792       13 1.337918e-16
-    ## GO:0045948       BP -0.006498461 0.006216034       12 3.148132e-16
-    ## GO:0030687       CC -0.006353456 0.002878246       13 1.403682e-15
-    ## GO:0035859       CC -0.006059734 0.007981162       11 2.622416e-14
-    ## GO:0032823       BP -0.006027126 0.006984531       12 3.599602e-14
-    ## GO:0048875       BP -0.006012858 0.006183006       11 4.132506e-14
-    ## GO:0006677       BP -0.006010684 0.005911558       11 4.220274e-14
-    ## GO:0090502       BP -0.005770300 0.004635664       12 4.116323e-13
-    ## GO:0008356       BP -0.005232414 0.004714601       11 4.859928e-11
-    ## GO:0009931       MF -0.005099047 0.006776889        8 1.479980e-10
-    ## GO:0007214       BP -0.004960674 0.002687077       12 4.564537e-10
-    ## GO:0050774       BP -0.004775596 0.002723825       10 1.965784e-09
-    ## GO:0036158       BP -0.004724579 0.003386423        9 2.912715e-09
-    ## GO:0031624       MF -0.004710290 0.005188591       22 3.249448e-09
-    ## GO:0045236       MF -0.004666287 0.004459990       10 4.542276e-09
-    ## GO:0031338       BP -0.004597896 0.005462973       36 7.599441e-09
-    ## GO:0051443       BP -0.004570007 0.002927050       17 9.354615e-09
-    ## GO:0031902       CC -0.004512783 0.003300020       14 1.427461e-08
-    ## GO:0016922       MF -0.004509303 0.003186444       11 1.464394e-08
-    ## GO:0031588       CC -0.004476210 0.002646992       10 1.865186e-08
+    ## GO:0042608       MF -0.007225827 0.002514962       12 1.338052e-19
+    ## GO:0004745       MF -0.006967215 0.004736985       10 2.483191e-18
+    ## GO:0005779       CC -0.006921376 0.003991866       11 4.122337e-18
+    ## GO:0070402       MF -0.006843526 0.003357262       11 9.677517e-18
+    ## GO:0016755       MF -0.006644089 0.006152538       13 8.252173e-17
+    ## GO:0045948       BP -0.006520814 0.006213942       12 3.009541e-16
+    ## GO:0030687       CC -0.006427968 0.002866980       13 7.851767e-16
+    ## GO:0048845       BP -0.006133401 0.003886870       10 1.506047e-14
+    ## GO:1904424       BP -0.006115307 0.002902614       10 1.797771e-14
+    ## GO:0048875       BP -0.006060489 0.006105307       11 3.064503e-14
+    ## GO:0032823       BP -0.006047297 0.006936837       12 3.481768e-14
+    ## GO:0035859       CC -0.006046898 0.008022817       11 3.495241e-14
+    ## GO:0006677       BP -0.005997180 0.005862817       11 5.640960e-14
+    ## GO:0090502       BP -0.005861337 0.004638792       12 2.045740e-13
+    ## GO:0004467       MF -0.005442840 0.004942386        8 9.049884e-12
+    ## GO:0008356       BP -0.005246803 0.004761979       11 4.866223e-11
+    ## GO:0009931       MF -0.005184949 0.006868003        8 8.172605e-11
+    ## GO:0031902       CC -0.004992897 0.003392507       13 3.937092e-10
+    ## GO:0007214       BP -0.004960321 0.002685419       12 5.111538e-10
+    ## GO:0004115       MF -0.004908306 0.003028564       11 7.728744e-10
+    ## GO:0046966       MF -0.004798493 0.005462973       12 1.824991e-09
+    ## GO:0097546       CC -0.004753170 0.005377825       19 2.587775e-09
+    ## GO:0036158       BP -0.004745586 0.003401511        9 2.742657e-09
+    ## GO:0045236       MF -0.004722545 0.004456333       10 3.270645e-09
+    ## GO:0050774       BP -0.004630942 0.002674785       10 6.533070e-09
 
 Sweet.
 
@@ -707,7 +727,12 @@ Time for some differential expression
 ``` r
 cond <- as.factor(condits)
 colnames(ambrosiMat) <- make.names(condits,unique = T)
-dds <- DESeqDataSetFromMatrix(ambrosiMat,colData = DataFrame(cond),design = formula(~cond+0))
+dds <- DESeqDataSetFromMatrix(round(ambrosiMat),colData = DataFrame(cond),design = formula(~cond+0))
+```
+
+    ## converting counts to integer mode
+
+``` r
 DESeqOutput <-  DESeq(dds)
 ```
 
@@ -742,17 +767,17 @@ print(str(ambrosiUpDown))
 
     ## List of 4
     ##  $ :List of 2
-    ##   ..$ : chr [1:429] "1700066M21Rik" "5430403G16Rik" "6430548M08Rik" "8430408G22Rik" ...
-    ##   ..$ : chr [1:613] "1110008L16Rik" "1700047I17Rik2" "1810041L15Rik" "2610008E11Rik" ...
+    ##   ..$ : chr [1:419] "1700066M21Rik" "5430403G16Rik" "6430548M08Rik" "8430408G22Rik" ...
+    ##   ..$ : chr [1:591] "1110008L16Rik" "1810041L15Rik" "2610008E11Rik" "3110062M04Rik" ...
     ##  $ :List of 2
-    ##   ..$ : chr [1:899] "1190002N15Rik" "1700028J19Rik" "1700047I17Rik2" "1810013L24Rik" ...
-    ##   ..$ : chr [1:806] "1700019D03Rik" "2200002D01Rik" "2310009B15Rik" "2310061I04Rik" ...
+    ##   ..$ : chr [1:896] "1190002N15Rik" "1700028J19Rik" "1700047I17Rik2" "1810013L24Rik" ...
+    ##   ..$ : chr [1:800] "1700019D03Rik" "2200002D01Rik" "2310009B15Rik" "2310061I04Rik" ...
     ##  $ :List of 2
-    ##   ..$ : chr [1:910] "1500015O10Rik" "1700008O03Rik" "1700047I17Rik2" "1810041L15Rik" ...
-    ##   ..$ : chr [1:857] "0610040J01Rik" "1700029J07Rik" "1810043G02Rik" "2510039O18Rik" ...
+    ##   ..$ : chr [1:894] "1500015O10Rik" "1700008O03Rik" "1700047I17Rik2" "1810041L15Rik" ...
+    ##   ..$ : chr [1:853] "0610040J01Rik" "1700029J07Rik" "1810043G02Rik" "2510039O18Rik" ...
     ##  $ :List of 2
-    ##   ..$ : chr [1:689] "1700084J12Rik" "2200002D01Rik" "2810021J22Rik" "3830406C13Rik" ...
-    ##   ..$ : chr [1:755] "1500015O10Rik" "1700028J19Rik" "1700047I17Rik2" "1700066M21Rik" ...
+    ##   ..$ : chr [1:689] "2200002D01Rik" "2810021J22Rik" "3830406C13Rik" "4930432E11Rik" ...
+    ##   ..$ : chr [1:765] "1500015O10Rik" "1700028J19Rik" "1700047I17Rik2" "1700066M21Rik" ...
     ## NULL
 
 So there's a bunch of genes differentially expressed up or down for each cell type compared to all the others.
@@ -762,6 +787,7 @@ for(i in 1:length(resList)){
   print(resultsNames(DESeqOutput)[i])
   res <- resList[[i]]
   res <- res[!is.na(res$padj),]
+  write.table(res[order(res$log2FoldChange,decreasing = T),],paste0("~/Desktop/DEG_",resultsNames(DESeqOutput)[i],".txt"),sep = "\t",quote = F)
   res <- res[res$padj<.1&res$log2FoldChange>0,]
   mat <- log(ambrosiMatNorm+1,2)-rowMeans(log(ambrosiMatNorm+1,2))
   std.heatmap(mat[rownames(res[order(res$padj,decreasing = F),])[1:25],],main=paste(resultsNames(DESeqOutput)[i],"Up vs All\nLogFC vs mean"))
@@ -788,7 +814,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-1.png)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-1.pdf)
 
     ## [1] "condSca1minus"
 
@@ -800,7 +826,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-2.png)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-2.pdf)
 
     ## [1] "condZFPplus"
 
@@ -812,7 +838,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-3.png)![](BoneNotebook_files/figure-markdown_github/hmDEs-4.png)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-3.pdf)![](BoneNotebook_files/figure-markdown_github/hmDEs-4.pdf)
 
 ``` r
 for(i in 1:length(resList)){
@@ -844,7 +870,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-5.png)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-5.pdf)
 
     ## [1] "condSca1minus"
 
@@ -856,7 +882,7 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-6.png)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-6.pdf)
 
     ## [1] "condZFPplus"
 
@@ -868,12 +894,12 @@ for(i in 1:length(resList)){
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hmDEs-7.png)![](BoneNotebook_files/figure-markdown_github/hmDEs-8.png)
+![](BoneNotebook_files/figure-markdown_github/hmDEs-7.pdf)![](BoneNotebook_files/figure-markdown_github/hmDEs-8.pdf)
 
 Candice's Data
 --------------
 
-The data for the Ingraham lab RNAseq was also passed to Salmon after fastqc and trimming with trimgalore.
+The data for the Ingraham lab RNAseq was also passed to Salmon after fastqc and trimming with trimgalore as suggested by the NuGen Prep.
 
 ``` r
 datapath <- "~/code/IngrahamLabData/BoneSalmonOutputs/"
@@ -885,24 +911,50 @@ allRownames <- Reduce(union,lapply(dsList,rownames))
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
 rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+```
 
-dsAgList <-  lapply(dsList,function(x){
-  rnsgs <-  rnSymbolGenes[rnSymbolGenes$ensembl_transcript_id_version %in% rownames(x),]
-  x <- x[rnsgs$ensembl_transcript_id_version,]
-  ret <- aggregate(as.integer(x$NumReads), by=list(rnsgs$mgi_symbol),sum)
-  rownames(ret) <- ret[,1]
-  ret[,-1,drop=F]
-})
+``` r
+# dsAgList <-  lapply(dsList,function(x){
+#   rnsgs <-  rnSymbolGenes[rnSymbolGenes$ensembl_transcript_id_version %in% rownames(x),]
+#   x <- x[rnsgs$ensembl_transcript_id_version,]
+#   ret <- aggregate(as.integer(x$NumReads), by=list(rnsgs$mgi_symbol),sum)
+#   rownames(ret) <- ret[,1]
+#   ret[,-1,drop=F]
+# })
+
+dsAgList <- lapply(colnames(dsList[[1]]),function(n){
+  Reduce(cbind,lapply(dsList,function(x)x[,n,drop=F]))
+  })
+names(dsAgList) <- names(txList)[c(3,4,1,2)]
+dsAgList <- lapply(dsAgList,function(x){
+  x <- as.matrix(x)
+  storage.mode(x) <- "numeric"
+  x
+  })
+boneMat <- summarizeToGene(dsAgList,rnSymbol)$counts[-1,]
+```
+
+    ## removing duplicated transcript rows from tx2gene
+
+    ## transcripts missing from tx2gene: 1301
+
+    ## summarizing abundance
+
+    ## summarizing counts
+
+    ## summarizing length
+
+``` r
 sampleNames <- c("1807_BM_fl_A1","1810_BM_KO_E1","1811_BM_KO_G1","1815_BM_fl_B1","1818_BM_fl_C1","1825_BM_KO_F1","1984_BM_fl_D1","1985_BM_KO_H1")
 SampleNameMat <- sapply(strsplit(sampleNames,"_"),function(i)i)
-boneMat <-  as.matrix(Reduce(rn.merge,dsAgList))
+#boneMat <-  as.matrix(Reduce(rn.merge,dsAgList))
 colnames(boneMat) <- paste(SampleNameMat[3,],gsub("[[:digit:]]","",SampleNameMat[4,]),sep = "_")
 boneMatNorm <-  median.normalize(boneMat)
 boneMatNorm <- boneMatNorm[,order(colnames(boneMatNorm))]
 heatmap.2(cor(boneMatNorm,method = "spe"),col=cols,trace="none")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-1.png)
+![](BoneNotebook_files/figure-markdown_github/BiomartSeparate-1.pdf)
 
 ``` r
 std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spearman Correlation\n Ambrosi vs Candice")
@@ -916,7 +968,7 @@ std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spear
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/IngrahamBone-2.png)
+![](BoneNotebook_files/figure-markdown_github/BiomartSeparate-2.pdf)
 
 ### Differential expression of Candice's data
 
@@ -924,7 +976,12 @@ Use a DESeq2 False Discovery Rate of .1, breaking into up and down in KO groups.
 
 ``` r
 cond <- as.factor(SampleNameMat[3,])
-dds <- DESeqDataSetFromMatrix(boneMat,colData = DataFrame(cond),design = ~cond)
+dds <- DESeqDataSetFromMatrix(round(boneMat),colData = DataFrame(cond),design = ~cond)
+```
+
+    ## converting counts to integer mode
+
+``` r
 DESeqOutput <-  DESeq(dds)
 ```
 
@@ -943,19 +1000,20 @@ DESeqOutput <-  DESeq(dds)
 ``` r
 resCandice <-  results(DESeqOutput)
 res <- resCandice[!is.na(resCandice$padj),]
+write.table(res[order(res$log2FoldChange,decreasing = F),],paste0("~/Desktop/DEG","Ingraham",".txt"),sep = "\t",quote=F)
 res <- res[res$log2FoldChange<0,]
 
 
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(NormalizedCounts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.pdf)
 
 ``` r
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.pdf)
 
 ``` r
 res <-  results(DESeqOutput)
@@ -965,74 +1023,267 @@ res <- res[res$log2FoldChange>0,]
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.pdf)
 
 ``` r
 std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.pdf)
 
 ``` r
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 
 
-hist(res$log2FoldChange,main = "Log2 Fold Changes Detected")
+hist(res$log2FoldChange,main = "Log2 Fold Changes Detected",breaks = 40)
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-5.pdf)
 
 ``` r
 plot(res$log2FoldChange,-log(res$padj),ylab="-logPadj",xlab="logFC",main="Volcano Plot")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-6.pdf)
 
 ``` r
 #ESR1 not differentially expressed
 barplot((boneMatNorm["Esr1",]),main="Esr1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-7.pdf)
 
 ``` r
 barplot((boneMatNorm["Gper1",]),main="Gper1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-8.pdf)
 
 ``` r
 #Just a sanity Check
 barplot(boneMatNorm["Ncoa1",],las=2,main="Ncoa1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-9.pdf)
 
 ``` r
 barplot(boneMatNorm["Ncoa2",],las=2,main="Ncoa2")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-10.pdf)
 
 ``` r
 barplot(boneMatNorm["Ncoa3",],las=2,main="Ncoa3")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-11.pdf)
 
 ``` r
 barplot((boneMatNorm["Kiss1",]),main="Kiss1")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-12.pdf)
 
 ``` r
 #also a sanity check
 std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
+![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.pdf)
+
+``` r
+entrezmm <- getBM(attributes = c('mgi_symbol', "entrezgene"), filters = "mgi_symbol",
+                   values = rownames(res[res$padj<.1,]), mart = mart)
+eKG <- enrichKEGG(entrezmm$entrezgene[!is.na(entrezmm$entrezgene)],organism = "mmu",pvalueCutoff = .1)
+eKG
+```
+
+    ## #
+    ## # over-representation test
+    ## #
+    ## #...@organism     mmu 
+    ## #...@ontology     KEGG 
+    ## #...@keytype      kegg 
+    ## #...@gene     chr [1:249] "67851" "668661" "224904" "232345" "11370" "11504" ...
+    ## #...pvalues adjusted by 'BH' with cutoff <0.1 
+    ## #...8 enriched terms found
+    ## 'data.frame':    8 obs. of  9 variables:
+    ##  $ ID         : chr  "mmu00190" "mmu05012" "mmu04714" "mmu04723" ...
+    ##  $ Description: chr  "Oxidative phosphorylation" "Parkinson's disease" "Thermogenesis" "Retrograde endocannabinoid signaling" ...
+    ##  $ GeneRatio  : chr  "12/124" "12/124" "13/124" "9/124" ...
+    ##  $ BgRatio    : chr  "134/8204" "144/8204" "230/8204" "150/8204" ...
+    ##  $ pvalue     : num  7.38e-07 1.60e-06 4.10e-05 4.26e-04 8.63e-04 ...
+    ##  $ p.adjust   : num  0.000121 0.000131 0.002243 0.017479 0.028303 ...
+    ##  $ qvalue     : num  0.000113 0.000122 0.002087 0.016268 0.026341 ...
+    ##  $ geneID     : chr  "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "14710/17716/17717/17719/17720/17721/17722/54405/104130" ...
+    ##  $ Count      : int  12 12 13 9 3 9 6 6
+    ## #...Citation
+    ##   Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
+    ##   clusterProfiler: an R package for comparing biological themes among
+    ##   gene clusters. OMICS: A Journal of Integrative Biology
+    ##   2012, 16(5):284-287
+
+``` r
+eKG$Description
+```
+
+    ## [1] "Oxidative phosphorylation"           
+    ## [2] "Parkinson's disease"                 
+    ## [3] "Thermogenesis"                       
+    ## [4] "Retrograde endocannabinoid signaling"
+    ## [5] "Non-homologous end-joining"          
+    ## [6] "Ribosome"                            
+    ## [7] "TGF-beta signaling pathway"          
+    ## [8] "Pyrimidine metabolism"
+
+``` r
+eKG$geneID
+```
+
+    ## [1] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"      
+    ## [2] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"      
+    ## [3] "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"
+    ## [4] "14710/17716/17717/17719/17720/17721/17722/54405/104130"                        
+    ## [5] "227525/21673/14375"                                                            
+    ## [6] "66845/68565/19896/19899/19951/57808/68052/54127/20102"                         
+    ## [7] "12159/12166/13179/15903/16323/19877"                                           
+    ## [8] "22169/66422/18102/54369/66420/331487"
+
+``` r
+library(ReactomePA)
+getMatrixWithSelectedIds <- function(df, type, keys,db){
+require("AnnotationDbi")
+require(db,character.only = TRUE)
+#library(AnnotationDbi)
+#library(db,character.only = TRUE) 
+db <- get(db)
+geneSymbols <- mapIds(db, keys=rownames(df), column=type, keytype=keys, multiVals="first")
+# get the entrez ids with gene symbols i.e. remove those with NA's for gene symbols
+inds <- which(!is.na(geneSymbols))
+
+found_genes <- geneSymbols[inds]
+ 
+# subset your data frame based on the found_genes
+df2 <- df[names(found_genes), ]
+rownames(df2) <- found_genes
+return(df2)
+}
+
+entrezres <- getMatrixWithSelectedIds(res,type = "ENTREZID","SYMBOL","org.Mm.eg.db")
+```
+
+    ## 'select()' returned 1:many mapping between keys and columns
+
+``` r
+as.data.frame(enrichPathway(rownames(entrezres)[entrezres$padj<.1],organism="mouse"))
+```
+
+    ##                          ID
+    ## R-MMU-1799339 R-MMU-1799339
+    ## R-MMU-975956   R-MMU-975956
+    ## R-MMU-72689     R-MMU-72689
+    ## R-MMU-2022090 R-MMU-2022090
+    ## R-MMU-156827   R-MMU-156827
+    ## R-MMU-72706     R-MMU-72706
+    ## R-MMU-927802   R-MMU-927802
+    ## R-MMU-975957   R-MMU-975957
+    ## R-MMU-216083   R-MMU-216083
+    ## R-MMU-72613     R-MMU-72613
+    ## R-MMU-72737     R-MMU-72737
+    ## R-MMU-1474244 R-MMU-1474244
+    ## R-MMU-6791226 R-MMU-6791226
+    ## R-MMU-72312     R-MMU-72312
+    ## R-MMU-8868773 R-MMU-8868773
+    ## R-MMU-1474228 R-MMU-1474228
+    ## R-MMU-3000178 R-MMU-3000178
+    ## R-MMU-72766     R-MMU-72766
+    ## R-MMU-8948216 R-MMU-8948216
+    ## R-MMU-1474290 R-MMU-1474290
+    ##                                                                                Description
+    ## R-MMU-1799339                  SRP-dependent cotranslational protein targeting to membrane
+    ## R-MMU-975956  Nonsense Mediated Decay (NMD) independent of the Exon Junction Complex (EJC)
+    ## R-MMU-72689                                       Formation of a pool of free 40S subunits
+    ## R-MMU-2022090                 Assembly of collagen fibrils and other multimeric structures
+    ## R-MMU-156827             L13a-mediated translational silencing of Ceruloplasmin expression
+    ## R-MMU-72706                        GTP hydrolysis and joining of the 60S ribosomal subunit
+    ## R-MMU-927802                                                 Nonsense-Mediated Decay (NMD)
+    ## R-MMU-975957     Nonsense Mediated Decay (NMD) enhanced by the Exon Junction Complex (EJC)
+    ## R-MMU-216083                                            Integrin cell surface interactions
+    ## R-MMU-72613                                              Eukaryotic Translation Initiation
+    ## R-MMU-72737                                           Cap-dependent Translation Initiation
+    ## R-MMU-1474244                                            Extracellular matrix organization
+    ## R-MMU-6791226                Major pathway of rRNA processing in the nucleolus and cytosol
+    ## R-MMU-72312                                                                rRNA processing
+    ## R-MMU-8868773                                   rRNA processing in the nucleus and cytosol
+    ## R-MMU-1474228                                      Degradation of the extracellular matrix
+    ## R-MMU-3000178                                                            ECM proteoglycans
+    ## R-MMU-72766                                                                    Translation
+    ## R-MMU-8948216                                                 Collagen chain trimerization
+    ## R-MMU-1474290                                                           Collagen formation
+    ##               GeneRatio  BgRatio       pvalue   p.adjust     qvalue
+    ## R-MMU-1799339     7/115  81/8657 9.392844e-05 0.01517573 0.01357588
+    ## R-MMU-975956      7/115  81/8657 9.392844e-05 0.01517573 0.01357588
+    ## R-MMU-72689       7/115  88/8657 1.588771e-04 0.01517573 0.01357588
+    ## R-MMU-2022090     5/115  44/8657 2.723079e-04 0.01517573 0.01357588
+    ## R-MMU-156827      7/115  98/8657 3.104767e-04 0.01517573 0.01357588
+    ## R-MMU-72706       7/115  99/8657 3.304807e-04 0.01517573 0.01357588
+    ## R-MMU-927802      7/115 101/8657 3.735921e-04 0.01517573 0.01357588
+    ## R-MMU-975957      7/115 101/8657 3.735921e-04 0.01517573 0.01357588
+    ## R-MMU-216083      6/115  76/8657 4.947051e-04 0.01517573 0.01357588
+    ## R-MMU-72613       7/115 106/8657 5.013003e-04 0.01517573 0.01357588
+    ## R-MMU-72737       7/115 106/8657 5.013003e-04 0.01517573 0.01357588
+    ## R-MMU-1474244    11/115 272/8657 9.462287e-04 0.02449479 0.02191252
+    ## R-MMU-6791226     7/115 121/8657 1.103369e-03 0.02449479 0.02191252
+    ## R-MMU-72312       7/115 121/8657 1.103369e-03 0.02449479 0.02191252
+    ## R-MMU-8868773     7/115 121/8657 1.103369e-03 0.02449479 0.02191252
+    ## R-MMU-1474228     7/115 129/8657 1.601308e-03 0.03332721 0.02981382
+    ## R-MMU-3000178     4/115  40/8657 1.867856e-03 0.03590823 0.03212274
+    ## R-MMU-72766       9/115 212/8657 1.992506e-03 0.03590823 0.03212274
+    ## R-MMU-8948216     4/115  41/8657 2.048818e-03 0.03590823 0.03212274
+    ## R-MMU-1474290     5/115  74/8657 2.945957e-03 0.04905018 0.04387925
+    ##                                                                            geneID
+    ## R-MMU-1799339                           19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-975956                            19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-72689                             19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-2022090                                       12842/12824/12832/12837/16948
+    ## R-MMU-156827                            19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-72706                             19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-927802                            19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-975957                            19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-216083                                 12842/12824/12832/12837/15891/319480
+    ## R-MMU-72613                             19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-72737                             19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-1474244 232345/12159/12842/12824/12832/12837/13179/15891/319480/16613/16948
+    ## R-MMU-6791226                           14791/72544/19896/19899/19951/57808/20826
+    ## R-MMU-72312                             14791/72544/19896/19899/19951/57808/20826
+    ## R-MMU-8868773                           14791/72544/19896/19899/19951/57808/20826
+    ## R-MMU-1474228                          232345/12842/12824/12832/12837/13179/16613
+    ## R-MMU-3000178                                             12842/12824/12832/13179
+    ## R-MMU-72766                 66845/68565/19896/19899/19951/57808/68052/54127/20102
+    ## R-MMU-8948216                                             12842/12824/12832/12837
+    ## R-MMU-1474290                                       12842/12824/12832/12837/16948
+    ##               Count
+    ## R-MMU-1799339     7
+    ## R-MMU-975956      7
+    ## R-MMU-72689       7
+    ## R-MMU-2022090     5
+    ## R-MMU-156827      7
+    ## R-MMU-72706       7
+    ## R-MMU-927802      7
+    ## R-MMU-975957      7
+    ## R-MMU-216083      6
+    ## R-MMU-72613       7
+    ## R-MMU-72737       7
+    ## R-MMU-1474244    11
+    ## R-MMU-6791226     7
+    ## R-MMU-72312       7
+    ## R-MMU-8868773     7
+    ## R-MMU-1474228     7
+    ## R-MMU-3000178     4
+    ## R-MMU-72766       9
+    ## R-MMU-8948216     4
+    ## R-MMU-1474290     5
 
 ``` r
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
@@ -1053,7 +1304,6 @@ print(dfGO[1:30,])
     ## GO:0030199 GO:0030199
     ## GO:0006221 GO:0006221
     ## GO:0048333 GO:0048333
-    ## GO:0035282 GO:0035282
     ## GO:0002831 GO:0002831
     ## GO:0050688 GO:0050688
     ## GO:0072527 GO:0072527
@@ -1063,14 +1313,15 @@ print(dfGO[1:30,])
     ## GO:0001503 GO:0001503
     ## GO:0002697 GO:0002697
     ## GO:0042832 GO:0042832
+    ## GO:0045666 GO:0045666
     ## GO:0042455 GO:0042455
     ## GO:0009148 GO:0009148
     ## GO:0009163 GO:0009163
     ## GO:0009220 GO:0009220
     ## GO:0046132 GO:0046132
+    ## GO:0010976 GO:0010976
     ## GO:0001562 GO:0001562
     ## GO:0014812 GO:0014812
-    ## GO:0043900 GO:0043900
     ##                                                         Description
     ## GO:0051607                                defense response to virus
     ## GO:0009615                                        response to virus
@@ -1084,7 +1335,6 @@ print(dfGO[1:30,])
     ## GO:0030199                             collagen fibril organization
     ## GO:0006221               pyrimidine nucleotide biosynthetic process
     ## GO:0048333                          mesodermal cell differentiation
-    ## GO:0035282                                             segmentation
     ## GO:0002831                regulation of response to biotic stimulus
     ## GO:0050688                  regulation of defense response to virus
     ## GO:0072527         pyrimidine-containing compound metabolic process
@@ -1094,45 +1344,46 @@ print(dfGO[1:30,])
     ## GO:0001503                                             ossification
     ## GO:0002697                    regulation of immune effector process
     ## GO:0042832                            defense response to protozoan
+    ## GO:0045666            positive regulation of neuron differentiation
     ## GO:0042455                      ribonucleoside biosynthetic process
     ## GO:0009148  pyrimidine nucleoside triphosphate biosynthetic process
     ## GO:0009163                          nucleoside biosynthetic process
     ## GO:0009220           pyrimidine ribonucleotide biosynthetic process
     ## GO:0046132           pyrimidine ribonucleoside biosynthetic process
+    ## GO:0010976     positive regulation of neuron projection development
     ## GO:0001562                                    response to protozoan
     ## GO:0014812                                    muscle cell migration
-    ## GO:0043900                     regulation of multi-organism process
     ##            GeneRatio   BgRatio       pvalue     p.adjust       qvalue
-    ## GO:0051607    14/237 202/23577 1.876966e-08 5.345598e-05 4.712172e-05
-    ## GO:0009615    14/237 246/23577 2.181504e-07 3.106461e-04 2.738361e-04
-    ## GO:0071346     8/237  75/23577 8.751948e-07 8.308516e-04 7.323999e-04
-    ## GO:0001649    12/237 224/23577 3.050370e-06 2.171864e-03 1.914509e-03
-    ## GO:0034341     8/237  94/23577 4.901902e-06 2.792123e-03 2.461271e-03
-    ## GO:0006220     5/237  29/23577 9.595202e-06 4.554523e-03 4.014835e-03
-    ## GO:0009147     4/237  17/23577 2.137653e-05 8.697193e-03 7.666619e-03
-    ## GO:0006303     5/237  38/23577 3.767488e-05 1.341226e-02 1.182297e-02
-    ## GO:0000726     5/237  43/23577 6.935699e-05 1.650936e-02 1.455309e-02
-    ## GO:0030199     5/237  43/23577 6.935699e-05 1.650936e-02 1.455309e-02
-    ## GO:0006221     4/237  23/23577 7.585063e-05 1.650936e-02 1.455309e-02
-    ## GO:0048333     4/237  23/23577 7.585063e-05 1.650936e-02 1.455309e-02
-    ## GO:0035282     7/237 103/23577 8.291434e-05 1.650936e-02 1.455309e-02
-    ## GO:0002831     8/237 139/23577 8.419185e-05 1.650936e-02 1.455309e-02
-    ## GO:0050688     6/237  72/23577 8.695240e-05 1.650936e-02 1.455309e-02
-    ## GO:0072527     5/237  48/23577 1.184384e-04 2.108203e-02 1.858392e-02
-    ## GO:0072528     4/237  28/23577 1.686032e-04 2.796792e-02 2.465386e-02
-    ## GO:0001958     4/237  29/23577 1.940445e-04 2.796792e-02 2.465386e-02
-    ## GO:0036075     4/237  29/23577 1.940445e-04 2.796792e-02 2.465386e-02
-    ## GO:0001503    13/237 395/23577 1.964039e-04 2.796792e-02 2.465386e-02
-    ## GO:0002697    12/237 349/23577 2.317765e-04 3.143331e-02 2.770862e-02
-    ## GO:0042832     4/237  32/23577 2.869314e-04 3.714457e-02 3.274313e-02
-    ## GO:0042455     4/237  33/23577 3.239484e-04 3.991481e-02 3.518511e-02
-    ## GO:0009148     3/237  14/23577 3.363608e-04 3.991481e-02 3.518511e-02
-    ## GO:0009163     4/237  35/23577 4.080438e-04 4.402133e-02 3.880503e-02
-    ## GO:0009220     3/237  15/23577 4.173371e-04 4.402133e-02 3.880503e-02
-    ## GO:0046132     3/237  15/23577 4.173371e-04 4.402133e-02 3.880503e-02
-    ## GO:0001562     4/237  36/23577 4.554539e-04 4.513475e-02 3.978651e-02
-    ## GO:0014812     6/237  98/23577 4.716855e-04 4.513475e-02 3.978651e-02
-    ## GO:0043900    12/237 378/23577 4.754363e-04 4.513475e-02 3.978651e-02
+    ## GO:0051607    14/237 202/23577 1.876966e-08 5.486371e-05 4.836644e-05
+    ## GO:0009615    14/237 246/23577 2.181504e-07 3.188267e-04 2.810695e-04
+    ## GO:0071346     8/237  75/23577 8.751948e-07 8.527315e-04 7.517463e-04
+    ## GO:0001649    12/237 224/23577 3.050370e-06 2.229058e-03 1.965081e-03
+    ## GO:0034341     8/237  94/23577 4.901902e-06 2.865652e-03 2.526285e-03
+    ## GO:0006220     5/237  29/23577 9.595202e-06 4.674463e-03 4.120887e-03
+    ## GO:0009147     4/237  17/23577 2.137653e-05 8.926227e-03 7.869134e-03
+    ## GO:0006303     5/237  38/23577 3.767488e-05 1.376546e-02 1.213528e-02
+    ## GO:0000726     5/237  43/23577 6.935699e-05 1.815442e-02 1.600447e-02
+    ## GO:0030199     5/237  43/23577 6.935699e-05 1.815442e-02 1.600447e-02
+    ## GO:0006221     4/237  23/23577 7.585063e-05 1.815442e-02 1.600447e-02
+    ## GO:0048333     4/237  23/23577 7.585063e-05 1.815442e-02 1.600447e-02
+    ## GO:0002831     8/237 139/23577 8.419185e-05 1.815442e-02 1.600447e-02
+    ## GO:0050688     6/237  72/23577 8.695240e-05 1.815442e-02 1.600447e-02
+    ## GO:0072527     5/237  48/23577 1.184384e-04 2.307970e-02 2.034647e-02
+    ## GO:0072528     4/237  28/23577 1.686032e-04 3.021519e-02 2.663694e-02
+    ## GO:0001958     4/237  29/23577 1.940445e-04 3.021519e-02 2.663694e-02
+    ## GO:0036075     4/237  29/23577 1.940445e-04 3.021519e-02 2.663694e-02
+    ## GO:0001503    13/237 395/23577 1.964039e-04 3.021519e-02 2.663694e-02
+    ## GO:0002697    12/237 349/23577 2.317765e-04 3.387414e-02 2.986258e-02
+    ## GO:0042832     4/237  32/23577 2.869314e-04 3.993812e-02 3.520842e-02
+    ## GO:0045666    13/237 414/23577 3.088866e-04 4.096594e-02 3.611453e-02
+    ## GO:0042455     4/237  33/23577 3.239484e-04 4.096594e-02 3.611453e-02
+    ## GO:0009148     3/237  14/23577 3.363608e-04 4.096594e-02 3.611453e-02
+    ## GO:0009163     4/237  35/23577 4.080438e-04 4.482904e-02 3.952014e-02
+    ## GO:0009220     3/237  15/23577 4.173371e-04 4.482904e-02 3.952014e-02
+    ## GO:0046132     3/237  15/23577 4.173371e-04 4.482904e-02 3.952014e-02
+    ## GO:0010976    11/237 321/23577 4.324608e-04 4.482904e-02 3.952014e-02
+    ## GO:0001562     4/237  36/23577 4.554539e-04 4.482904e-02 3.952014e-02
+    ## GO:0014812     6/237  98/23577 4.716855e-04 4.482904e-02 3.952014e-02
     ##                                                                                         geneID
     ## GO:0051607 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
     ## GO:0009615 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
@@ -1146,7 +1397,6 @@ print(dfGO[1:30,])
     ## GO:0030199                                                      Col1a1/Col2a1/Col5a2/Lox/Sfrp2
     ## GO:0006221                                                                Cmpk2/Nme1/Nme6/Uprt
     ## GO:0048333                                                             Bmp4/Bmpr1a/Inhba/Sfrp2
-    ## GO:0035282                                               Bmp4/Bmpr1a/Mafb/Nrp2/Pcsk6/Sfrp2/Ttn
     ## GO:0002831                                     Ddx60/Eif2ak4/Gbp4/Mif/Parp9/Stat1/Trib1/Tspan6
     ## GO:0050688                                               Ddx60/Eif2ak4/Gbp4/Parp9/Stat1/Tspan6
     ## GO:0072527                                                         Cmpk2/Dctpp1/Nme1/Nme6/Uprt
@@ -1156,14 +1406,15 @@ print(dfGO[1:30,])
     ## GO:0001503           Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Col2a1/Ibsp/Id3/Igf2/Itga11/Runx2/Satb2/Sfrp2
     ## GO:0002697                A2m/Cadm1/Ddx60/Eif2ak4/Exosc6/Gbp4/Igf2/Mif/Mzb1/Parp9/Stat1/Tspan6
     ## GO:0042832                                                                Gbp10/Gbp6/Gbp7/Irf8
+    ## GO:0045666   Adamts1/Baiap2/Bmp4/Dixdc1/Fkbp1b/Gdi1/Mif/Nap1l2/Nme1/Plppr5/Prpf19/Sema5a/Vldlr
     ## GO:0042455                                                                 Aprt/Nme1/Nme6/Uprt
     ## GO:0009148                                                                     Cmpk2/Nme1/Nme6
     ## GO:0009163                                                                 Aprt/Nme1/Nme6/Uprt
     ## GO:0009220                                                                      Nme1/Nme6/Uprt
     ## GO:0046132                                                                      Nme1/Nme6/Uprt
+    ## GO:0010976                 Adamts1/Baiap2/Bmp4/Dixdc1/Fkbp1b/Gdi1/Mif/Nme1/Plppr5/Sema5a/Vldlr
     ## GO:0001562                                                                Gbp10/Gbp6/Gbp7/Irf8
     ## GO:0014812                                                    Bmpr1a/Mif/Pgr/Postn/Rock1/Trib1
-    ## GO:0043900             Ddx60/Eif2ak2/Eif2ak4/Gbp4/Inhba/Irf8/Mif/Oas3/Parp9/Stat1/Trib1/Tspan6
     ##            Count
     ## GO:0051607    14
     ## GO:0009615    14
@@ -1177,7 +1428,6 @@ print(dfGO[1:30,])
     ## GO:0030199     5
     ## GO:0006221     4
     ## GO:0048333     4
-    ## GO:0035282     7
     ## GO:0002831     8
     ## GO:0050688     6
     ## GO:0072527     5
@@ -1187,14 +1437,15 @@ print(dfGO[1:30,])
     ## GO:0001503    13
     ## GO:0002697    12
     ## GO:0042832     4
+    ## GO:0045666    13
     ## GO:0042455     4
     ## GO:0009148     3
     ## GO:0009163     4
     ## GO:0009220     3
     ## GO:0046132     3
+    ## GO:0010976    11
     ## GO:0001562     4
     ## GO:0014812     6
-    ## GO:0043900    12
 
 ``` r
 ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon|immune",dfGO[,2])),"geneID"],"/"))
@@ -1203,75 +1454,123 @@ bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|co
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-14.png)
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-1.pdf)
 
 ``` r
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-15.png)
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-2.pdf)
 
 ``` r
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-16.png)
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-3.pdf)
 
 ``` r
 std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-17.png)
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-4.pdf)
 
 ``` r
 std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-18.png)
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-5.pdf)
 
 ``` r
 std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/differentialExpression-19.png)
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/EnrichGO-6.pdf)
 
 #### Candice DE in the Ambrosi
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="IFN response\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-1.png)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-1.pdf)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="BMP Related\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-2.png)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-2.pdf)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-3.png)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-3.pdf)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="IFN response\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-4.png)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-4.pdf)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-5.png)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-5.pdf)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="BMP Related\nLog2(normalized counts+1)")
 ```
 
-![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-6.png)
+![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-6.pdf)
 
 Ncoa1/2/3, the Steroid receptor coactivators are equally expressed across the conditions as well.
 
@@ -1295,8 +1594,8 @@ print(overlaps[[1]])
 ```
 
     ##      CD24- CD24+ Sca1- ZFP+
-    ## up       8    17    19    9
-    ## down     5    18    11   17
+    ## up       8    18    20    9
+    ## down     5    18    12   17
 
 ``` r
 #Down in KO
@@ -1304,8 +1603,8 @@ print(overlaps[[2]])
 ```
 
     ##      CD24- CD24+ Sca1- ZFP+
-    ## up       2    10     2    6
-    ## down     3     3     3    2
+    ## up       1    11     2    6
+    ## down     4     3     3    2
 
 Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteocytes and down in the preadipocytes. Which genes are they?
 
@@ -1323,7 +1622,7 @@ print(overlaps[[1]])
 
     ## $`CD24-`
     ##        up1        up2        up3        up4        up5        up6 
-    ##    "Cadm3" "Calcoco1"     "Ccr9"      "Dcn"    "Evi2b"    "Gvin1" 
+    ##    "Cadm3" "Calcoco1"     "Ccr9"   "Clec4e"      "Dcn"    "Evi2b" 
     ##        up7        up8      down1      down2      down3      down4 
     ##   "Jchain"    "Pqlc3"    "Cmpk2"  "Gm10925"     "Myl1"    "Oasl2" 
     ##      down5 
@@ -1331,31 +1630,35 @@ print(overlaps[[1]])
     ## 
     ## $`CD24+`
     ##       up1       up2       up3       up4       up5       up6       up7 
-    ##     "A2m"  "Col2a1"   "Evi2b"  "Gm4070"   "Gvin1"    "Ibsp"    "Lifr" 
+    ##     "A2m"  "Col2a1"   "Evi2b"  "Fkbp1b"  "Gm4070"   "Gvin1"    "Ibsp" 
     ##       up8       up9      up10      up11      up12      up13      up14 
-    ##   "Lpin1" "mt-Cytb" "mt-Nd4l"  "mt-Nd5"  "mt-Nd6"   "Oasl2"  "Papss2" 
-    ##      up15      up16      up17     down1     down2     down3     down4 
-    ##    "Peg3"   "Satb2"     "Ttn"   "Cadm3"   "Chit1"   "Cmpk2"  "Col1a1" 
-    ##     down5     down6     down7     down8     down9    down10    down11 
-    ##  "Col5a2"     "Dcn"  "Fam78b"  "Ifi207"   "Ifit1"   "Inhba"     "Lox" 
-    ##    down12    down13    down14    down15    down16    down17    down18 
-    ##    "Mlip"    "Myl1"    "Oas3"   "Postn"   "Pqlc3"      "Xk" "Zscan29" 
+    ##    "Lifr"   "Lpin1" "mt-Cytb" "mt-Nd4l"  "mt-Nd5"  "mt-Nd6"   "Oasl2" 
+    ##      up15      up16      up17      up18     down1     down2     down3 
+    ##  "Papss2"    "Peg3"   "Satb2"     "Ttn"   "Cadm3"   "Chit1"   "Cmpk2" 
+    ##     down4     down5     down6     down7     down8     down9    down10 
+    ##  "Col1a1"  "Col5a2"     "Dcn"  "Fam78b"  "Ifi207"   "Ifit1"   "Inhba" 
+    ##    down11    down12    down13    down14    down15    down16    down17 
+    ##     "Lox"    "Mlip"    "Myl1"    "Oas3"   "Postn"   "Pqlc3"      "Xk" 
+    ##    down18 
+    ## "Zscan29" 
     ## 
     ## $`Sca1-`
     ##        up1        up2        up3        up4        up5        up6 
     ##     "Bmp3"    "Chit1"     "Cir1"    "Cmpk2"   "Col1a1"   "Col2a1" 
     ##        up7        up8        up9       up10       up11       up12 
-    ##  "Gm10925"     "Ibsp"     "Mlip"  "mt-Cytb"  "mt-Nd4l"   "mt-Nd5" 
+    ##  "Gm10925"   "Gm2810"     "Ibsp"     "Mlip"  "mt-Cytb"  "mt-Nd4l" 
     ##       up13       up14       up15       up16       up17       up18 
-    ##   "mt-Nd6"     "Myl1"     "Oas3"    "Satb2"    "Smpd3"   "Tceanc" 
-    ##       up19      down1      down2      down3      down4      down5 
-    ##       "Xk" "Calcoco1"     "Ccr9"    "Cerkl"    "Ddx60"    "Evi2b" 
-    ##      down6      down7      down8      down9     down10     down11 
-    ##   "Gm4070"    "Gvin1"   "Jchain"     "Pi15"     "Zbp1"   "Zfp125" 
+    ##   "mt-Nd5"   "mt-Nd6"     "Myl1"     "Oas3"    "Satb2"    "Smpd3" 
+    ##       up19       up20      down1      down2      down3      down4 
+    ##   "Tceanc"       "Xk" "Calcoco1"     "Ccr9"    "Cerkl"    "Ddx60" 
+    ##      down5      down6      down7      down8      down9     down10 
+    ##    "Evi2b"   "Fkbp1b"   "Gm4070"    "Gvin1"   "Jchain"     "Pi15" 
+    ##     down11     down12 
+    ##     "Zbp1"   "Zfp125" 
     ## 
     ## $`ZFP+`
     ##        up1        up2        up3        up4        up5        up6 
-    ##    "Cadm3"    "Cmpk2"      "Dcn"   "Fam78b"    "Gvin1"     "Myl1" 
+    ##    "Cadm3"    "Cmpk2"      "Dcn"   "Fam78b"   "Fkbp1b"     "Myl1" 
     ##        up7        up8        up9      down1      down2      down3 
     ##     "Oas2"    "Pcsk6"    "Pqlc3" "Cacna2d4"    "Cadm1"     "Ccr9" 
     ##      down4      down5      down6      down7      down8      down9 
@@ -1371,22 +1674,22 @@ print(overlaps[[2]])
 ```
 
     ## $`CD24-`
-    ##       up1       up2     down1     down2     down3 
-    ##    "Ly6d"  "Zfp768" "Ankrd35"  "Gm2000"  "Rpl35a" 
+    ##        up     down1     down2     down3     down4 
+    ##    "Ly6d" "Ankrd35"  "Gm2000"  "Rpl35a" "Spata33" 
     ## 
     ## $`CD24+`
     ##       up1       up2       up3       up4       up5       up6       up7 
-    ## "Adamts1"    "Cst3" "Eif2ak4"   "Gm128"  "Gm2000"   "Nop10"    "Scd2" 
-    ##       up8       up9      up10     down1     down2     down3 
-    ##  "Tspan6"  "Zfp108"  "Zfp768" "S100a10"  "S100a4"   "Sap30" 
+    ## "Adamts1"    "Cst3" "Eif2ak4"   "Endou"   "Gm128"  "Gm2000"   "Nop10" 
+    ##       up8       up9      up10      up11     down1     down2     down3 
+    ##    "Scd2" "Spata33"  "Tspan6"  "Zfp108" "S100a10"  "S100a4"   "Sap30" 
     ## 
     ## $`Sca1-`
     ##       up1       up2     down1     down2     down3 
-    ##    "Emg1" "Tmem147"    "Ly6d" "Rarres2"  "Zfp768" 
+    ##    "Emg1" "Tmem147"    "Ly6d" "Rarres2" "Spata33" 
     ## 
     ## $`ZFP+`
     ##       up1       up2       up3       up4       up5       up6     down1 
-    ##  "Gm2000"  "Mrpl33" "Rarres2" "S100a10"  "S100a4"  "Zfp768"    "Cst3" 
+    ##  "Gm2000"  "Mrpl33" "Rarres2" "S100a10"  "S100a4" "Spata33"    "Cst3" 
     ##     down2 
     ##  "Gemin6"
 
@@ -1423,7 +1726,7 @@ std.heatmap(log(ambrosiMatNorm[receptors[receptors%in%rownames(ambrosiMatNorm)],
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hormonereceptors-1.png)
+![](BoneNotebook_files/figure-markdown_github/hormonereceptors-1.pdf)
 
 Now let's broaden the search to all the paracrine, autocrine etc receptors annotated!
 
@@ -1476,7 +1779,7 @@ heatmap.2(log(ambrosiMatNorm[recdesc$mgi_symbol[recdesc$mgi_symbol%in%rownames(a
     ## $mgi_symbol %in% : Discrepancy: Colv is FALSE, while dendrogram is `both'.
     ## Omitting column dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-1.png)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-1.pdf)
 
 ``` r
 hordesc <- descriptions[grepl("hormone",descriptions$mgi_description),]
@@ -1497,7 +1800,7 @@ print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol])
 ```
 
     ##  [1] "Pgr"      "Ryr3"     "Ghr"      "Csf2ra"   "Vldlr"    "Epha7"   
-    ##  [7] "Bmpr1a"   "Olfr419"  "Acvr1"    "Ccr9"     "Lilr4b"   "Lilrb4a" 
+    ##  [7] "Bmpr1a"   "Olfr419"  "Ccr9"     "Acvr1"    "Lilr4b"   "Lilrb4a" 
     ## [13] "Rtp4"     "Klri2"    "Ptpre"    "Adgrg7"   "Lifr"     "Ptger4"  
     ## [19] "Tlr7"     "Il18rap"  "Ifnar2"   "Tnfrsf22" "Rack1"    "Rarres2"
 
@@ -1517,7 +1820,7 @@ std.heatmap(log(boneMatNorm[dereceptors[dereceptors%in%rownames(boneMatNorm)],]+
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-2.png)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-2.pdf)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNorm)],]+1,2)),main="Differentially expressed receptors\n Ambrosi  (FDR .15)\nlog2FC from mean")
@@ -1531,7 +1834,7 @@ std.heatmap(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNor
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-3.png)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-3.pdf)
 
 ``` r
 print(descriptions[dereceptors,])
@@ -1546,8 +1849,8 @@ print(descriptions[dereceptors,])
     ## Epha7         Epha7
     ## Bmpr1a       Bmpr1a
     ## Olfr419     Olfr419
-    ## Acvr1         Acvr1
     ## Ccr9           Ccr9
+    ## Acvr1         Acvr1
     ## Lilr4b       Lilr4b
     ## Lilrb4a     Lilrb4a
     ## Rtp4           Rtp4
@@ -1571,8 +1874,8 @@ print(descriptions[dereceptors,])
     ## Epha7                                                                       Eph receptor A7
     ## Bmpr1a                                         bone morphogenetic protein receptor, type 1A
     ## Olfr419                                                              olfactory receptor 419
-    ## Acvr1                                                            activin A receptor, type 1
     ## Ccr9                                                       chemokine (C-C motif) receptor 9
+    ## Acvr1                                                            activin A receptor, type 1
     ## Lilr4b                       leukocyte immunoglobulin-like receptor, subfamily B, member 4B
     ## Lilrb4a                      leukocyte immunoglobulin-like receptor, subfamily B, member 4A
     ## Rtp4                                                         receptor transporter protein 4
@@ -1602,16 +1905,16 @@ boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  0.12 sec 
-    ## iteration 2 done; time  0.12 sec 
-    ## iteration 3 done; time  0.13 sec 
-    ## iteration 4 done; time  0.13 sec 
-    ## iteration 5 done; time  0.13 sec 
-    ## iteration 6 done; time  0.16 sec 
-    ## iteration 7 done; time  0.12 sec 
-    ## iteration 8 done; time  0.13 sec 
-    ## iteration 9 done; time  0.12 sec 
-    ## iteration 10 done; time  0.15 sec
+    ## iteration 1 done; time  0.13 sec 
+    ## iteration 2 done; time  0.13 sec 
+    ## iteration 3 done; time  0.58 sec 
+    ## iteration 4 done; time  0.12 sec 
+    ## iteration 5 done; time  0.12 sec 
+    ## iteration 6 done; time  0.13 sec 
+    ## iteration 7 done; time  1.02 sec 
+    ## iteration 8 done; time  0.15 sec 
+    ## iteration 9 done; time  0.13 sec 
+    ## iteration 10 done; time  0.13 sec
 
     ## Labeling output ...
 
@@ -1622,67 +1925,67 @@ print(boneEACI$setscores[1:30,])
 ```
 
     ##                                                                                      Term
-    ## GO:0098589                                                                membrane region
+    ## GO:0002443                                                    leukocyte mediated immunity
     ## GO:0030016                                                                      myofibril
-    ## GO:0003725                                                    double-stranded RNA binding
-    ## GO:0008289                                                                  lipid binding
-    ## GO:0006310                                                              DNA recombination
+    ## GO:0006325                                                         chromatin organization
+    ## GO:0030509                                                          BMP signaling pathway
     ## GO:0005581                                                                collagen trimer
+    ## GO:0003725                                                    double-stranded RNA binding
+    ## GO:0070925                                                             organelle assembly
+    ## GO:0005509                                                            calcium ion binding
+    ## GO:0004857                                                      enzyme inhibitor activity
+    ## GO:0008289                                                                  lipid binding
+    ## GO:0005746                                                mitochondrial respiratory chain
     ## GO:0042578                                            phosphoric ester hydrolase activity
     ## GO:0007600                                                             sensory perception
-    ## GO:0004857                                                      enzyme inhibitor activity
-    ## GO:0005509                                                            calcium ion binding
-    ## GO:0098803                                                      respiratory chain complex
     ## GO:0007517                                                       muscle organ development
+    ## GO:0002757                                 immune response-activating signal transduction
     ## GO:0006959                                                        humoral immune response
-    ## GO:0000981 RNA polymerase II transcription factor activity, sequence-specific DNA binding
     ## GO:0034341                                                   response to interferon-gamma
     ## GO:0071346                                          cellular response to interferon-gamma
-    ## GO:0048285                                                              organelle fission
-    ## GO:0070011                            peptidase activity, acting on L-amino acid peptides
-    ## GO:0070925                                                             organelle assembly
+    ## GO:0000981 RNA polymerase II transcription factor activity, sequence-specific DNA binding
     ## GO:0005911                                                             cell-cell junction
-    ## GO:0042113                                                              B cell activation
+    ## GO:0061695                 transferase complex, transferring phosphorus-containing groups
+    ## GO:0005768                                                                       endosome
     ## GO:0004896                                                     cytokine receptor activity
     ## GO:0051346                                      negative regulation of hydrolase activity
-    ## GO:0005768                                                                       endosome
-    ## GO:0061695                 transferase complex, transferring phosphorus-containing groups
-    ## GO:0005125                                                              cytokine activity
+    ## GO:0070011                            peptidase activity, acting on L-amino acid peptides
     ## GO:0006364                                                                rRNA processing
     ## GO:0016072                                                         rRNA metabolic process
-    ## GO:0061024                                                          membrane organization
     ## GO:0110053                                      regulation of actin filament organization
+    ## GO:0000785                                                                      chromatin
+    ## GO:0006897                                                                    endocytosis
     ##            Ontology   set.mean    set.sd set.size         pval
-    ## GO:0098589       CC  1.1417777 0.6345951        9 0.000000e+00
-    ## GO:0030016       CC  0.8808677 0.5985175        8 2.220446e-16
-    ## GO:0003725       MF  0.8443588 0.5347318       10 4.218847e-15
-    ## GO:0008289       MF  0.8164468 0.7047133       10 3.241851e-14
-    ## GO:0006310       BP -0.7976905 1.1273195        8 1.004607e-13
-    ## GO:0005581       CC  0.7738845 0.5514743        6 6.390444e-13
-    ## GO:0042578       MF  0.7132789 0.9057416        8 3.411404e-11
-    ## GO:0007600       BP  0.7037376 0.3964610        9 6.202017e-11
-    ## GO:0004857       MF  0.7026524 1.3360505       10 6.635048e-11
-    ## GO:0005509       MF  0.6819946 1.7011065       12 2.352751e-10
-    ## GO:0098803       CC -0.6071392 0.3043756        8 1.460309e-08
-    ## GO:0007517       BP -0.5832722 0.5646709       10 5.211220e-08
-    ## GO:0006959       BP -0.5603598 0.2857874       10 1.689403e-07
-    ## GO:0000981       MF  0.5414719 0.2841491       13 4.956026e-07
-    ## GO:0034341       BP  0.5195084 0.4763865        9 1.410495e-06
-    ## GO:0071346       BP  0.5195084 0.4763865        9 1.410495e-06
-    ## GO:0048285       BP  0.4970212 0.8359452       11 3.947094e-06
-    ## GO:0070011       MF  0.4848701 1.7677915        7 6.762967e-06
-    ## GO:0070925       BP -0.4603655 0.8047180       11 1.710891e-05
-    ## GO:0005911       CC -0.4544254 1.6709171        9 2.192600e-05
-    ## GO:0042113       BP -0.4450806 0.6814534       10 3.220131e-05
-    ## GO:0004896       MF  0.3772351 0.3099029        6 4.672216e-04
-    ## GO:0051346       BP  0.3747251 0.4962448       11 5.098874e-04
-    ## GO:0005768       CC  0.3383463 1.1939109       10 1.708014e-03
-    ## GO:0061695       CC -0.2841826 0.2426887        9 7.831061e-03
-    ## GO:0005125       MF  0.2777417 0.2610850        6 1.009547e-02
-    ## GO:0006364       BP -0.2703104 0.3200235       13 1.140266e-02
-    ## GO:0016072       BP -0.2703104 0.3200235       13 1.140266e-02
-    ## GO:0061024       BP -0.2661001 0.2170975       15 1.274162e-02
-    ## GO:0110053       BP  0.2659554 0.2418588       10 1.378548e-02
+    ## GO:0002443       BP -0.9954146 0.6366566       10 3.674513e-20
+    ## GO:0030016       CC  0.8459851 0.5786451        8 6.439294e-15
+    ## GO:0006325       BP  0.8044725 1.1155622        9 1.258993e-13
+    ## GO:0030509       BP  0.7952500 0.6024379       10 2.382539e-13
+    ## GO:0005581       CC  0.7702965 0.5482416        6 1.292744e-12
+    ## GO:0003725       MF  0.7619528 0.5576502       10 2.249312e-12
+    ## GO:0070925       BP -0.7406773 0.7151371       12 7.556430e-12
+    ## GO:0005509       MF  0.7168456 1.7007092       12 4.059664e-11
+    ## GO:0004857       MF  0.6978408 1.3420436       10 1.305525e-10
+    ## GO:0008289       MF  0.6944786 0.6855774        9 1.600193e-10
+    ## GO:0005746       CC -0.6830137 0.2951290        8 2.707670e-10
+    ## GO:0042578       MF  0.6277188 0.8830850        8 7.491885e-09
+    ## GO:0007600       BP  0.5873318 0.5344867       10 6.414024e-08
+    ## GO:0007517       BP -0.5783418 0.6075108       10 8.851823e-08
+    ## GO:0002757       BP  0.5765160 0.6205972       12 1.114077e-07
+    ## GO:0006959       BP -0.5332741 0.2975609        9 8.097519e-07
+    ## GO:0034341       BP  0.5175384 0.4724600        9 1.908573e-06
+    ## GO:0071346       BP  0.5175384 0.4724600        9 1.908573e-06
+    ## GO:0000981       MF  0.4776079 0.2863302       13 1.110627e-05
+    ## GO:0005911       CC -0.4554144 1.6558877        9 2.502335e-05
+    ## GO:0061695       CC -0.4064851 0.2710684        9 1.678087e-04
+    ## GO:0005768       CC  0.3805958 1.2037117       10 4.664835e-04
+    ## GO:0004896       MF  0.3774080 0.3093462        6 5.206825e-04
+    ## GO:0051346       BP  0.3569401 0.4797096       11 1.034297e-03
+    ## GO:0070011       MF  0.3446402 1.7236180        6 1.537369e-03
+    ## GO:0006364       BP -0.2721660 0.3173356       12 1.161101e-02
+    ## GO:0016072       BP -0.2721660 0.3173356       12 1.161101e-02
+    ## GO:0110053       BP  0.2691592 0.2505020       10 1.347095e-02
+    ## GO:0000785       CC -0.2642623 0.2032817       12 1.425297e-02
+    ## GO:0006897       BP  0.2581345 0.2289144       13 1.781961e-02
 
 ``` r
 print("done")
@@ -1695,7 +1998,7 @@ std.heatmap(cor.compare(boneMatNorm,ambrosiMatNorm,method="spearman"))
 ```
 
     ## [1] "Num Genes:"
-    ## [1] 32611
+    ## [1] 32607
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
@@ -1705,7 +2008,7 @@ std.heatmap(cor.compare(boneMatNorm,ambrosiMatNorm,method="spearman"))
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-4.png)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-4.pdf)
 
 ``` r
 IngrahamMatLog <- log(boneMatNorm+1,2)
@@ -1716,7 +2019,7 @@ std.heatmap(cor.compare(AmbrosiMatLog-rowMeans(AmbrosiMatLog),IngrahamMatLog-row
 ```
 
     ## [1] "Num Genes:"
-    ## [1] 3847
+    ## [1] 3836
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
@@ -1726,4 +2029,289 @@ std.heatmap(cor.compare(AmbrosiMatLog-rowMeans(AmbrosiMatLog),IngrahamMatLog-row
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/moreReceptors-5.png)
+![](BoneNotebook_files/figure-markdown_github/moreReceptors-5.pdf)
+
+``` r
+goresultsup <- getBM(attributes = c( 'mgi_symbol', 'go_id', 'name_1006'), filters = 'mgi_symbol',
+                 values = rownames(resCandiceSub[resCandiceSub$log2FoldChange>0,]), mart = mart)
+
+goresultsdown <- getBM(attributes = c( 'mgi_symbol', 'go_id', 'name_1006'), filters = 'mgi_symbol',
+                 values = rownames(resCandiceSub[resCandiceSub$log2FoldChange<0,]), mart = mart)
+```
+
+``` r
+sort(table(goresultsup$name_1006),decreasing = T)[15:50]
+```
+
+    ## 
+    ##                                                   nucleotide binding 
+    ##                                                                   28 
+    ##                                                          ATP binding 
+    ##                                                                   26 
+    ##                                                   biological_process 
+    ##                                                                   24 
+    ##                                                        intracellular 
+    ##                                                                   24 
+    ##                           regulation of transcription, DNA-templated 
+    ##                                                                   24 
+    ##                                                 transferase activity 
+    ##                                                                   24 
+    ##                                                        mitochondrion 
+    ##                                                                   23 
+    ##                                            defense response to virus 
+    ##                                                                   22 
+    ## positive regulation of transcription from RNA polymerase II promoter 
+    ##                                                                   20 
+    ##                                                            transport 
+    ##                                                                   20 
+    ##                                            identical protein binding 
+    ##                                                                   18 
+    ##                                                endoplasmic reticulum 
+    ##                                                                   17 
+    ##                                               innate immune response 
+    ##                                                                   17 
+    ## negative regulation of transcription from RNA polymerase II promoter 
+    ##                                                                   17 
+    ##                                                 nucleic acid binding 
+    ##                                                                   17 
+    ##                                                          nucleoplasm 
+    ##                                                                   17 
+    ##                                          oxidation-reduction process 
+    ##                                                                   17 
+    ##                                                          RNA binding 
+    ##                                                                   17 
+    ##                                                immune system process 
+    ##                                                                   16 
+    ##                                                  signal transduction 
+    ##                                                                   16 
+    ##                                         transcription, DNA-templated 
+    ##                                                                   16 
+    ##                                   multicellular organism development 
+    ##                                                                   15 
+    ##                                              oxidoreductase activity 
+    ##                                                                   15 
+    ##                                    protein homodimerization activity 
+    ##                                                                   15 
+    ##                                                   hydrolase activity 
+    ##                                                                   14 
+    ##                  positive regulation of transcription, DNA-templated 
+    ##                                                                   14 
+    ##         transcription factor activity, sequence-specific DNA binding 
+    ##                                                                   14 
+    ##                                                          DNA binding 
+    ##                                                                   13 
+    ##                                                      immune response 
+    ##                                                                   13 
+    ##                                integral component of plasma membrane 
+    ##                                                                   13 
+    ##                                                 cell differentiation 
+    ##                                                                   12 
+    ##                                                          GTP binding 
+    ##                                                                   12 
+    ##                                                        cell adhesion 
+    ##                                                                   11 
+    ##                                                         cytoskeleton 
+    ##                                                                   11 
+    ##                                                 extracellular matrix 
+    ##                                                                   11 
+    ##                                                      Golgi apparatus 
+    ##                                                                   11
+
+``` r
+sort(table(goresultsdown$name_1006),decreasing = T)[15:50]
+```
+
+    ## 
+    ##         structural constituent of ribosome 
+    ##                                         30 
+    ##                                translation 
+    ##                                         30 
+    ##             integral component of membrane 
+    ##                                         29 
+    ##                              intracellular 
+    ##                                         29 
+    ##                         biological_process 
+    ##                                         26 
+    ##                            plasma membrane 
+    ##                                         21 
+    ##                      endoplasmic reticulum 
+    ##                                         19 
+    ##                                  nucleolus 
+    ##                                         19 
+    ## regulation of transcription, DNA-templated 
+    ##                                         19 
+    ##               transcription, DNA-templated 
+    ##                                         18 
+    ##                                DNA binding 
+    ##                                         17 
+    ##                             focal adhesion 
+    ##                                         15 
+    ##               mitochondrial inner membrane 
+    ##                                         15 
+    ##                       extracellular region 
+    ##                                         14 
+    ##                         hydrolase activity 
+    ##                                         14 
+    ##                         cellular_component 
+    ##                                         13 
+    ##          cytosolic large ribosomal subunit 
+    ##                                         13 
+    ##                  identical protein binding 
+    ##                                         13 
+    ##                       transferase activity 
+    ##                                         12 
+    ##                       extracellular matrix 
+    ##                                         11 
+    ##                            rRNA processing 
+    ##                                         11 
+    ##                                  transport 
+    ##                                         11 
+    ##                               cytoskeleton 
+    ##                                         10 
+    ##          cytosolic small ribosomal subunit 
+    ##                                         10 
+    ##          protein homodimerization activity 
+    ##                                         10 
+    ##                         nucleotide binding 
+    ##                                          9 
+    ##                oxidation-reduction process 
+    ##                                          9 
+    ##            perinuclear region of cytoplasm 
+    ##                                          9 
+    ##                        extracellular space 
+    ##                                          8 
+    ##                            mRNA processing 
+    ##                                          8 
+    ##  positive regulation of cell proliferation 
+    ##                                          8 
+    ##             endoplasmic reticulum membrane 
+    ##                                          7 
+    ##   intracellular membrane-bounded organelle 
+    ##                                          7 
+    ##     negative regulation of gene expression 
+    ##                                          7 
+    ##                       nucleic acid binding 
+    ##                                          7 
+    ##     positive regulation of gene expression 
+    ##                                          7
+
+``` r
+library(GOsummaries)
+gs = gosummaries(list(rownames(resCandiceSub[resCandiceSub$log2FoldChange>0,]),rownames(resCandiceSub[resCandiceSub$log2FoldChange<0,])),organism = "mmusculus")
+plot(gs, fontsize = 8)
+```
+
+![](BoneNotebook_files/figure-markdown_github/goPie-1.pdf)
+
+``` r
+ind <- intersect(rownames(boneMatNorm),rownames(ambrosiMatNorm))
+
+coefMat <- sapply(1:ncol(boneMatNorm),function(i)coef(lm(y~.+0,data=log(data.frame(y= boneMatNorm[ind,i],ambrosiMatNorm[ind,])+1,2))))
+
+std.heatmap(coefMat)
+```
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/whichCellType-1.pdf)
+
+``` r
+boneMatNormLog <- log(boneMatNorm+1,2)
+ambrosiMatNormLog <- log(ambrosiMatNorm+1,2)
+
+
+costF <- function(x,y, theta){
+  (cor(t(y*mean(theta)),colSums(x*theta),method = "pearson")+1)/2
+}
+
+x=t(ambrosiMatNormLog[ind,])
+y=t(boneMatNormLog[ind,1])
+burnin <- 2000
+
+if(!file.exists("~/Optimat.Rds")){
+optiMat <- apply(boneMatNormLog[ind,],2,function(y){
+paramtocost <- matrix(integer(0),nrow = 0,ncol=12)
+for(i in 1:3000){
+  if(i%%100 == 0)print(i)
+  if(nrow(paramtocost)>burnin){
+    currentParam <- sapply(1:nrow(x),function(j){
+      p <- smooth.spline(paramtocost[,j] , paramtocost[,12])
+      p <- predict(p,1:10000)
+      py <- (p$y - min(p$y))/(max(p$y)-min(p$y))
+      sample(1:10000,1,replace = T,prob = (py)/(sum(py)))
+    })
+  }else if(i==1)currentParam <- rep(1,nrow(x))
+  else if(i==2)currentParam <- rep(10000,nrow(x))
+  else{currentParam <- sample(1:10000,nrow(x),replace = T)}
+  cost <- costF(t(ambrosiMatNormLog[ind,]),t(boneMatNormLog[ind,1]),currentParam)
+  paramtocost <- rbind(paramtocost,c(currentParam,cost))
+}
+paramtocost <- paramtocost[order(paramtocost[,ncol(paramtocost)]),]
+print(paramtocost[nrow(paramtocost),ncol(paramtocost)]*2-1)
+print(cor(t(x),y))
+paramtocost[nrow(paramtocost),]
+})
+
+saveRDS(optiMat,file = "~/Optimat.Rds")
+}
+optiMat <- readRDS("~/Optimat.Rds")
+std.heatmap(cor.compare(ambrosiMatNormLog,boneMatNormLog,min = 1),method="pearson")
+```
+
+    ## [1] "Num Genes:"
+    ## [1] 24003
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+    ## Warning in plot.window(...): "method" is not a graphical parameter
+
+    ## Warning in plot.xy(xy, type, ...): "method" is not a graphical parameter
+
+    ## Warning in title(...): "method" is not a graphical parameter
+
+![](BoneNotebook_files/figure-markdown_github/whichCellType-2.pdf)
+
+``` r
+normOptiMat <- sapply(1:ncol(optiMat),function(i) optiMat[-12,i]/sum(optiMat[-12,i]))
+colnames(normOptiMat) <- colnames(optiMat)
+std.heatmap(normOptiMat)
+```
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/whichCellType-3.pdf)
+
+``` r
+grad.descent <- function(x, maxit){
+    theta <- matrix(c(0, 0), nrow=1) # Initialize the parameters
+ 
+    alpha = .05 # set learning rate
+    for (i in 1:maxit) {
+      theta <- theta - alpha  * grad(x, y, theta)   
+    }
+ return(theta)
+}
+
+grad <- function(x, y, theta) {
+  gradient <- (1/m)* (t(x) %*% ((x %*% t(theta)) - y))
+  return(t(gradient))
+}
+```

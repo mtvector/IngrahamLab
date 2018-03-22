@@ -25,6 +25,7 @@ Apply WGCNA:
 ```{r WGCNAThatAmbrosi}
 library(WGCNA)
 library(matrixStats)
+library(gplots)
 mat <- log(ambrosiMatNorm+1,2)
 sum(rowSds(mat)>1)
 softThresh <- WGCNA::pickSoftThreshold(t(mat[rowSds(mat)>1,]))
@@ -74,7 +75,13 @@ plot(mes[8,])
 
 ind=sapply(IngrahamBlocks$colors,function(x)which(unique(IngrahamBlocks$colors)==x))==2
 
-std.heatmap(cor(t(IngrahamMatLog[ind,])))
+```
+
+```{r Xcell}
+library(xCell)
+bmnu <- boneMatNorm
+rownames(bmnu) <- toupper(rownames(bmnu))
+std.heatmap(xCell::xCellAnalysis(bmnu))
 
 ```
 

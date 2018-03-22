@@ -1,0 +1,196 @@
+---
+title: "JimzGutz"
+author: "mtvector"
+date: "March 21, 2018"
+output: github_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache=TRUE)
+```
+
+A quick look at Jim's Data
+# Loading Data
+
+Following quality control, untrimmed paired-end reads were quantified using Salmon.
+
+First I'll load the libraries and functions I'll need for the analysis (skip this part).
+
+```{r loadLibraries,message=F,warning=F}
+library(DESeq2)
+library(EBSeq)
+library(matrixStats)
+library(biomaRt)
+library(gplots)
+library(clusterProfiler)
+library(RColorBrewer)
+library(tximport)
+cols <-  colorRampPalette(rev(brewer.pal(11,"RdBu")))(50)
+
+#see Github lengning
+library(EACI)
+
+
+median.normalize <- function(x){
+  GetNormalizedMat(x,MedianNorm(x))
+}
+
+round.log <- function(s,base=2){
+  round(log(s+1, base),digits = 1)
+}
+
+std.heatmap <- function(M,...){
+  heatmap.2(M,Rowv = F,Colv = F,trace="none",col = cols,...)
+}
+
+rn.merge <- function(x,y,fill=0,simple.intersect=F){
+  rn <- intersect(rownames(x),rownames(y))
+  zerosx <- setdiff(rownames(x),rownames(y))
+  zerosy <- setdiff(rownames(y),rownames(x))
+  out <- cbind(x[rn,,drop=F],y[rn,,drop=F])
+  if(simple.intersect){return(out)}
+  else{
+  if(length(zerosx)!=1  &length(zerosy)!=1){
+    zx <- matrix(fill, nrow=length(zerosx), ncol =ncol(y), dimnames = list(zerosx,NULL))
+    zy <- matrix(fill, nrow=length(zerosy), ncol =ncol(x), dimnames = list(zerosy,NULL))
+    zx <- cbind(x[zerosx,],zx)
+    zy <- cbind(zy,y[zerosy,])
+  }else if(length(zerosx)==1){
+    zx <- rep(fill, ncol(y))
+    zy <- matrix(fill, nrow=length(zerosy), ncol =ncol(x), dimnames = list(zerosy,NULL))
+    zx <- c(x[zerosx,],zx)
+    zy <- cbind(zy,y[zerosy,])
+  }else if(length(zerosy)==1){
+    zx <- matrix(fill, nrow=length(zerosx), ncol =ncol(y), dimnames = list(zerosx,NULL))
+    zy <- rep(fill, ncol(x))
+    print(zx)
+    print(zy)
+    zx <- cbind(x[zerosx,],zx)
+    zy <- c(zy,y[zerosy,])
+  }
+  out <- rbind(out,rbind(zx,zy))
+  return(out)}
+}
+
+cor.compare <- function(x,y,min=0, varX=NULL ,interest.set =NULL, ...){
+  d <- rn.compare(x,y)
+  x <- d[[1]]
+  y <- d[[2]]
+  i = intersect(rownames(x), rownames(y))
+  i = i[rowMaxs(x[i,],na.rm = T)>=min | rowMaxs(y[i,],na.rm = )>=min]
+  if(!is.null(interest.set)){
+    i = interest.set[interest.set%in%i]
+  }
+  if(!is.null(varX)){
+    i = i[order(rowMeans(cbind(rowSds(x[i,]), rowSds(y[i,]))),decreasing = T)]
+    i = i[1:ifelse(varX>length(i),length(i),varX)]
+  }
+  print("Num Genes:")
+  print(length(i))
+  return(cor(as.matrix(x[i,]),as.matrix(y[i,]), ...))
+}
+
+rn.compare <- function(x,y,fill=0){
+  rn <- as.character(intersect(rownames(x),rownames(y)))
+  zerosx <- setdiff(rownames(x),rownames(y))
+  zerosy <- setdiff(rownames(y),rownames(x))
+  zx <- matrix(fill, nrow=length(zerosx), ncol =ncol(y), dimnames = list(zerosx,NULL))
+  zy <- matrix(fill, nrow=length(zerosy), ncol =ncol(x), dimnames = list(zerosy,NULL))
+  nx <- rbind(x,zy)
+  ny <- rbind(y,zx)
+  return(list(nx[rownames(ny),,drop=F],ny[rownames(nx),,drop=F]))
+}
+
+```
+
+
+```{r loadData}
+
+datapath <- "~/code/IngrahamLabData/JimSalmonOutputs"
+fileList <- dir(datapath)
+fileList <- paste0(datapath,"/",fileList,"/","quant.sf")
+
+dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+allRownames <- Reduce(union,lapply(dsList,rownames))
+
+#Use Biomart to get the 
+mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
+
+txList <-  tximport(fileList,type="salmon",txOut = T)
+gutMat <-  summarizeToGene(txList,rnSymbol)$counts[-1,]
+
+colnames(gutMat) <- gsub("_L003_Rout","",lapply(strsplit(fileList,split = "/"),"[",5))
+
+#There's a failed sample in there
+std.heatmap(cor(gutMat,method="spearman"))
+
+gutMatNorm <-  median.normalize(gutMat[rowMaxs(gutMat)>2,])
+condits <- sapply(strsplit(colnames(gutMat),"_"),function(x)x[1])
+
+```
+
+
+```{r JimPCA}
+barplot(colSums(gutMat),main = "Number of reads",las=3,cex.names = .6)
+barplot(colSums(gutMatNorm),main = "PostNorm Reads",las=3,cex.names = .6)
+gutCLN <- round.log(gutMatNorm+1,2)
+gutCLN <- gutCLN[rowSds(gutCLN)>1,]
+svgut <- svd((gutCLN-rowMeans(gutCLN))/rowSds(gutCLN))
+
+heatmap.2(cor(gutMatNorm,method = "spearman"),col = cols,trace="none",cexCol = .5,cexRow = .5)
+
+conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
+par(mar=c(5.1, 4.1, 4.1, 9.1), xpd=TRUE)
+plot(svgut$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2",pch=1:3)
+legend("bottomright",inset = c(-.4,0),legend = unique(names(conditNums)),col=conditNums,pch = 1:3)
+```
+
+```{r EACI}
+eaciout <- list()
+l <- 1
+eacivector <- svgut$u[,l]
+names(eacivector) <- rownames(gutCLN)
+eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
+
+l <- 2
+eacivector <- svgut$u[,l]
+names(eacivector) <- rownames(gutCLN)
+eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
+
+```
+
+Now to print the enrichment along each of these components
+
+```{r PC1GO}
+#PC1 Positive
+a <- eaciout[[1]][eaciout[[1]]$set.mean>0,]
+print(a[1:25,])
+#PC1 Negative
+a <- eaciout[[1]][eaciout[[1]]$set.mean<0,]
+print(a[1:25,])
+
+
+```
+
+Interesting... Now PC2 
+
+```{r PC2GO}
+#PC2 Positive
+a <- eaciout[[2]][eaciout[[2]]$set.mean>0,]
+print(a[1:25,])
+#PC2 Negative
+a <- eaciout[[2]][eaciout[[2]]$set.mean<0,]
+print(a[1:25,])
+```
+
+```{r xCell}
+library(xCell)
+bmnu <- gutMatNorm
+rownames(bmnu) <- toupper(rownames(bmnu))
+std.heatmap(xCell::xCellAnalysis(bmnu))
+
+```
+
+
+
