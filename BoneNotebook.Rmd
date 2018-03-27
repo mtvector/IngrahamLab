@@ -103,6 +103,16 @@ rn.compare <- function(x,y,fill=0){
   ny <- rbind(y,zx)
   return(list(nx[rownames(ny),,drop=F],ny[rownames(nx),,drop=F]))
 }
+mypar <- function (a = 1, b = 1, brewer.n = 8, brewer.name = "Dark2", 
+          cex.lab = 1, cex.main = 1.2, cex.axis = 1, mar = c(2.5, 2.5, 
+                                                             1.6, 1.1), mgp = c(1.5, 0.5, 0), ...) 
+{
+  par(mar = mar, mgp = mgp, cex.lab = cex.lab, cex.main = cex.main, 
+      cex.axis = cex.axis)
+  par(mfrow = c(a, b), ...)
+  palette(RColorBrewer::brewer.pal(brewer.n, brewer.name))
+}
+
 
 ```
 
@@ -262,8 +272,8 @@ So there's a bunch of genes differentially expressed up or down for each cell ty
 for(i in 1:length(resList)){
   print(resultsNames(DESeqOutput)[i])
   res <- resList[[i]]
+    write.table(res[order(res$log2FoldChange,decreasing = T),],paste0("~/Desktop/DEG_",resultsNames(DESeqOutput)[i],".txt"),sep = "\t",quote = F)
   res <- res[!is.na(res$padj),]
-  write.table(res[order(res$log2FoldChange,decreasing = T),],paste0("~/Desktop/DEG_",resultsNames(DESeqOutput)[i],".txt"),sep = "\t",quote = F)
   res <- res[res$padj<.1&res$log2FoldChange>0,]
   mat <- log(ambrosiMatNorm+1,2)-rowMeans(log(ambrosiMatNorm+1,2))
   std.heatmap(mat[rownames(res[order(res$padj,decreasing = F),])[1:25],],main=paste(resultsNames(DESeqOutput)[i],"Up vs All\nLogFC vs mean"))
@@ -327,6 +337,44 @@ std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spear
 
 ```
 
+### PCA Candice
+```{r pcacandice}
+boneCLN <- round.log(boneMatNorm+1,2)
+boneCLN <- boneCLN[rowSds(boneCLN)>1,]
+svbone <- svd((boneCLN-rowMeans(boneCLN))/rowSds(boneCLN))
+
+condits <- sapply(strsplit(colnames(boneMatNorm),"_"),function(i) i[1])
+conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
+#Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent
+
+plot(svbone$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
+legend("bottomright",legend = unique(names(conditNums)),col=1:2,fill = 1:2)
+library(EACI)
+for(l in 1:4){
+  eacivector <- svbone$u[,l]
+  names(eacivector) <- rownames(boneCLN)
+  eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
+
+  mypar(1,1)
+  plot(svbone$v[,l],svbone$v[,l+1],pch=conditNums,col=conditNums,main=paste("PC",l,"vs",l+1))
+  print(paste("LOADINGS PC",l))
+  print(paste("*************************Enriched Down for PC",l,"*************************"))
+  loading1 <- rownames(boneCLN)[order(svbone$u[,l])]
+  mypar(4,4)
+  for(i in 1:32)plot(boneCLN[loading1[i],],pch=conditNums,col=conditNums,main=loading1[i])
+  print(eaciout[[l]][order(eaciout[[l]]$set.mean,decreasing = F)[1:25],c("pval","Term")])
+
+  print(paste("*************************Enriched Up for PC",l,"*************************"))
+  loading1 <- rownames(boneCLN)[order(svbone$u[,l],decreasing = T)]
+  mypar(4,4)
+  for(i in 1:32)plot(boneCLN[loading1[i],],pch=conditNums,col=conditNums,main=loading1[i])
+  print(eaciout[[l]][order(eaciout[[l]]$set.mean,decreasing = T)[1:25],c("pval","Term")])
+
+}
+
+```
+
+
 ### Differential expression of Candice's data
 
 Use a DESeq2 False Discovery Rate of .1, breaking into up and down in KO groups.
@@ -336,20 +384,20 @@ cond <- as.factor(SampleNameMat[3,])
 dds <- DESeqDataSetFromMatrix(round(boneMat),colData = DataFrame(cond),design = ~cond)
 DESeqOutput <-  DESeq(dds)
 resCandice <-  results(DESeqOutput)
+write.table(resCandice[order(resCandice$log2FoldChange,decreasing = F),],paste0("~/Desktop/DEG","Ingraham",".txt"),sep = "\t",quote=F)
 res <- resCandice[!is.na(resCandice$padj),]
-write.table(res[order(res$log2FoldChange,decreasing = F),],paste0("~/Desktop/DEG","Ingraham",".txt"),sep = "\t",quote=F)
 res <- res[res$log2FoldChange<0,]
 
 
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(NormalizedCounts+1)")
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)")
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(NormalizedCounts+1)",cexRow=.5)
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)",cexRow=.5)
 
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 boneUpDown <- list(rownames(res[res$padj<.1&res$log2FoldChange>0,]),rownames(res[res$padj<.1&res$log2FoldChange<0,]))
 res <- res[res$log2FoldChange>0,]
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)")
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)",cexRow=.5)
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)",cexRow=.5)
 res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 
@@ -411,14 +459,14 @@ print(dfGO[1:30,])
 ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon|immune",dfGO[,2])),"geneID"],"/"))
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
 bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen|muscle",dfGO[,2])),"geneID"],"/"))
-std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
-std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
-std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51))
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51))
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51))
 
 
-std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
-std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
-std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)",cexRow=.5)
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)",cexRow=.5)
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)",cexRow=.5)
 
 ```
 
@@ -426,14 +474,14 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized c
 
 ```{r checkInAmbrosi, warning=F}
 
-std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="IFN response\nLog2(FC) from mean")
-std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="BMP Related\nLog2(FC) from mean")
-std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="IFN response\nLog2(FC) from mean",cexRow=.5)
+std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="BMP Related\nLog2(FC) from mean",cexRow=.5)
+std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="DNA synth/repair\nLog2(FC) from mean",cexRow=.5)
 
 
-std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="IFN response\nLog2(normalized counts+1)")
-std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
-std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="IFN response\nLog2(normalized counts+1)",cexRow=.5)
+std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)",cexRow=.5)
+std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="BMP Related\nLog2(normalized counts+1)",cexRow=.5)
 ```
 
 Ncoa1/2/3, the Steroid receptor coactivators are equally expressed across the conditions as well.
@@ -623,21 +671,79 @@ rownames(normOptiMat) <- colnames(ambrosiMatNorm)
 std.heatmap(normOptiMat)
 
 
+```
 
-grad.descent <- function(x, maxit){
-    theta <- matrix(c(0, 0), nrow=1) # Initialize the parameters
- 
-    alpha = .05 # set learning rate
-    for (i in 1:maxit) {
-      theta <- theta - alpha  * grad(x, y, theta)   
-    }
- return(theta)
-}
 
-grad <- function(x, y, theta) {
-  gradient <- (1/m)* (t(x) %*% ((x %*% t(theta)) - y))
-  return(t(gradient))
-}
+```{r NursaAnalysis}
 
+ARs <- read.table("~/code/IngrahamLabData/AR.csv",header = T,sep=",",stringsAsFactors = F)
+PRs <- read.table("~/code/IngrahamLabData/PR.csv",header = T,sep=",",stringsAsFactors = F)
+RARs <- read.table("~/code/IngrahamLabData/RARs.csv",header = T,sep=",",stringsAsFactors = F)
+ERs <- read.table("~/code/IngrahamLabData/ERs.csv",header = T,sep=",",stringsAsFactors = F)
+
+
+
+recList <- list(ARs,PRs,RARs,ERs)
+names(recList) <- c("ARs","PRs","RARs","ERs")
+
+OverlapNames <-  lapply(recList,function(x){
+  x <- x[x$Gene%in%rownames(resCandice),]
+  arvp <- cbind(resCandice[x$Gene,"padj"],x$LogCPValue)
+  rownames(arvp) <- x$Gene
+  arvp[is.na(arvp)] <- 1
+  arvp[,1] <- log(arvp[,1])
+  #cor(arvp,method = "spe")
+  #plot(arvp,xlab="IngrahamLogPval",ylab="NursaLogPval")
+  #abline(v =-2.31,col=2)
+  #abline(h=-2.31,col=2)
+  rownames(arvp)[arvp[,1]< -2.31&arvp[,2]< -2.31]
+})
+
+names(OverlapNames) <- names(recList)
+venn(OverlapNames,names = names(recList))
+
+ARs <- ARs[ARs$Gene%in%rownames(resCandice),]
+arvp <- cbind(resCandice[ARs$Gene,"padj"],ARs$LogCPValue)
+rownames(arvp) <- ARs$Gene
+arvp[is.na(arvp)] <- 1
+arvp[,1] <- log(arvp[,1])
+cor(arvp,method = "spe")
+plot(arvp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="Androgen Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+rownames(arvp)[arvp[,1]< -2.31&arvp[,2]< -2.31]
+
+PRs <- PRs[PRs$Gene%in%rownames(resCandice),]
+prvp <- cbind(resCandice[PRs$Gene,"padj"],PRs$LogCPValue)
+rownames(prvp) <- PRs$Gene
+prvp[is.na(prvp)] <- 1
+prvp[,1] <- log(prvp[,1])
+plot(prvp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="Progesterone Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+rownames(prvp)[prvp[,1]< -2.31&prvp[,2]< -2.31]
+
+heatmap.2(log(boneMatNorm[rownames(prvp)[prvp[,1]< -3&prvp[,2]< -3],]+1,2)-rowMeans(log(boneMatNorm[rownames(prvp)[prvp[,1]< -3&prvp[,2]< -3],]+1,2)),main="PR Related\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51),Rowv = T,Colv = F,trace="none",col=cols)
+
+RARs <- RARs[RARs$Gene%in%rownames(resCandice),]
+rarvp <- cbind(resCandice[RARs$Gene,"padj"],RARs$LogCPValue)
+rownames(rarvp) <- RARs$Gene
+rarvp[is.na(rarvp)] <- 1
+rarvp[,1] <- log(rarvp[,1])
+plot(rarvp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="RA Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+rownames(rarvp)[rarvp[,1]< -2.31&rarvp[,2]< -2.31]
+
+
+ERs <- ERs[ERs$Gene%in%rownames(resCandice),]
+ervp <- cbind(resCandice[ERs$Gene,"padj"],ERs$LogCPValue)
+rownames(ervp) <- ERs$Gene
+ervp[is.na(ervp)] <- 1
+ervp[,1] <- log(ervp[,1])
+plot(ervp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="Estrogen Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+rownames(ervp)[ervp[,1]< -2.31&ervp[,2]< -2.31]
 
 ```

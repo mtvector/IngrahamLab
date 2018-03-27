@@ -96,6 +96,15 @@ rn.compare <- function(x,y,fill=0){
   ny <- rbind(y,zx)
   return(list(nx[rownames(ny),,drop=F],ny[rownames(nx),,drop=F]))
 }
+mypar <- function (a = 1, b = 1, brewer.n = 8, brewer.name = "Dark2", 
+          cex.lab = 1, cex.main = 1.2, cex.axis = 1, mar = c(2.5, 2.5, 
+                                                             1.6, 1.1), mgp = c(1.5, 0.5, 0), ...) 
+{
+  par(mar = mar, mgp = mgp, cex.lab = cex.lab, cex.main = cex.main, 
+      cex.axis = cex.axis)
+  par(mfrow = c(a, b), ...)
+  palette(RColorBrewer::brewer.pal(brewer.n, brewer.name))
+}
 ```
 
 ``` r
@@ -787,8 +796,8 @@ So there's a bunch of genes differentially expressed up or down for each cell ty
 for(i in 1:length(resList)){
   print(resultsNames(DESeqOutput)[i])
   res <- resList[[i]]
+    write.table(res[order(res$log2FoldChange,decreasing = T),],paste0("~/Desktop/DEG_",resultsNames(DESeqOutput)[i],".txt"),sep = "\t",quote = F)
   res <- res[!is.na(res$padj),]
-  write.table(res[order(res$log2FoldChange,decreasing = T),],paste0("~/Desktop/DEG_",resultsNames(DESeqOutput)[i],".txt"),sep = "\t",quote = F)
   res <- res[res$padj<.1&res$log2FoldChange>0,]
   mat <- log(ambrosiMatNorm+1,2)-rowMeans(log(ambrosiMatNorm+1,2))
   std.heatmap(mat[rownames(res[order(res$padj,decreasing = F),])[1:25],],main=paste(resultsNames(DESeqOutput)[i],"Up vs All\nLogFC vs mean"))
@@ -971,6 +980,570 @@ std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spear
 
 ![](BoneNotebook_files/figure-markdown_github/BiomartSeparate-2.png)
 
+### PCA Candice
+
+``` r
+boneCLN <- round.log(boneMatNorm+1,2)
+boneCLN <- boneCLN[rowSds(boneCLN)>1,]
+svbone <- svd((boneCLN-rowMeans(boneCLN))/rowSds(boneCLN))
+
+condits <- sapply(strsplit(colnames(boneMatNorm),"_"),function(i) i[1])
+conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
+#Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent
+
+plot(svbone$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
+legend("bottomright",legend = unique(names(conditNums)),col=1:2,fill = 1:2)
+```
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-1.png)
+
+``` r
+library(EACI)
+for(l in 1:4){
+  eacivector <- svbone$u[,l]
+  names(eacivector) <- rownames(boneCLN)
+  eaciout[[l]] <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")$setscores
+
+  mypar(1,1)
+  plot(svbone$v[,l],svbone$v[,l+1],pch=conditNums,col=conditNums,main=paste("PC",l,"vs",l+1))
+  print(paste("LOADINGS PC",l))
+  print(paste("*************************Enriched Down for PC",l,"*************************"))
+  loading1 <- rownames(boneCLN)[order(svbone$u[,l])]
+  mypar(4,4)
+  for(i in 1:32)plot(boneCLN[loading1[i],],pch=conditNums,col=conditNums,main=loading1[i])
+  print(eaciout[[l]][order(eaciout[[l]]$set.mean,decreasing = F)[1:25],c("pval","Term")])
+
+  print(paste("*************************Enriched Up for PC",l,"*************************"))
+  loading1 <- rownames(boneCLN)[order(svbone$u[,l],decreasing = T)]
+  mypar(4,4)
+  for(i in 1:32)plot(boneCLN[loading1[i],],pch=conditNums,col=conditNums,main=loading1[i])
+  print(eaciout[[l]][order(eaciout[[l]]$set.mean,decreasing = T)[1:25],c("pval","Term")])
+
+}
+```
+
+    ## Loading necessary libraries...
+
+    ## Loaded Package org.Mm.eg.db
+
+    ## Converting annotations to data.frames ...
+
+    ## iteration 1 done; time  0.66 sec 
+    ## iteration 2 done; time  0.6 sec 
+    ## iteration 3 done; time  0.59 sec 
+    ## iteration 4 done; time  0.71 sec 
+    ## iteration 5 done; time  0.77 sec 
+    ## iteration 6 done; time  0.63 sec 
+    ## iteration 7 done; time  0.75 sec 
+    ## iteration 8 done; time  0.71 sec 
+    ## iteration 9 done; time  0.77 sec 
+    ## iteration 10 done; time  1.14 sec
+
+    ## Labeling output ...
+
+    ## Loaded Package GO.db
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-2.png)
+
+    ## [1] "LOADINGS PC 1"
+    ## [1] "*************************Enriched Down for PC 1 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-3.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-4.png)
+
+    ##                    pval
+    ## GO:0000784 3.647966e-67
+    ## GO:0005759 2.760104e-28
+    ## GO:0003735 9.499767e-28
+    ## GO:0003823 1.684502e-24
+    ## GO:0007006 3.862506e-19
+    ## GO:0006342 1.603197e-18
+    ## GO:0045814 1.603197e-18
+    ## GO:0045746 1.443393e-16
+    ## GO:0015931 9.341810e-15
+    ## GO:0045333 3.658173e-14
+    ## GO:0017137 7.136554e-10
+    ## GO:0044450 1.616629e-09
+    ## GO:0002377 1.727998e-09
+    ## GO:0005496 2.729222e-07
+    ## GO:0008033 5.894054e-07
+    ## GO:0030838 1.759249e-06
+    ## GO:1990939 3.981807e-06
+    ## GO:0019228 4.353179e-06
+    ## GO:0030258 5.861163e-06
+    ## GO:0016811 9.953691e-06
+    ## GO:0006302 2.652326e-05
+    ## GO:0018958 3.881669e-05
+    ## GO:0008038 4.569886e-05
+    ## GO:0043200 9.168930e-05
+    ## GO:0070286 1.105458e-04
+    ##                                                                                               Term
+    ## GO:0000784                                                    nuclear chromosome, telomeric region
+    ## GO:0005759                                                                    mitochondrial matrix
+    ## GO:0003735                                                      structural constituent of ribosome
+    ## GO:0003823                                                                         antigen binding
+    ## GO:0007006                                                     mitochondrial membrane organization
+    ## GO:0006342                                                                     chromatin silencing
+    ## GO:0045814                                      negative regulation of gene expression, epigenetic
+    ## GO:0045746                                          negative regulation of Notch signaling pathway
+    ## GO:0015931                                                nucleobase-containing compound transport
+    ## GO:0045333                                                                    cellular respiration
+    ## GO:0017137                                                                      Rab GTPase binding
+    ## GO:0044450                                                      microtubule organizing center part
+    ## GO:0002377                                                               immunoglobulin production
+    ## GO:0005496                                                                         steroid binding
+    ## GO:0008033                                                                         tRNA processing
+    ## GO:0030838                                    positive regulation of actin filament polymerization
+    ## GO:1990939                                                ATP-dependent microtubule motor activity
+    ## GO:0019228                                                               neuronal action potential
+    ## GO:0030258                                                                      lipid modification
+    ## GO:0016811 hydrolase activity, acting on carbon-nitrogen (but not peptide) bonds, in linear amides
+    ## GO:0006302                                                              double-strand break repair
+    ## GO:0018958                                            phenol-containing compound metabolic process
+    ## GO:0008038                                                                      neuron recognition
+    ## GO:0043200                                                                  response to amino acid
+    ## GO:0070286                                                        axonemal dynein complex assembly
+    ## [1] "*************************Enriched Up for PC 1 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-5.png)
+
+    ##                    pval
+    ## GO:0050907 0.000000e+00
+    ## GO:0051453 1.363354e-13
+    ## GO:0060395 1.492717e-11
+    ## GO:0030199 2.810825e-08
+    ## GO:0007565 4.030166e-08
+    ## GO:0042734 1.557591e-07
+    ## GO:0042641 2.773135e-07
+    ## GO:0051015 1.755583e-06
+    ## GO:0019902 3.804549e-06
+    ## GO:0001952 5.606859e-06
+    ## GO:0022600 6.483939e-06
+    ## GO:0031234 7.596977e-06
+    ## GO:0046165 4.134425e-05
+    ## GO:0015296 3.244905e-04
+    ## GO:0051607 4.525466e-04
+    ## GO:0051705 6.139598e-04
+    ## GO:0002244 6.443296e-04
+    ## GO:0050771 7.471947e-04
+    ## GO:0003009 1.223735e-03
+    ## GO:0099094 1.319309e-03
+    ## GO:0000795 1.561030e-03
+    ## GO:0099086 1.561030e-03
+    ## GO:0008080 2.471286e-03
+    ## GO:0061337 2.631329e-03
+    ## GO:0061005 3.150520e-03
+    ##                                                                     Term
+    ## GO:0050907 detection of chemical stimulus involved in sensory perception
+    ## GO:0051453                                regulation of intracellular pH
+    ## GO:0060395                              SMAD protein signal transduction
+    ## GO:0030199                                  collagen fibril organization
+    ## GO:0007565                                              female pregnancy
+    ## GO:0042734                                          presynaptic membrane
+    ## GO:0042641                                                    actomyosin
+    ## GO:0051015                                        actin filament binding
+    ## GO:0019902                                           phosphatase binding
+    ## GO:0001952                            regulation of cell-matrix adhesion
+    ## GO:0022600                                      digestive system process
+    ## GO:0031234    extrinsic component of cytoplasmic side of plasma membrane
+    ## GO:0046165                                  alcohol biosynthetic process
+    ## GO:0015296                               anion:cation symporter activity
+    ## GO:0051607                                     defense response to virus
+    ## GO:0051705                                       multi-organism behavior
+    ## GO:0002244                 hematopoietic progenitor cell differentiation
+    ## GO:0050771                           negative regulation of axonogenesis
+    ## GO:0003009                                   skeletal muscle contraction
+    ## GO:0099094                          ligand-gated cation channel activity
+    ## GO:0000795                                          synaptonemal complex
+    ## GO:0099086                                        synaptonemal structure
+    ## GO:0008080                                  N-acetyltransferase activity
+    ## GO:0061337                                            cardiac conduction
+    ## GO:0061005           cell differentiation involved in kidney development
+
+    ## Loading necessary libraries...
+
+    ## Loaded Package org.Mm.eg.db
+
+    ## Converting annotations to data.frames ...
+
+    ## iteration 1 done; time  0.73 sec 
+    ## iteration 2 done; time  0.69 sec 
+    ## iteration 3 done; time  0.77 sec 
+    ## iteration 4 done; time  0.8 sec 
+    ## iteration 5 done; time  1.24 sec 
+    ## iteration 6 done; time  0.82 sec 
+    ## iteration 7 done; time  1.3 sec 
+    ## iteration 8 done; time  0.86 sec 
+    ## iteration 9 done; time  1.28 sec 
+    ## iteration 10 done; time  1.16 sec
+
+    ## Labeling output ...
+
+    ## Loaded Package GO.db
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-6.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-7.png)
+
+    ## [1] "LOADINGS PC 2"
+    ## [1] "*************************Enriched Down for PC 2 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-8.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-9.png)
+
+    ##                    pval                                               Term
+    ## GO:0051290 7.307539e-82                      protein heterotetramerization
+    ## GO:0001669 6.822807e-17                                  acrosomal vesicle
+    ## GO:0022627 4.632372e-14                  cytosolic small ribosomal subunit
+    ## GO:0006342 8.470617e-13                                chromatin silencing
+    ## GO:0045814 8.470617e-13 negative regulation of gene expression, epigenetic
+    ## GO:0019825 9.436965e-13                                     oxygen binding
+    ## GO:0030135 1.072745e-11                                     coated vesicle
+    ## GO:0004867 7.821462e-11       serine-type endopeptidase inhibitor activity
+    ## GO:0006302 2.599255e-10                         double-strand break repair
+    ## GO:0045746 1.647406e-09     negative regulation of Notch signaling pathway
+    ## GO:0005179 5.189281e-09                                   hormone activity
+    ## GO:0044325 9.221732e-09                                ion channel binding
+    ## GO:0007612 1.916246e-08                                           learning
+    ## GO:0005520 2.119385e-08                 insulin-like growth factor binding
+    ## GO:0007050 3.207450e-08                                  cell cycle arrest
+    ## GO:0004725 1.051561e-07              protein tyrosine phosphatase activity
+    ## GO:0016607 7.074191e-07                                      nuclear speck
+    ## GO:0007608 1.859478e-06                        sensory perception of smell
+    ## GO:0010506 2.039872e-06                            regulation of autophagy
+    ## GO:0019218 2.337556e-06            regulation of steroid metabolic process
+    ## GO:0001046 2.839857e-06        core promoter sequence-specific DNA binding
+    ## GO:0046068 8.925275e-06                             cGMP metabolic process
+    ## GO:0022839 5.893398e-05                         ion gated channel activity
+    ## GO:0005518 6.727777e-05                                   collagen binding
+    ## GO:0050919 8.606400e-05                                negative chemotaxis
+    ## [1] "*************************Enriched Up for PC 2 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-10.png)
+
+    ##                    pval
+    ## GO:0003823 0.000000e+00
+    ## GO:0005882 8.548717e-14
+    ## GO:0002377 8.659740e-14
+    ## GO:0051783 5.835488e-11
+    ## GO:0016811 1.482892e-10
+    ## GO:0006081 1.082206e-09
+    ## GO:0021543 2.077551e-09
+    ## GO:0006304 5.426667e-08
+    ## GO:0015931 2.176660e-07
+    ## GO:0004252 3.441386e-07
+    ## GO:0071901 6.487250e-07
+    ## GO:0060359 1.259760e-06
+    ## GO:0004222 1.785226e-06
+    ## GO:0004984 2.350654e-06
+    ## GO:0016459 3.734440e-05
+    ## GO:0008081 5.547060e-05
+    ## GO:1990939 6.055621e-05
+    ## GO:0034704 7.381673e-05
+    ## GO:0005813 9.448805e-05
+    ## GO:0002028 2.108274e-04
+    ## GO:0002027 2.621599e-04
+    ## GO:0030246 7.487776e-04
+    ## GO:0009408 7.782523e-04
+    ## GO:0070664 9.991749e-04
+    ## GO:0008022 1.405299e-03
+    ##                                                                                               Term
+    ## GO:0003823                                                                         antigen binding
+    ## GO:0005882                                                                   intermediate filament
+    ## GO:0002377                                                               immunoglobulin production
+    ## GO:0051783                                                          regulation of nuclear division
+    ## GO:0016811 hydrolase activity, acting on carbon-nitrogen (but not peptide) bonds, in linear amides
+    ## GO:0006081                                                     cellular aldehyde metabolic process
+    ## GO:0021543                                                                     pallium development
+    ## GO:0006304                                                                        DNA modification
+    ## GO:0015931                                                nucleobase-containing compound transport
+    ## GO:0004252                                                      serine-type endopeptidase activity
+    ## GO:0071901                         negative regulation of protein serine/threonine kinase activity
+    ## GO:0060359                                                                response to ammonium ion
+    ## GO:0004222                                                           metalloendopeptidase activity
+    ## GO:0004984                                                             olfactory receptor activity
+    ## GO:0016459                                                                          myosin complex
+    ## GO:0008081                                                   phosphoric diester hydrolase activity
+    ## GO:1990939                                                ATP-dependent microtubule motor activity
+    ## GO:0034704                                                                 calcium channel complex
+    ## GO:0005813                                                                              centrosome
+    ## GO:0002028                                                      regulation of sodium ion transport
+    ## GO:0002027                                                                regulation of heart rate
+    ## GO:0030246                                                                    carbohydrate binding
+    ## GO:0009408                                                                        response to heat
+    ## GO:0070664                                          negative regulation of leukocyte proliferation
+    ## GO:0008022                                                              protein C-terminus binding
+
+    ## Loading necessary libraries...
+
+    ## Loaded Package org.Mm.eg.db
+
+    ## Converting annotations to data.frames ...
+
+    ## iteration 1 done; time  1.69 sec 
+    ## iteration 2 done; time  1.05 sec 
+    ## iteration 3 done; time  0.97 sec 
+    ## iteration 4 done; time  0.77 sec 
+    ## iteration 5 done; time  0.72 sec 
+    ## iteration 6 done; time  1.07 sec 
+    ## iteration 7 done; time  0.97 sec 
+    ## iteration 8 done; time  1.62 sec 
+    ## iteration 9 done; time  1.11 sec 
+    ## iteration 10 done; time  1.56 sec
+
+    ## Labeling output ...
+
+    ## Loaded Package GO.db
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-11.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-12.png)
+
+    ## [1] "LOADINGS PC 3"
+    ## [1] "*************************Enriched Down for PC 3 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-13.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-14.png)
+
+    ##                    pval
+    ## GO:0038024 2.976365e-39
+    ## GO:0005179 2.466970e-23
+    ## GO:0010811 2.330227e-11
+    ## GO:0098644 1.453797e-10
+    ## GO:0016811 4.273135e-10
+    ## GO:0034704 3.616582e-09
+    ## GO:0001076 1.807864e-08
+    ## GO:0048020 3.080003e-08
+    ## GO:0021536 3.677141e-08
+    ## GO:0030674 9.585132e-07
+    ## GO:0046849 1.253063e-05
+    ## GO:0004683 1.570869e-05
+    ## GO:0045773 2.031144e-05
+    ## GO:0001676 2.398625e-05
+    ## GO:0015370 3.237325e-05
+    ## GO:0010633 7.000053e-05
+    ## GO:0005770 1.453302e-04
+    ## GO:0005759 2.049949e-04
+    ## GO:0009064 3.087111e-04
+    ## GO:0099094 4.833708e-04
+    ## GO:0014704 5.201631e-04
+    ## GO:0046434 7.838631e-04
+    ## GO:0008235 1.473427e-03
+    ## GO:0007009 1.679861e-03
+    ## GO:0007050 1.900410e-03
+    ##                                                                                               Term
+    ## GO:0038024                                                                 cargo receptor activity
+    ## GO:0005179                                                                        hormone activity
+    ## GO:0010811                                          positive regulation of cell-substrate adhesion
+    ## GO:0098644                                                             complex of collagen trimers
+    ## GO:0016811 hydrolase activity, acting on carbon-nitrogen (but not peptide) bonds, in linear amides
+    ## GO:0034704                                                                 calcium channel complex
+    ## GO:0001076           transcription factor activity, RNA polymerase II transcription factor binding
+    ## GO:0048020                                                          CCR chemokine receptor binding
+    ## GO:0021536                                                                diencephalon development
+    ## GO:0030674                                                               protein binding, bridging
+    ## GO:0046849                                                                         bone remodeling
+    ## GO:0004683                                            calmodulin-dependent protein kinase activity
+    ## GO:0045773                                                   positive regulation of axon extension
+    ## GO:0001676                                                 long-chain fatty acid metabolic process
+    ## GO:0015370                                                        solute:sodium symporter activity
+    ## GO:0010633                                        negative regulation of epithelial cell migration
+    ## GO:0005770                                                                           late endosome
+    ## GO:0005759                                                                    mitochondrial matrix
+    ## GO:0009064                                           glutamine family amino acid metabolic process
+    ## GO:0099094                                                    ligand-gated cation channel activity
+    ## GO:0014704                                                                       intercalated disc
+    ## GO:0046434                                                       organophosphate catabolic process
+    ## GO:0008235                                                            metalloexopeptidase activity
+    ## GO:0007009                                                            plasma membrane organization
+    ## GO:0007050                                                                       cell cycle arrest
+    ## [1] "*************************Enriched Up for PC 3 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-15.png)
+
+    ##                    pval
+    ## GO:2000177 0.000000e+00
+    ## GO:0000287 0.000000e+00
+    ## GO:0050982 0.000000e+00
+    ## GO:0005088 0.000000e+00
+    ## GO:1901987 0.000000e+00
+    ## GO:0051453 0.000000e+00
+    ## GO:0008589 5.107026e-15
+    ## GO:0006733 3.974598e-14
+    ## GO:0031234 3.688161e-13
+    ## GO:0005201 9.083845e-13
+    ## GO:0001952 4.730882e-12
+    ## GO:0008277 6.821468e-10
+    ## GO:0002040 2.221871e-09
+    ## GO:0002377 1.976827e-08
+    ## GO:0007043 2.436302e-08
+    ## GO:0034446 6.562894e-08
+    ## GO:1990939 1.021562e-07
+    ## GO:0007218 4.484521e-07
+    ## GO:0008081 5.841736e-07
+    ## GO:0051592 2.979361e-06
+    ## GO:0005546 2.989073e-06
+    ## GO:0001570 4.890835e-06
+    ## GO:0031965 1.777283e-05
+    ## GO:0098797 2.196586e-05
+    ## GO:0019228 2.776519e-05
+    ##                                                                          Term
+    ## GO:2000177                  regulation of neural precursor cell proliferation
+    ## GO:0000287                                              magnesium ion binding
+    ## GO:0050982                                   detection of mechanical stimulus
+    ## GO:0005088                     Ras guanyl-nucleotide exchange factor activity
+    ## GO:1901987                          regulation of cell cycle phase transition
+    ## GO:0051453                                     regulation of intracellular pH
+    ## GO:0008589                         regulation of smoothened signaling pathway
+    ## GO:0006733                          oxidoreduction coenzyme metabolic process
+    ## GO:0031234         extrinsic component of cytoplasmic side of plasma membrane
+    ## GO:0005201                        extracellular matrix structural constituent
+    ## GO:0001952                                 regulation of cell-matrix adhesion
+    ## GO:0008277 regulation of G-protein coupled receptor protein signaling pathway
+    ## GO:0002040                                             sprouting angiogenesis
+    ## GO:0002377                                          immunoglobulin production
+    ## GO:0007043                                        cell-cell junction assembly
+    ## GO:0034446                        substrate adhesion-dependent cell spreading
+    ## GO:1990939                           ATP-dependent microtubule motor activity
+    ## GO:0007218                                     neuropeptide signaling pathway
+    ## GO:0008081                              phosphoric diester hydrolase activity
+    ## GO:0051592                                            response to calcium ion
+    ## GO:0005546                      phosphatidylinositol-4,5-bisphosphate binding
+    ## GO:0001570                                                     vasculogenesis
+    ## GO:0031965                                                   nuclear membrane
+    ## GO:0098797                                    plasma membrane protein complex
+    ## GO:0019228                                          neuronal action potential
+
+    ## Loading necessary libraries...
+
+    ## Loaded Package org.Mm.eg.db
+
+    ## Converting annotations to data.frames ...
+
+    ## iteration 1 done; time  0.62 sec 
+    ## iteration 2 done; time  0.72 sec 
+    ## iteration 3 done; time  0.64 sec 
+    ## iteration 4 done; time  1.17 sec 
+    ## iteration 5 done; time  0.66 sec 
+    ## iteration 6 done; time  0.74 sec 
+    ## iteration 7 done; time  0.75 sec 
+    ## iteration 8 done; time  0.77 sec 
+    ## iteration 9 done; time  1.31 sec 
+    ## iteration 10 done; time  0.73 sec
+
+    ## Labeling output ...
+
+    ## Loaded Package GO.db
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-16.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-17.png)
+
+    ## [1] "LOADINGS PC 4"
+    ## [1] "*************************Enriched Down for PC 4 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-18.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-19.png)
+
+    ##                    pval
+    ## GO:0019825 8.944932e-12
+    ## GO:0002377 9.687255e-11
+    ## GO:0072331 1.628375e-10
+    ## GO:0003823 1.808584e-10
+    ## GO:0050771 1.555369e-09
+    ## GO:0007157 1.643315e-09
+    ## GO:0015370 1.270301e-08
+    ## GO:0005179 1.321492e-08
+    ## GO:0031301 1.401150e-08
+    ## GO:0070988 5.784360e-08
+    ## GO:0086010 8.283098e-07
+    ## GO:0015837 1.368209e-05
+    ## GO:0004222 1.614177e-05
+    ## GO:2000177 1.854142e-05
+    ## GO:0008080 6.949656e-05
+    ## GO:0003341 7.311360e-05
+    ## GO:0007565 1.551840e-04
+    ## GO:0032886 1.629041e-04
+    ## GO:0018958 3.569682e-04
+    ## GO:0006402 5.542298e-04
+    ## GO:0044448 1.634880e-03
+    ## GO:1990823 1.755529e-03
+    ## GO:1990830 1.755529e-03
+    ## GO:0008344 3.280867e-03
+    ## GO:0044450 3.648869e-03
+    ##                                                                                   Term
+    ## GO:0019825                                                              oxygen binding
+    ## GO:0002377                                                   immunoglobulin production
+    ## GO:0072331                                   signal transduction by p53 class mediator
+    ## GO:0003823                                                             antigen binding
+    ## GO:0050771                                         negative regulation of axonogenesis
+    ## GO:0007157 heterophilic cell-cell adhesion via plasma membrane cell adhesion molecules
+    ## GO:0015370                                            solute:sodium symporter activity
+    ## GO:0005179                                                            hormone activity
+    ## GO:0031301                                    integral component of organelle membrane
+    ## GO:0070988                                                               demethylation
+    ## GO:0086010                             membrane depolarization during action potential
+    ## GO:0015837                                                             amine transport
+    ## GO:0004222                                               metalloendopeptidase activity
+    ## GO:2000177                           regulation of neural precursor cell proliferation
+    ## GO:0008080                                                N-acetyltransferase activity
+    ## GO:0003341                                                             cilium movement
+    ## GO:0007565                                                            female pregnancy
+    ## GO:0032886                                     regulation of microtubule-based process
+    ## GO:0018958                                phenol-containing compound metabolic process
+    ## GO:0006402                                                      mRNA catabolic process
+    ## GO:0044448                                                            cell cortex part
+    ## GO:1990823                                      response to leukemia inhibitory factor
+    ## GO:1990830                             cellular response to leukemia inhibitory factor
+    ## GO:0008344                                                   adult locomotory behavior
+    ## GO:0044450                                          microtubule organizing center part
+    ## [1] "*************************Enriched Up for PC 4 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-20.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-21.png)
+
+    ##                    pval
+    ## GO:0005201 0.000000e+00
+    ## GO:0005865 0.000000e+00
+    ## GO:0048477 0.000000e+00
+    ## GO:0005882 0.000000e+00
+    ## GO:0005791 4.440892e-16
+    ## GO:0099094 6.661338e-16
+    ## GO:0072329 7.847722e-12
+    ## GO:0043433 2.585843e-11
+    ## GO:0046849 1.413043e-09
+    ## GO:0003407 2.948983e-09
+    ## GO:0005518 3.607401e-09
+    ## GO:0006457 9.033564e-09
+    ## GO:0031330 1.537172e-08
+    ## GO:0004725 2.288043e-08
+    ## GO:0021536 2.404396e-08
+    ## GO:0016459 2.630267e-08
+    ## GO:0038024 2.955799e-08
+    ## GO:0044447 4.739889e-08
+    ## GO:0007528 5.812392e-08
+    ## GO:0022839 1.009165e-07
+    ## GO:0061025 1.244124e-07
+    ## GO:0070167 1.295244e-07
+    ## GO:0005520 3.034041e-07
+    ## GO:0030246 5.171963e-07
+    ## GO:0060359 2.014904e-06
+    ##                                                                        Term
+    ## GO:0005201                      extracellular matrix structural constituent
+    ## GO:0005865                                    striated muscle thin filament
+    ## GO:0048477                                                        oogenesis
+    ## GO:0005882                                            intermediate filament
+    ## GO:0005791                                      rough endoplasmic reticulum
+    ## GO:0099094                             ligand-gated cation channel activity
+    ## GO:0072329                            monocarboxylic acid catabolic process
+    ## GO:0043433 negative regulation of DNA binding transcription factor activity
+    ## GO:0046849                                                  bone remodeling
+    ## GO:0003407                                        neural retina development
+    ## GO:0005518                                                 collagen binding
+    ## GO:0006457                                                  protein folding
+    ## GO:0031330                negative regulation of cellular catabolic process
+    ## GO:0004725                            protein tyrosine phosphatase activity
+    ## GO:0021536                                         diencephalon development
+    ## GO:0016459                                                   myosin complex
+    ## GO:0038024                                          cargo receptor activity
+    ## GO:0044447                                                     axoneme part
+    ## GO:0007528                               neuromuscular junction development
+    ## GO:0022839                                       ion gated channel activity
+    ## GO:0061025                                                  membrane fusion
+    ## GO:0070167                      regulation of biomineral tissue development
+    ## GO:0005520                               insulin-like growth factor binding
+    ## GO:0030246                                             carbohydrate binding
+    ## GO:0060359                                         response to ammonium ion
+
 ### Differential expression of Candice's data
 
 Use a DESeq2 False Discovery Rate of .1, breaking into up and down in KO groups.
@@ -1000,18 +1573,18 @@ DESeqOutput <-  DESeq(dds)
 
 ``` r
 resCandice <-  results(DESeqOutput)
+write.table(resCandice[order(resCandice$log2FoldChange,decreasing = F),],paste0("~/Desktop/DEG","Ingraham",".txt"),sep = "\t",quote=F)
 res <- resCandice[!is.na(resCandice$padj),]
-write.table(res[order(res$log2FoldChange,decreasing = F),],paste0("~/Desktop/DEG","Ingraham",".txt"),sep = "\t",quote=F)
 res <- res[res$log2FoldChange<0,]
 
 
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(NormalizedCounts+1)")
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\ndown in KO\nlog2(NormalizedCounts+1)",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)")
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.png)
@@ -1021,13 +1594,13 @@ res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 boneUpDown <- list(rownames(res[res$padj<.1&res$log2FoldChange>0,]),rownames(res[res$padj<.1&res$log2FoldChange<0,]))
 res <- res[res$log2FoldChange>0,]
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)")
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)")
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2),main="Most significant DE genes\nup in KO\nlog2(normalized counts + 1)",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-4.png)
@@ -1469,7 +2042,7 @@ print(dfGO[1:30,])
 ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon|immune",dfGO[,2])),"geneID"],"/"))
 repairGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "pyrimidine|repair",dfGO[,2])),"geneID"],"/"))
 bmpGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "ossi|osteoblast|collagen|muscle",dfGO[,2])),"geneID"],"/"))
-std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean")
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+1,2)),main="IFN response\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51))
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -1483,7 +2056,7 @@ std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+
 ![](BoneNotebook_files/figure-markdown_github/EnrichGO-1.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGenes,]+1,2)),main="DNA synth/repair\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51))
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -1494,10 +2067,13 @@ std.heatmap(log(boneMatNorm[repairGenes,]+1,2)-rowMeans(log(boneMatNorm[repairGe
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
+    ## Warning in image.default(z = matrix(z, ncol = 1), col = col, breaks =
+    ## tmpbreaks, : unsorted 'breaks' will be sorted before use
+
 ![](BoneNotebook_files/figure-markdown_github/EnrichGO-2.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean")
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+1,2)),main="BMP Related\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51))
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -1511,7 +2087,7 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+
 ![](BoneNotebook_files/figure-markdown_github/EnrichGO-3.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized counts+1)",cexRow=.5)
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -1525,7 +2101,7 @@ std.heatmap(log(boneMatNorm[ifnGenes,]+1,2),main="IFN response\nLog2(normalized 
 ![](BoneNotebook_files/figure-markdown_github/EnrichGO-4.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)",cexRow=.5)
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -1539,7 +2115,7 @@ std.heatmap(log(boneMatNorm[repairGenes,]+1,2),main="DNA synth/repair\nLog2(norm
 ![](BoneNotebook_files/figure-markdown_github/EnrichGO-5.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized counts+1)",cexRow=.5)
 ```
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
@@ -1555,37 +2131,37 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2),main="BMP Related\nLog2(normalized c
 #### Candice DE in the Ambrosi
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="IFN response\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="IFN response\nLog2(FC) from mean",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-1.png)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="BMP Related\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="BMP Related\nLog2(FC) from mean",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-2.png)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="DNA synth/repair\nLog2(FC) from mean")
+std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)-rowMeans(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2)),main="DNA synth/repair\nLog2(FC) from mean",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-3.png)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="IFN response\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[ifnGenes[ifnGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="IFN response\nLog2(normalized counts+1)",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-4.png)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[repairGenes[repairGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="DNA synth/repair\nLog2(normalized counts+1)",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-5.png)
 
 ``` r
-std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="BMP Related\nLog2(normalized counts+1)")
+std.heatmap(log(ambrosiMatNorm[bmpGenes[bmpGenes%in%rownames(ambrosiMatNorm)],]+1,2),main="BMP Related\nLog2(normalized counts+1)",cexRow=.5)
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/checkInAmbrosi-6.png)
@@ -2316,18 +2892,222 @@ std.heatmap(normOptiMat)
 ![](BoneNotebook_files/figure-markdown_github/whichCellType-3.png)
 
 ``` r
-grad.descent <- function(x, maxit){
-    theta <- matrix(c(0, 0), nrow=1) # Initialize the parameters
- 
-    alpha = .05 # set learning rate
-    for (i in 1:maxit) {
-      theta <- theta - alpha  * grad(x, y, theta)   
-    }
- return(theta)
-}
+ARs <- read.table("~/code/IngrahamLabData/AR.csv",header = T,sep=",",stringsAsFactors = F)
+PRs <- read.table("~/code/IngrahamLabData/PR.csv",header = T,sep=",",stringsAsFactors = F)
+RARs <- read.table("~/code/IngrahamLabData/RARs.csv",header = T,sep=",",stringsAsFactors = F)
+ERs <- read.table("~/code/IngrahamLabData/ERs.csv",header = T,sep=",",stringsAsFactors = F)
 
-grad <- function(x, y, theta) {
-  gradient <- (1/m)* (t(x) %*% ((x %*% t(theta)) - y))
-  return(t(gradient))
-}
+
+
+recList <- list(ARs,PRs,RARs,ERs)
+names(recList) <- c("ARs","PRs","RARs","ERs")
+
+OverlapNames <-  lapply(recList,function(x){
+  x <- x[x$Gene%in%rownames(resCandice),]
+  arvp <- cbind(resCandice[x$Gene,"padj"],x$LogCPValue)
+  rownames(arvp) <- x$Gene
+  arvp[is.na(arvp)] <- 1
+  arvp[,1] <- log(arvp[,1])
+  #cor(arvp,method = "spe")
+  #plot(arvp,xlab="IngrahamLogPval",ylab="NursaLogPval")
+  #abline(v =-2.31,col=2)
+  #abline(h=-2.31,col=2)
+  rownames(arvp)[arvp[,1]< -2.31&arvp[,2]< -2.31]
+})
+
+names(OverlapNames) <- names(recList)
+venn(OverlapNames,names = names(recList))
 ```
+
+![](BoneNotebook_files/figure-markdown_github/NursaAnalysis-1.png)
+
+``` r
+ARs <- ARs[ARs$Gene%in%rownames(resCandice),]
+arvp <- cbind(resCandice[ARs$Gene,"padj"],ARs$LogCPValue)
+rownames(arvp) <- ARs$Gene
+arvp[is.na(arvp)] <- 1
+arvp[,1] <- log(arvp[,1])
+cor(arvp,method = "spe")
+```
+
+    ##            [,1]       [,2]
+    ## [1,] 1.00000000 0.08818878
+    ## [2,] 0.08818878 1.00000000
+
+``` r
+plot(arvp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="Androgen Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+```
+
+![](BoneNotebook_files/figure-markdown_github/NursaAnalysis-2.png)
+
+``` r
+rownames(arvp)[arvp[,1]< -2.31&arvp[,2]< -2.31]
+```
+
+    ##  [1] "Cadm1"         "Zfp51"         "Tex15"         "Nme1"         
+    ##  [5] "Plac8"         "Herpud1"       "Adamts1"       "Csrp2"        
+    ##  [9] "Cir1"          "Ifit1"         "Lpin1"         "Sfrp2"        
+    ## [13] "Tmem147"       "Postn"         "Irf8"          "Nme6"         
+    ## [17] "Vldlr"         "Ly6d"          "Ifi44"         "Cd209g"       
+    ## [21] "Greb1"         "Tomm6"         "Gjb3"          "Lsm7"         
+    ## [25] "Tex2"          "Romo1"         "Emg1"          "Gbp7"         
+    ## [29] "Samd5"         "Cdyl2"         "Calcoco1"      "Mlip"         
+    ## [33] "Scn4b"         "S100a4"        "Slc31a2"       "Ifih1"        
+    ## [37] "Zmynd10"       "Pi15"          "Bicc1"         "Parp9"        
+    ## [41] "Ccdc134"       "Dixdc1"        "Rep15"         "Gbp8"         
+    ## [45] "Exosc6"        "Mrps18a"       "Cst3"          "Cul4a"        
+    ## [49] "Eif3g"         "Slc4a5"        "Csf2ra"        "H2afv"        
+    ## [53] "Mien1"         "Arpc5l"        "Scd2"          "Sowaha"       
+    ## [57] "Stat1"         "Sap30"         "Gbp4"          "S100a10"      
+    ## [61] "Zfp874a"       "Card6"         "Slc35g1"       "Cacna2d4"     
+    ## [65] "Zfp125"        "Ndufa1"        "Aprt"          "Ptpre"        
+    ## [69] "1700021F05Rik" "Gbp6"          "Oasl2"         "Sec16b"       
+    ## [73] "Dph1"          "Gemin6"        "Cadm3"         "Rtn4ip1"      
+    ## [77] "Oas3"          "Oasl1"         "Frrs1"         "Fam136a"      
+    ## [81] "Commd4"        "Ugt8a"         "Dcn"           "Dctpp1"       
+    ## [85] "Tspan6"        "Urm1"          "Cat"           "Cox7a2l"      
+    ## [89] "Papss2"        "Rps4x"         "Id3"           "Rpl39"        
+    ## [93] "Cmah"          "Col1a1"        "Inhba"         "Rock1"        
+    ## [97] "Bmp4"          "Ankrd10"       "Gpx3"
+
+``` r
+PRs <- PRs[PRs$Gene%in%rownames(resCandice),]
+prvp <- cbind(resCandice[PRs$Gene,"padj"],PRs$LogCPValue)
+rownames(prvp) <- PRs$Gene
+prvp[is.na(prvp)] <- 1
+prvp[,1] <- log(prvp[,1])
+plot(prvp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="Progesterone Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+```
+
+![](BoneNotebook_files/figure-markdown_github/NursaAnalysis-3.png)
+
+``` r
+rownames(prvp)[prvp[,1]< -2.31&prvp[,2]< -2.31]
+```
+
+    ##  [1] "Lpin1"         "Gjb3"          "Adamts1"       "Plac8"        
+    ##  [5] "Cd209g"        "Gpx3"          "Bex6"          "Cadm1"        
+    ##  [9] "Gbp8"          "Pgr"           "Col8a1"        "Tenm4"        
+    ## [13] "Id3"           "Ly6d"          "Cox7a2l"       "Postn"        
+    ## [17] "Col5a2"        "Gngt2"         "Calcoco1"      "Oasl1"        
+    ## [21] "Zmynd10"       "Rep15"         "Sec16b"        "Col1a1"       
+    ## [25] "Mid1"          "Ifi44"         "Exosc6"        "Mlip"         
+    ## [29] "Gbp4"          "Acadvl"        "Frrs1"         "2410002F23Rik"
+    ## [33] "Arpc5l"        "Eif3g"         "Irf8"          "H2afv"        
+    ## [37] "Csrp2"         "Sfrp2"         "Scd2"          "Gbp6"         
+    ## [41] "Gemin6"        "Tomm6"         "Stat1"         "Zfp874a"      
+    ## [45] "Card6"         "Scn4b"         "Tmem147"       "Dctpp1"       
+    ## [49] "Tmem205"       "Romo1"         "Fam136a"       "Eif2ak4"      
+    ## [53] "S100a10"       "Zfp51"         "Ugt8a"         "Gbp7"         
+    ## [57] "Sap30"         "Ifit1"         "Herpud1"       "Bicc1"        
+    ## [61] "Rtn4ip1"       "Dph1"          "Slc31a2"       "Pi15"
+
+``` r
+heatmap.2(log(boneMatNorm[rownames(prvp)[prvp[,1]< -3&prvp[,2]< -3],]+1,2)-rowMeans(log(boneMatNorm[rownames(prvp)[prvp[,1]< -3&prvp[,2]< -3],]+1,2)),main="PR Related\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51),Rowv = T,Colv = F,trace="none",col=cols)
+```
+
+    ## Warning in heatmap.2(log(boneMatNorm[rownames(prvp)[prvp[, 1] < -3 &
+    ## prvp[, : Discrepancy: Colv is FALSE, while dendrogram is `both'. Omitting
+    ## column dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/NursaAnalysis-4.png)
+
+``` r
+RARs <- RARs[RARs$Gene%in%rownames(resCandice),]
+rarvp <- cbind(resCandice[RARs$Gene,"padj"],RARs$LogCPValue)
+rownames(rarvp) <- RARs$Gene
+rarvp[is.na(rarvp)] <- 1
+rarvp[,1] <- log(rarvp[,1])
+plot(rarvp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="RA Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+```
+
+![](BoneNotebook_files/figure-markdown_github/NursaAnalysis-5.png)
+
+``` r
+rownames(rarvp)[rarvp[,1]< -2.31&rarvp[,2]< -2.31]
+```
+
+    ##  [1] "Lifr"          "Gpx3"          "Parp9"         "Dctpp1"       
+    ##  [5] "Id3"           "Gjb3"          "Postn"         "1700021F05Rik"
+    ##  [9] "Csrp2"         "A2m"           "2410002F23Rik" "Bmp4"         
+    ## [13] "Cst3"          "Sap30"         "Fmo5"          "Plac8"        
+    ## [17] "Pqlc3"         "Lpin1"         "Tor3a"         "Mif"          
+    ## [21] "Stat1"         "Nop10"         "Herpud1"       "Mzb1"         
+    ## [25] "Card6"         "Man1c1"        "Zfp874a"       "Slco4c1"      
+    ## [29] "Mtus1"         "Ifi44"         "Tex15"         "Gemin6"       
+    ## [33] "Kcnj10"        "Cir1"          "Zmynd10"       "Oas3"         
+    ## [37] "Oasl2"         "Bicc1"         "Slc31a2"       "Oas2"         
+    ## [41] "Ddx60"         "Rps15a"        "Myl1"          "Tmem147"      
+    ## [45] "Acadvl"        "Tmem205"       "Nme1"          "Col2a1"       
+    ## [49] "Sfrp2"         "Tspan6"        "Ugt8a"         "Eif2ak2"      
+    ## [53] "Pcsk6"         "Col5a2"        "Fkbp1b"        "Frrs1"        
+    ## [57] "Xrcc6"         "Romo1"
+
+``` r
+ERs <- ERs[ERs$Gene%in%rownames(resCandice),]
+ervp <- cbind(resCandice[ERs$Gene,"padj"],ERs$LogCPValue)
+rownames(ervp) <- ERs$Gene
+ervp[is.na(ervp)] <- 1
+ervp[,1] <- log(ervp[,1])
+plot(ervp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="Estrogen Receptor")
+abline(v =-2.31,col=2)
+abline(h=-2.31,col=2)
+```
+
+![](BoneNotebook_files/figure-markdown_github/NursaAnalysis-6.png)
+
+``` r
+rownames(ervp)[ervp[,1]< -2.31&ervp[,2]< -2.31]
+```
+
+    ##   [1] "Id3"           "Sfrp2"         "H2afv"         "Pqlc3"        
+    ##   [5] "Adamts1"       "Rarres2"       "Slc35g1"       "Ifit1"        
+    ##   [9] "Cst3"          "Herpud1"       "Dcn"           "Greb1"        
+    ##  [13] "Mtus1"         "Bmp4"          "Plac8"         "Peg3"         
+    ##  [17] "Cpt1a"         "Nme1"          "Emg1"          "Mrps18a"      
+    ##  [21] "Pgr"           "Lpin1"         "Gpx3"          "Gjb3"         
+    ##  [25] "Cox7a2l"       "Fam136a"       "Cadm1"         "Dph1"         
+    ##  [29] "Romo1"         "Mif"           "Col1a1"        "Mien1"        
+    ##  [33] "Ghr"           "Ankrd10"       "Nme6"          "Col5a2"       
+    ##  [37] "Slc31a2"       "Tomm6"         "Rtp4"          "Rep15"        
+    ##  [41] "Dctpp1"        "Frrs1"         "Runx2"         "Snap23"       
+    ##  [45] "Tenm4"         "Ly6d"          "S100a10"       "Tmem147"      
+    ##  [49] "Zfp874a"       "Chil5"         "Itga11"        "Csrp2"        
+    ##  [53] "Vldlr"         "Sec16b"        "Bicc1"         "Smpd3"        
+    ##  [57] "Col8a1"        "Ndufa1"        "Limch1"        "Slfn4"        
+    ##  [61] "Inhba"         "Nop10"         "Sema5a"        "Commd4"       
+    ##  [65] "D8Ertd738e"    "Pfdn5"         "Gbp7"          "Ppp1r35"      
+    ##  [69] "Gvin1"         "Gxylt2"        "Ifih1"         "Oas2"         
+    ##  [73] "Gemin6"        "Urm1"          "Klf7"          "Lsm7"         
+    ##  [77] "Tex2"          "Tmem205"       "Postn"         "Pcsk6"        
+    ##  [81] "Rps13"         "Calcoco1"      "Sap30"         "Col2a1"       
+    ##  [85] "Baiap2"        "Arpc5l"        "Scd2"          "Zfp108"       
+    ##  [89] "Cox5b"         "Rpl35a"        "2410015M20Rik" "Fmo5"         
+    ##  [93] "Zmynd10"       "Cir1"          "Ccdc134"       "Nrp2"         
+    ##  [97] "Eif3g"         "Exosc6"        "Mlip"          "Rps27"        
+    ## [101] "Csf2ra"        "Cat"           "Irf8"          "Sac3d1"       
+    ## [105] "Papss2"        "Acadvl"        "Gngt2"         "Xrcc6"        
+    ## [109] "Klk1b11"       "1700021F05Rik" "Eif2ak4"       "Fkbp1b"       
+    ## [113] "2410002F23Rik" "Skiv2l"        "Hmgn1"         "Parp9"        
+    ## [117] "Aprt"          "Oasl2"         "Card6"         "Scn4b"        
+    ## [121] "Lox"           "Eif2ak2"       "S100a4"        "Prpf19"       
+    ## [125] "Ndufb11"       "Mafb"          "Cdyl2"         "Cd209g"       
+    ## [129] "Gbp4"          "Vpreb1"        "Tspan6"        "Ccdc58"       
+    ## [133] "Bmp3"          "Cadm3"         "Oas3"          "Oasl1"        
+    ## [137] "Cmc2"          "Myl1"          "Tor3a"         "Tomm7"        
+    ## [141] "Fam78b"        "Rps15a"        "Bbs7"          "Tmem258"      
+    ## [145] "Adprhl2"       "Zbp1"          "Stat1"         "Rtn4ip1"      
+    ## [149] "Dgkg"          "Fgd4"          "Trappc2"       "Cmpk2"        
+    ## [153] "Rps4x"         "Cul4a"         "Sf3b5"         "Rpl39"        
+    ## [157] "Gbp6"          "Ppp1r3d"       "Tceanc"        "Slco4c1"      
+    ## [161] "A2m"           "Chit1"         "Trib1"         "Ercc1"        
+    ## [165] "Tmem242"       "Epsti1"        "Ifi44"         "Ptpre"        
+    ## [169] "Tex15"         "Dixdc1"        "Evi2b"         "Zscan29"      
+    ## [173] "Gdi1"          "Zfp51"         "Man1c1"        "Efcab1"       
+    ## [177] "Olfm4"         "Pi15"          "Kcnj10"        "Slc25a12"
