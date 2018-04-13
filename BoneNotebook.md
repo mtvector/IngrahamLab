@@ -2988,7 +2988,7 @@ std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:2
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-1.png)
 
 ``` r
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)",cexRow=.5)
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\ndown in KO\nlog2(FC)",cexRow=.5,breaks=seq(-4, 4, length.out=51))
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-2.png)
@@ -2998,7 +2998,7 @@ res <-  results(DESeqOutput)
 res <- res[!is.na(res$padj),]
 boneUpDown <- list(rownames(res[res$padj<.1&res$log2FoldChange>0,]),rownames(res[res$padj<.1&res$log2FoldChange<0,]))
 res <- res[res$log2FoldChange>0,]
-std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)",cexRow=.5)
+std.heatmap(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)-rowMeans(log(boneMatNorm[rownames(res[order(res$pvalue,decreasing = F),])[1:25],]+1,2)),main="Most significant DE genes\nup in KO\nlog2(FC)",cexRow=.5,breaks=seq(-4, 4, length.out=51))
 ```
 
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-3.png)

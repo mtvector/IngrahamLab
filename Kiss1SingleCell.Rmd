@@ -1,6 +1,5 @@
-%\VignetteEngine{knitr::knitr}
 ---
-title: "HypothalamusSingleCell"
+title: "Kiss+SingleCell"
 author: "mtvector"
 date: "March 20, 2018"
 output: github_document
@@ -9,6 +8,9 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE,cache=TRUE,cache.lazy = FALSE,dev = c('png','pdf'))
 ```
 
+### For the papers and original data data, look here https://hemberg-lab.github.io/scRNA.seq.datasets/mouse/brain/
+
+load libraries(skip)
 
 ```{r loadLibraries,message=F,warning=F}
 library(dplyr)
@@ -18,7 +20,7 @@ library(RColorBrewer)
 cols <-  colorRampPalette(rev(brewer.pal(11,"RdBu")))(50)
 ```
 
-
+load the campbell data (skip)
 
 ```{r campbellSet}
 
@@ -107,6 +109,7 @@ DoHeatmap(
 
 ```
 
+Load the Chen data (skip)
 
 ```{r chenSet}
 #system("~/code/other/scRNA.seq.datasets/bash/chen.sh")
@@ -165,6 +168,8 @@ TSNEPlot(merged,dim.1 = 1, dim.2 = 2,group.by = "pred.sex")
 TSNEPlot(merged,dim.1 = 1, dim.2 = 2,group.by = "batch")
 ```
 
+Now we'll find markers for each cluster, and between the sexes in the merger of the two datasets
+
 ```{r FindMarkers}
 merged <- FindClusters(object = merged, reduction.type = "pca", dims.use = 1:20,resolution = 1.2,force.recalc = T)
 merged <- StashIdent(object = merged, save.name = "ClusterNames_0.6")
@@ -186,6 +191,8 @@ clustermarkers <- FindAllMarkers(merged)
 write.table(sexmarkers,"~/Desktop/Kiss1sexmarkers.txt",quote = F,sep = "\t")
 write.table(clustermarkers,"~/Desktop/Kiss1clustermarkers.txt",quote = F,sep = "\t")
 ```
+
+First figure is the annotated sex, second is the predicted sex, third is the predicted cluster.
 
 ```{r Heatmaps for markers}
 FeaturePlot(merged,features.plot = c("Pdyn","Pnrc2","Tac2","Esr1"))
@@ -220,4 +227,3 @@ DoHeatmap(
     remove.key = TRUE
 )
 ```
-
