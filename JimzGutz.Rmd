@@ -114,6 +114,7 @@ hist.normalized <- function(x){
 
 ```
 
+Tried yuxi's counts tables and normalized data. All no luck. Seems like the low input has majorly affected sample identity.
 
 ```{r loadData}
 # datapath <- "~/code/IngrahamLabData/JimGalaxy/"
@@ -166,6 +167,7 @@ condits <- sapply(strsplit(colnames(gutMatNorm),"_"),function(x)x[1])
 
 ```
 
+Principal component analysis for Jim's samples.
 
 ```{r JimPCA}
 
@@ -236,6 +238,8 @@ print(a[1:25,])
 a <- eaciout[[2]][eaciout[[2]]$set.mean<0,]
 print(a[1:25,])
 ```
+
+Just plot some of the markers we know and love
 
 ```{r CheckMarkers}
 
