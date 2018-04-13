@@ -1,0 +1,223 @@
+%\VignetteEngine{knitr::knitr}
+---
+title: "HypothalamusSingleCell"
+author: "mtvector"
+date: "March 20, 2018"
+output: github_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache=TRUE,cache.lazy = FALSE,dev = c('png','pdf'))
+```
+
+
+```{r loadLibraries,message=F,warning=F}
+library(dplyr)
+library(rmarkdown)
+library(Seurat)
+library(RColorBrewer)
+cols <-  colorRampPalette(rev(brewer.pal(11,"RdBu")))(50)
+```
+
+
+
+```{r campbellSet}
+
+### DATA
+#d <- read.table("~/code/IngrahamLabData/campbellKiss1cells.txt",nrows = 200000)
+#d <- d[,d["Kiss1",]>0]
+#d <- d[,order(colnames(d))]
+#write.table(d,"~/code/IngrahamLabData/campbellkissonly.txt",quote = F,sep = "\t")
+d <- read.table("~/code/IngrahamLabData/campbellkissonly.txt")
+write.table(cbind(rowSums=rowSums(d),d),"~/code/IngrahamLabData/campbellkissonlyExpression.txt",quote = F,sep = "\t",row.names = T)
+
+### ANNOTATIONS
+ann <- read.table("~/code/IngrahamLabData/GSE93374_cell_metadata.txt", sep = "\t", header = T)
+ann <- ann[order(ann[,1]), ]
+rownames(ann) <- ann[,1]
+ann <- ann[,2:ncol(ann)]
+colnames(ann)[9] <- "cell_type1"
+ann <- ann[colnames(d),]
+ann <- cbind(ann,batch=as.factor(rep("campbell",nrow(ann))))
+
+#file.remove("./GSE93374_Merged_all_020816_DGE.txt")
+#file.remove("./GSE93374_cell_metadata.txt")
+
+library(Seurat)
+campbell<-Seurat::CreateSeuratObject(d, min.cells=3,min.genes=10,project="ORG",meta.data = ann)
+campbell<- NormalizeData(campbell)
+campbell <- ScaleData(campbell)
+campbell <- FindVariableGenes(campbell)
+campbell <- RunPCA(campbell)
+campbell <- RunTSNE(campbell)
+
+write.table(t(sort(rowMeans(campbell@scale.data),decreasing = T)),file = "~/Desktop/campbellMeanExpression.txt",sep = "\n")
+
+```
+
+Since, there are a number of unassigned sex cells and I know of male- and female-specific transcripts, I'll predict a sex for the unsexed celld (gain more than 10 female cells, error rate is 1.02% so the predictions should be). This gives us better power to pick markers for the male compared to female cells.
+
+```{r Campbell Only}
+
+campbell <- SetAllIdent(campbell,id = "X4.sex")
+sexmarkers <- FindAllMarkers(campbell)
+
+TSNEPlot(campbell,group.by = "X4.sex")
+
+top10 <- sexmarkers %>% group_by(cluster) %>% top_n(15, avg_logFC)
+
+campbell <- SetAllIdent(campbell,id = "X4.sex")
+DoHeatmap(
+    object = campbell, 
+    genes.use = top10$gene, 
+    slim.col.label = TRUE, 
+    remove.key = F
+)
+library(biomaRt)
+mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
+rnSymbol <- getBM(attributes = c("mgi_symbol","chromosome_name"),filters = c("mgi_symbol"),values =rownames(campbell@raw.data) ,mart = mart) 
+
+rnSymbol[rnSymbol$chromosome_name=="Y",]
+
+FeaturePlot(campbell,c("Ddx3y","Eif2s3y","Uty","Xist","Kdm5d"))
+
+predMatO <- data.frame(sex=campbell@meta.data$X4.sex,t(campbell@raw.data[c("Ddx3y","Eif2s3y","Uty","Kdm5d","Xist"),]))
+predMat <- predMatO[predMatO$sex!="U",]
+predMat$sex <- droplevels(predMat$sex) 
+
+library(randomForest)
+rf <- randomForest(x=predMat[,-1],y=predMat[,1],importance = T)
+campbell@meta.data <- cbind(campbell@meta.data,pred.sex=predict(rf,predMatO[,-1]))
+
+campbell <- SetAllIdent(campbell,id = "pred.sex")
+pred.sexmarkers <- FindAllMarkers(campbell)
+write.table(pred.sexmarkers,"~/Desktop/Kiss1predictedsexmarkers.txt",quote = F,sep = "\t")
+
+TSNEPlot(campbell,group.by = "pred.sex")
+
+top10 <- pred.sexmarkers %>% group_by(cluster) %>% top_n(15, avg_logFC)
+
+campbell <- SetAllIdent(campbell,id = "pred.sex")
+DoHeatmap(
+    object = campbell, 
+    genes.use = top10$gene, 
+    slim.col.label = TRUE, 
+    remove.key = F
+)
+
+
+```
+
+
+```{r chenSet}
+#system("~/code/other/scRNA.seq.datasets/bash/chen.sh")
+### DATA
+#d <- read.table("~/code/IngrahamLabData/chenKiss1cells.txt",nrows = 11000)
+#d <- d[,d["Kiss1",]>0]
+#d <- fread("~/code/other/scRNA.seq.datasets/")
+#d <- d[,order(colnames(d))]
+
+#load("~/code/IngrahamLab/cache/chenSet_beb7c09daca1fae5a4e8f93e732fdb64.RData")
+#d <- d[,d["Kiss1",]>0]
+#write.table(d,"~/code/IngrahamLabData/chenkissonly.txt",quote = F,sep = "\t")
+d <- read.table("~/code/IngrahamLabData/chenkissonly.txt")
+write.table(cbind(rowSums=rowSums(d),d),"~/code/IngrahamLabData/chenkissonlyExpression.txt",quote = F,sep = "\t")
+
+### ANNOTATIONS
+ann <- read.csv("~/code/IngrahamLabData/GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv")
+rownames(ann) <- ann[,2]
+colnames(ann)[3] <- "cell_type1"
+ann <- ann[,3,drop = FALSE]
+ann <- ann[order(rownames(ann)), , drop = FALSE]
+ann <- ann[colnames(d),,drop=F]
+ann <- cbind(ann,X4.sex=as.factor(rep("F",nrow(ann))),pred.sex=as.factor(rep("F",nrow(ann))),batch=as.factor(rep("chen",nrow(ann))))
+
+chen<-Seurat::CreateSeuratObject(d, min.cells=3,min.genes=10,project="ORG",meta.data = ann)
+chen<- NormalizeData(chen)
+chen <- ScaleData(chen)
+write.table(t(sort(rowMeans(chen@scale.data),decreasing = T)),file = "~/Desktop/chenMeanExpression.txt",sep = "\n")
+
+
+```
+
+Remove ribosomal and mitochondrial genes since these are major drivers of the batch effects.
+```{r CampbelTSNE}
+
+merged <- MergeSeurat(campbell,chen)
+mito.genes <- grep(pattern = "^mt-", x = rownames(x = merged@raw.data), value = TRUE)
+percent.mito <- Matrix::colSums(merged@raw.data[mito.genes, ])/Matrix::colSums(merged@raw.data)
+merged <- AddMetaData(object = merged, metadata = percent.mito, col.name = "percent.mito")
+
+ribo.genes <- grep(pattern = "^Rpl|^Rps", x = rownames(x = merged@raw.data), value = TRUE)
+percent.ribo <- Matrix::colSums(merged@raw.data[ribo.genes, ])/Matrix::colSums(merged@raw.data)
+merged <- AddMetaData(object = merged, metadata = percent.mito, col.name = "percent.ribo")
+merged@raw.data <- merged@raw.data[!rownames(merged@raw.data)%in%union(ribo.genes,mito.genes),]
+merged <- NormalizeData(merged)
+
+merged <- ScaleData(merged, vars.to.regress = c("nUMI","nGene","percent.mito","batch","percent.ribo"))
+merged <- FindVariableGenes(merged)
+merged <-  RunPCA(merged,pcs.compute = 30,pc.genes = merged@var.genes)
+merged <- RunTSNE(merged,check_duplicates = FALSE)
+
+PCAPlot(merged,dim.1 = 1, dim.2 = 2,group.by = "batch")
+PCAPlot(merged,dim.1 = 1, dim.2 = 2,group.by = "pred.sex")
+
+TSNEPlot(merged,dim.1 = 1, dim.2 = 2,group.by = "pred.sex")
+TSNEPlot(merged,dim.1 = 1, dim.2 = 2,group.by = "batch")
+```
+
+```{r FindMarkers}
+merged <- FindClusters(object = merged, reduction.type = "pca", dims.use = 1:20,resolution = 1.2,force.recalc = T)
+merged <- StashIdent(object = merged, save.name = "ClusterNames_0.6")
+TSNEPlot(merged,dim.1 = 1, dim.2 = 2,group.by = "ClusterNames_0.6")
+
+
+merged <- SetAllIdent(merged,id = "X4.sex")
+sexmarkers <- FindAllMarkers(merged)
+
+merged <- SetAllIdent(merged,id = "pred.sex")
+pred.sexmarkers <- FindAllMarkers(merged)
+
+merged <- SetAllIdent(merged,id = "batch")
+batchmarkers <- FindAllMarkers(merged)
+
+merged <- SetAllIdent(merged,id = "ClusterNames_0.6")
+clustermarkers <- FindAllMarkers(merged)
+
+write.table(sexmarkers,"~/Desktop/Kiss1sexmarkers.txt",quote = F,sep = "\t")
+write.table(clustermarkers,"~/Desktop/Kiss1clustermarkers.txt",quote = F,sep = "\t")
+```
+
+```{r Heatmaps for markers}
+FeaturePlot(merged,features.plot = c("Pdyn","Pnrc2","Tac2","Esr1"))
+
+top10 <- sexmarkers %>% group_by(cluster) %>% top_n(15, avg_logFC)
+
+merged <- SetAllIdent(merged,id = "X4.sex")
+DoHeatmap(
+    object = merged, 
+    genes.use = top10$gene, 
+    slim.col.label = TRUE, 
+    remove.key = F
+)
+
+top10 <- pred.sexmarkers %>% group_by(cluster) %>% top_n(15, avg_logFC)
+
+merged <- SetAllIdent(merged,id = "pred.sex")
+DoHeatmap(
+    object = merged, 
+    genes.use = top10$gene, 
+    slim.col.label = TRUE, 
+    remove.key = F
+)
+
+
+top10 <- clustermarkers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+merged <- SetAllIdent(merged,id = "ClusterNames_0.6")
+DoHeatmap(
+    object = merged, 
+    genes.use = top10$gene, 
+    slim.col.label = TRUE, 
+    remove.key = TRUE
+)
+```
+

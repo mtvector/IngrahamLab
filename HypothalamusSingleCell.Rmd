@@ -1,3 +1,4 @@
+%\VignetteEngine{knitr::knitr}
 ---
 title: "HypothalamusSingleCell"
 author: "mtvector"
@@ -5,37 +6,163 @@ date: "March 20, 2018"
 output: github_document
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,cache=TRUE)
+knitr::opts_chunk$set(echo = TRUE,cache=TRUE,cache.lazy = FALSE,dev = c('png','pdf'))
 ```
 
 
 ```{r loadLibraries,message=F,warning=F}
-library(DESeq2)
-library(EBSeq)
-library(matrixStats)
-library(biomaRt)
-library(gplots)
-library(clusterProfiler)
+library(dplyr)
+library(rmarkdown)
+library(Seurat)
 library(RColorBrewer)
 cols <-  colorRampPalette(rev(brewer.pal(11,"RdBu")))(50)
 ```
 
 
 
-```{r loadSingleCell}
+```{r campbellSet}
 
-system("~/code/other/scRNA.seq.datasets/bash/campbell.sh")
-source("~/code/other/scRNA.seq.datasets/R/campbell.R")
-#file.copy("./GSE93374_Merged_all_020816_DGE.txt","~/code/data/GEOData/seq/SCsets/")
-file.remove("./GSE93374_Merged_all_020816_DGE.txt")
-file.remove("./GSE93374_cell_metadata.txt")
+gnz <- c("Kiss1","Kiss1r","Mc4r")
+#gnz <- c("1700021F07Rik","1700020L24Rik")
 
-system("~/code/other/scRNA.seq.datasets/bash/chen.sh")
-#file.copy("./GSE87544_Merged_17samples_14437cells_count.txt","~/code/data/GEOData/seq/SCsets/")
-file.remove("./GSE87544_Merged_17samples_14437cells_count.txt")
-#file.copy("./GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv","~/code/data/GEOData/seq/SCsets/")
-file.remove("./GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv")
+#system("~/code/other/scRNA.seq.datasets/bash/campbell.sh")
+#setwd("~/code/other/scRNA.seq.datasets/R/")
+
+### DATA
+d <- read.table("GSE93374_Merged_all_020816_DGE.txt",nrows = 200000)
+d <- d[,order(colnames(d))]
+
+### ANNOTATIONS
+ann <- read.table("GSE93374_cell_metadata.txt", sep = "\t", header = T)
+ann <- ann[order(ann[,1]), ]
+rownames(ann) <- ann[,1]
+ann <- ann[,2:ncol(ann)]
+colnames(ann)[9] <- "cell_type1"
+
+
+#file.remove("./GSE93374_Merged_all_020816_DGE.txt")
+#file.remove("./GSE93374_cell_metadata.txt")
+
+library(Seurat)
+campbell<-Seurat::CreateSeuratObject(d, min.cells=3,min.genes=10,project="ORG",meta.data = ann)
+#FilterCells(campbell,"Kiss1",low.thresholds = .5)# -> campbell 
+campbell<-SetAllIdent(campbell,"X7.clust_all")
+VlnPlot(campbell,features.plot =  c("nGene",gnz))
+campbell <- NormalizeData(campbell)
+campbell <- ScaleData(campbell)
+campbell <- FindVariableGenes(campbell)
+campbell <-  RunPCA(campbell,pcs.compute = 30,pc.genes = campbell@var.genes)
+
+campbell <- RunTSNE(campbell,check_duplicates = FALSE )
 
 ```
 
+```{r chenSet}
+#system("~/code/other/scRNA.seq.datasets/bash/chen.sh")
+### DATA
+d <- read.table("GSE87544_Merged_17samples_14437cells_count.txt", header = TRUE,nrows = 200000)
+rownames(d) <- d[,1]
+d <- d[,2:ncol(d)]
+d <- d[,order(colnames(d))]
+
+### ANNOTATIONS
+ann <- read.csv("GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv")
+rownames(ann) <- ann[,2]
+colnames(ann)[3] <- "cell_type1"
+ann <- ann[,3,drop = FALSE]
+ann <- ann[order(rownames(ann)), , drop = FALSE]
+
+#file.copy("./GSE87544_Merged_17samples_14437cells_count.txt","~/code/data/GEOData/seq/SCsets/")
+#file.remove("./GSE87544_Merged_17samples_14437cells_count.txt")
+#file.copy("./GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv","~/code/data/GEOData/seq/SCsets/")
+#file.remove("./GSE87544_1443737Cells.SVM.cluster.identity.renamed.csv")
+
+chen<-Seurat::CreateSeuratObject(d, min.cells=3,min.genes=10,project="ORG",meta.data = ann)
+#FilterCells(chen,"Kiss1",low.thresholds = .5)# -> chen 
+chen <- NormalizeData(chen)
+chen <- ScaleData(chen)
+chen <- FindVariableGenes(chen)
+chen <-  RunPCA(chen,pcs.compute = 30,pc.genes = chen@var.genes)
+
+chen <- RunTSNE(chen,check_duplicates = FALSE)
+
+```
+
+
+```{r CampbelTSNE}
+campbell <- FindClusters(object = campbell, reduction.type = "pca", dims.use = 1:20,resolution = .6)
+campbell <- StashIdent(object = campbell, save.name = "ClusterNames_0.6")
+PCAPlot(campbell,dim.1 = 1, dim.2 = 2,group.by = "ClusterNames_0.6")
+#PrintFindClustersParams(object = campbell)
+PCAPlot(campbell,dim.1 = 1, dim.2 = 2,group.by="X7.clust_all")
+TSNEPlot(campbell,group.by="X7.clust_all")
+TSNEPlot(campbell,group.by="ClusterNames_0.6")
+FeaturePlot(campbell,features.plot = gnz)
+FeaturePlot(campbell,features.plot =gnz)
+
+campbellmarkers <- FindAllMarkers(
+    object = campbell, 
+    only.pos = TRUE, 
+    min.pct = 0.25, 
+    thresh.use = 0.25
+)
+top10 <- campbellmarkers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+
+DoHeatmap(
+    object = campbell, 
+    genes.use = top10$gene, 
+    slim.col.label = TRUE, 
+    remove.key = TRUE
+)
+```
+
+
+```{r ChenTSNE}
+chen <- FindClusters(object = chen, reduction.type = "pca", dims.use = 1:20,resolution = .6)
+chen <- StashIdent(object = chen, save.name = "ClusterNames_0.6")
+PCAPlot(chen,dim.1 = 1, dim.2 = 2,group.by = "ClusterNames_0.6")
+#PrintFindClustersParams(object = chen)
+chen<-SetAllIdent(chen,"ClusterNames_0.6")
+PCAPlot(chen,dim.1 = 1, dim.2 = 2,group.by="ClusterNames_0.6")
+TSNEPlot(chen,group.by="ClusterNames_0.6")
+VlnPlot(chen,features.plot =  c("nGene",gnz))
+FeaturePlot(chen,features.plot =gnz)
+
+chenmarkers <- FindAllMarkers(
+    object = chen, 
+    only.pos = TRUE, 
+    min.pct = 0.25, 
+    thresh.use = 0.25
+)
+top10 <- chenmarkers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+
+DoHeatmap(
+    object = chen, 
+    genes.use = top10$gene, 
+    slim.col.label = TRUE, 
+    remove.key = TRUE
+)
+
+```
+
+```{r writeKiss1Subsets}
+campbellD <- FetchData(campbell,c("ident",gnz))
+campbellGclusts<-lapply(2:(length(gnz)+1),function(i) aggregate( campbellD[,i],FUN=mean,list(campbellD[,"ident"]))$x)
+chenD <- FetchData(chen,c("ident",gnz))
+chenGclusts<-lapply(2:(length(gnz)+1),function(i) aggregate( chenD[,i],FUN=mean,list(chenD[,"ident"]))$x)
+
+for(x in 1:length(gnz)){
+  d <- campbell@raw.data[,campbell@ident%in%which(campbellGclusts[[x]]>0)]
+  write.table(d[rowSums(d)>0,],file = paste0("~/campbell",gnz[x],"cells.txt"),sep = "\t")
+  d <- chen@raw.data[,chen@ident%in%which(chenGclusts[[x]]>0)]
+  write.table(d[rowSums(d)>0,],file = paste0("~/chen",gnz[x],"cells.txt"),sep = "\t")
+}
+
+
+```
+
+```{r writeMarkerLists}
+  write.table(campbellmarkers,file = paste0("~/campbellmarkers.txt"),sep = "\t")
+  write.table(chenmarkers,file = paste0("~/chenmarkers.txt"),sep = "\t")
+```
 

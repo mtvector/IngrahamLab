@@ -912,14 +912,22 @@ Candice's Data
 The data for the Ingraham lab RNAseq was also passed to Salmon after fastqc and trimming with trimgalore as suggested by the NuGen Prep.
 
 ``` r
-datapath <- "~/code/IngrahamLabData/BoneSalmonOutputs/"
-fileList <- dir(datapath)
+# datapath <- "~/code/IngrahamLabData/BoneSalmonOutputs/"
+# fileList <- dir(datapath)
+# fileList <- fileList[!grepl("Gene|pdf",fileList)]
+# dsList <- lapply(paste0(datapath,fileList),read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+# allRownames <- Reduce(union,lapply(dsList,rownames))
+
+datapath <- "~/code/IngrahamLabData/galaxyBone/"
+fileList <- dir(datapath,full.names = T)
 fileList <- fileList[!grepl("Gene|pdf",fileList)]
-dsList <- lapply(paste0(datapath,fileList),read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
 allRownames <- Reduce(union,lapply(dsList,rownames))
 
+
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol",'description'),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+# rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol","description"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbol <- getBM(attributes = c("entrezgene","mgi_symbol",'description'),filters = c("entrezgene"),values =allRownames ,mart = mart) 
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!=""& !grepl("predicted gene", rnSymbol$description),]
 ```
 
@@ -935,6 +943,7 @@ rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!=""& !grepl("predicted gene", rnSy
 dsAgList <- lapply(colnames(dsList[[1]]),function(n){
   Reduce(cbind,lapply(dsList,function(x)x[,n,drop=F]))
   })
+dsAgList <- lapply(1:4,function(x)dsAgList[[1]])
 names(dsAgList) <- names(txList)[c(3,4,1,2)]
 dsAgList <- lapply(dsAgList,function(x){
   x <- as.matrix(x)
@@ -946,7 +955,7 @@ boneMat <- summarizeToGene(dsAgList,rnSymbolGenes)$counts[-1,]
 
     ## removing duplicated transcript rows from tx2gene
 
-    ## transcripts missing from tx2gene: 13832
+    ## transcripts missing from tx2gene: 6386
 
     ## summarizing abundance
 
@@ -984,18 +993,1387 @@ std.heatmap(cor(rn.merge(boneMatNorm,ambrosiMatNorm),method = "spe"),main="Spear
 
 ``` r
 boneCLN <- round.log(boneMatNorm+1,2)
-boneCLN <- boneCLN[rowSds(boneCLN)>1,]
+boneCLN <- boneCLN[rowSds(boneCLN)>.7,]
 svbone <- svd((boneCLN-rowMeans(boneCLN))/rowSds(boneCLN))
 
 condits <- sapply(strsplit(colnames(boneMatNorm),"_"),function(i) i[1])
 conditNums <- sapply(condits,function(x)which(x==sort(unique(condits))))
 #Sca1minus is osteo, ZFP (mature) and CD24- (less mature) are adipocytes, cd24+ is multipotent
 
+boneCors <-  cor(t(boneCLN),method = "pearson")
+boneCors <- 1-(boneCors+1)/2
+hclustbonecors <-  hclust(as.dist(boneCors))
+plot(hclustbonecors)
+```
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-1.png)
+
+``` r
+corclusts <-cutree(hclustbonecors,k = 12)
+matplot(sapply(1:12,function(i) colMeans(t(scale(t(boneCLN[names(corclusts)[corclusts==i],]))))),type="l")
+```
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-2.png)
+
+``` r
+hcEnrichment <-  sapply(1:12,function(i)enrichGO(names(corclusts)[corclusts==i],OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP"))
+sapply(1:12,function(i){
+  scalemat <- scale(t(boneCLN[names(corclusts)[corclusts==i],]))
+  rownames(scalemat) <- colnames(boneCLN)
+  barplot(colMeans(t(scalemat)),main=paste(as.data.frame(hcEnrichment[[i]])[1:3,"Description"],collapse = "\n"))
+  })
+```
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-3.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-4.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-5.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-6.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-7.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-8.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-9.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-10.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-11.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-12.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-13.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-14.png)
+
+    ##      [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12]
+    ## [1,]  0.7  0.7  0.7  0.7  0.7  0.7  0.7  0.7  0.7   0.7   0.7   0.7
+    ## [2,]  1.9  1.9  1.9  1.9  1.9  1.9  1.9  1.9  1.9   1.9   1.9   1.9
+    ## [3,]  3.1  3.1  3.1  3.1  3.1  3.1  3.1  3.1  3.1   3.1   3.1   3.1
+    ## [4,]  4.3  4.3  4.3  4.3  4.3  4.3  4.3  4.3  4.3   4.3   4.3   4.3
+    ## [5,]  5.5  5.5  5.5  5.5  5.5  5.5  5.5  5.5  5.5   5.5   5.5   5.5
+    ## [6,]  6.7  6.7  6.7  6.7  6.7  6.7  6.7  6.7  6.7   6.7   6.7   6.7
+    ## [7,]  7.9  7.9  7.9  7.9  7.9  7.9  7.9  7.9  7.9   7.9   7.9   7.9
+    ## [8,]  9.1  9.1  9.1  9.1  9.1  9.1  9.1  9.1  9.1   9.1   9.1   9.1
+
+``` r
+sapply(1:12,function(i)names(corclusts)[corclusts==i])
+```
+
+    ## [[1]]
+    ##   [1] "0610040J01Rik" "1600002K03Rik" "1810065E05Rik" "2210010C04Rik"
+    ##   [5] "4932438H23Rik" "6330403K07Rik" "6330409D20Rik" "9130008F23Rik"
+    ##   [9] "A4galt"        "Aard"          "Abcc12"        "Abhd14a"      
+    ##  [13] "Acy1"          "Adamts8"       "Adgrd1"        "AI182371"     
+    ##  [17] "Akr1c19"       "Akr7a5"        "Aldh3a1"       "Als2cr12"     
+    ##  [21] "Amph"          "Angptl3"       "Ank2"          "Apoa5"        
+    ##  [25] "Apol8"         "Aqp11"         "Arhgap28"      "Arhgdig"      
+    ##  [29] "Artn"          "Asb2"          "Atpaf1"        "B4galnt2"     
+    ##  [33] "Bbc3"          "Best2"         "C1qtnf3"       "C7"           
+    ##  [37] "Caml"          "Cant1"         "Capn15"        "Card19"       
+    ##  [41] "Casc1"         "Ccdc169"       "Cd109"         "Cd276"        
+    ##  [45] "Cdkn2b"        "Cgref1"        "Chpf"          "Ciart"        
+    ##  [49] "Cldn5"         "Clic6"         "Cmtm8"         "Col15a1"      
+    ##  [53] "Col4a6"        "Colec12"       "Corin"         "Cpne8"        
+    ##  [57] "Crb2"          "Creld1"        "Ctgf"          "Ctsk"         
+    ##  [61] "Cyp7b1"        "Cyr61"         "Cyyr1"         "Dand5"        
+    ##  [65] "Dcaf12l1"      "Dcaf15"        "Dhrs7b"        "Dnajb2"       
+    ##  [69] "Dnm1"          "Dnph1"         "Dock6"         "Dpep2"        
+    ##  [73] "Dpp6"          "Dppa3"         "Dqx1"          "Draxin"       
+    ##  [77] "Dusp18"        "Dusp28"        "Eef1akmt1"     "Elavl3"       
+    ##  [81] "Elf5"          "Elfn1"         "Eln"           "Enox1"        
+    ##  [85] "Ephb1"         "Epn2"          "Erfe"          "Fah"          
+    ##  [89] "Fam109a"       "Fam110c"       "Fam184b"       "Fgf23"        
+    ##  [93] "Fgfbp3"        "Fgfr3"         "Fkbp10"        "Foxj1"        
+    ##  [97] "Foxp3"         "Fzd4"          "Fzd6"          "Fzd7"         
+    ## [101] "Galnt14"       "Gatsl3"        "Gh"            "Glt8d2"       
+    ## [105] "Gm10767"       "Gm5148"        "Gpr137"        "Gpr182"       
+    ## [109] "Gpr68"         "Gpr83"         "Gprc5b"        "Gria2"        
+    ## [113] "Hap1"          "Hbb-y"         "Hist1h3d"      "Hist1h4i"     
+    ## [117] "Hist2h3c2"     "Hmcn1"         "Htra4"         "Ift122"       
+    ## [121] "Igfbp2"        "Il20ra"        "Il27"          "Insm1"        
+    ## [125] "Irx5"          "Islr"          "Itih2"         "Kazald1"      
+    ## [129] "Kcnj14"        "Kcnma1"        "Kcnq3"         "Kctd19"       
+    ## [133] "Kctd6"         "Klhl41"        "Klrg2"         "Kremen1"      
+    ## [137] "Kyat1"         "Lipm"          "Lmo1"          "Lrguk"        
+    ## [141] "Lsm2"          "Lzts3"         "Mcmdc2"        "Mecom"        
+    ## [145] "Mnd1"          "Morn1"         "Mrps34"        "Mtfp1"        
+    ## [149] "Myo5b"         "Mzf1"          "Nacad"         "Ndufab1"      
+    ## [153] "Nectin4"       "Ninj2"         "Nlrp6"         "Noxa1"        
+    ## [157] "Olfml2b"       "Olfr303"       "Pak6"          "Pamr1"        
+    ## [161] "Pcdhga6"       "Pdia2"         "Pelo"          "Per1"         
+    ## [165] "Pex16"         "Phb"           "Pih1d2"        "Plek2"        
+    ## [169] "Pnp2"          "Podxl"         "Prox1"         "Prrt1"        
+    ## [173] "Psen2"         "Ptk7"          "Ptprb"         "Ptprf"        
+    ## [177] "Ptprz1"        "Rapsn"         "Reep2"         "Rhbdf1"       
+    ## [181] "Rita1"         "Robo4"         "Rorc"          "Rtl8c"        
+    ## [185] "Scara5"        "Selp"          "Serpine1"      "Serpinf1"     
+    ## [189] "Serpinf2"      "Sertad1"       "Shisa7"        "Slc12a4"      
+    ## [193] "Slc13a5"       "Slc16a11"      "Slc1a4"        "Slc26a6"      
+    ## [197] "Slc2a10"       "Slc44a4"       "Slc5a10"       "Slc8a3"       
+    ## [201] "Smc1b"         "Smoc2"         "Smpdl3b"       "Smtnl1"       
+    ## [205] "Snx24"         "Spaca9"        "Sparcl1"       "Spry2"        
+    ## [209] "Srpx"          "St3gal3"       "Stab1"         "Sumf2"        
+    ## [213] "Syngr1"        "Tarbp2"        "Tbxa2r"        "Tex38"        
+    ## [217] "Tfcp2l1"       "Tjp3"          "Tmc5"          "Tmeff1"       
+    ## [221] "Tmem136"       "Tmem203"       "Tmem251"       "Tmem81"       
+    ## [225] "Tmtc2"         "Tmub1"         "Tnfrsf8"       "Tnfsf12"      
+    ## [229] "Trib3"         "Trim14"        "Trmu"          "Trpv5"        
+    ## [233] "Tshz2"         "Tspan10"       "Ubd"           "Vil1"         
+    ## [237] "Vmn2r96"       "Vwa3a"         "Wdr34"         "Wdr78"        
+    ## [241] "Wwox"          "Xlr4b"         "Yipf2"         "Zbtb48"       
+    ## [245] "Zfp82"         "Zfp954"        "Zfp964"        "Zglp1"        
+    ## 
+    ## [[2]]
+    ##    [1] "1110008F13Rik"  "1110012L19Rik"  "1110032F04Rik"  "1110065P20Rik" 
+    ##    [5] "1190007I07Rik"  "1500009L16Rik"  "1500015O10Rik"  "1700020L24Rik" 
+    ##    [9] "1700021F05Rik"  "1700027J19Rik"  "1700029I15Rik"  "1700030J22Rik" 
+    ##   [13] "1700037C18Rik"  "1700067K01Rik"  "1700093K21Rik"  "1700113H08Rik" 
+    ##   [17] "1810009A15Rik"  "1810037I17Rik"  "2010107E04Rik"  "2010109A12Rik" 
+    ##   [21] "2010111I01Rik"  "2010300C02Rik"  "2200002D01Rik"  "2310009A05Rik" 
+    ##   [25] "2310009B15Rik"  "2310039H08Rik"  "2410015M20Rik"  "2610524H06Rik" 
+    ##   [29] "4930539E08Rik"  "4933408B17Rik"  "6820408C15Rik"  "9230110C19Rik" 
+    ##   [33] "9330182L06Rik"  "9530077C05Rik"  "9930111J21Rik2" "A230050P20Rik" 
+    ##   [37] "A430005L14Rik"  "Aars2"          "Aatk"           "Abca4"         
+    ##   [41] "Abca5"          "Abcc10"         "Abcc2"          "Abcd4"         
+    ##   [45] "Abhd17a"        "Abhd8"          "Acads"          "Acbd7"         
+    ##   [49] "Ace"            "Ace2"           "Acer1"          "Acoxl"         
+    ##   [53] "Acsm4"          "Acss2"          "Acy3"           "Adam1b"        
+    ##   [57] "Adat2"          "Adat3"          "Adck1"          "Adck2"         
+    ##   [61] "Adcy2"          "Adcy5"          "Adgra2"         "Adgrb2"        
+    ##   [65] "Adora2a"        "Adprhl2"        "Afp"            "Aga"           
+    ##   [69] "Agap2"          "Agap3"          "Ager"           "Agmat"         
+    ##   [73] "Agpat2"         "Ahcy"           "Ahrr"           "Aifm2"         
+    ##   [77] "Aip"            "Aipl1"          "Ak1"            "Akap6"         
+    ##   [81] "Akr1b10"        "Akr1c13"        "Aldh3b2"        "Aldh5a1"       
+    ##   [85] "Alg1"           "Alg3"           "Alkbh4"         "Alpk2"         
+    ##   [89] "Amigo1"         "Amt"            "Ankrd35"        "Ankrd39"       
+    ##   [93] "Ankrd46"        "Ankrd53"        "Ano1"           "Aoc1"          
+    ##   [97] "Aoc2"           "Aox1"           "Ap1s3"          "Ap2s1"         
+    ##  [101] "Apba3"          "Apbb1"          "Apcdd1"         "Apom"          
+    ##  [105] "Arf5"           "Arfrp1"         "Arhgap20"       "Arhgap42"      
+    ##  [109] "Arhgap44"       "Arhgef16"       "Arhgef28"       "Arhgef9"       
+    ##  [113] "Arl11"          "Arl13b"         "Arl16"          "Arl3"          
+    ##  [117] "Arl4d"          "Arl6"           "Armc3"          "Armc6"         
+    ##  [121] "Armcx5"         "Armcx6"         "Arntl2"         "Arpc5l"        
+    ##  [125] "Arrdc1"         "As3mt"          "Asb10"          "Asb13"         
+    ##  [129] "Ascl2"          "Asrgl1"         "Astl"           "Atg101"        
+    ##  [133] "Atg16l2"        "Atoh8"          "Atp23"          "Atp5e"         
+    ##  [137] "Atp5h"          "Atp5k"          "Atp5l"          "Atp6v0a4"      
+    ##  [141] "Atp6v0b"        "Atp6v0c"        "Atp6v1g1"       "Atp6v1g2"      
+    ##  [145] "Atpaf2"         "Atxn7l3"        "B3galt5"        "B3gnt3"        
+    ##  [149] "B4galt2"        "Bace2"          "Bad"            "Baiap2"        
+    ##  [153] "Basp1"          "BC022687"       "BC030499"       "BC031181"      
+    ##  [157] "BC034090"       "BC048507"       "Bcdin3d"        "Bcl6b"         
+    ##  [161] "Bco2"           "Bicdl1"         "Bmf"            "Bmp1"          
+    ##  [165] "Bmp7"           "Bmpr1b"         "Boc"            "Bok"           
+    ##  [169] "Bola1"          "Bola2"          "Bpnt1"          "Brinp1"        
+    ##  [173] "Btbd2"          "Btbd6"          "Btnl2"          "C1qb"          
+    ##  [177] "C1qtnf1"        "C1qtnf7"        "C4a"            "C77080"        
+    ##  [181] "Cacna2d2"       "Cacng5"         "Camk2n1"        "Camkk1"        
+    ##  [185] "Capn10"         "Capn13"         "Capsl"          "Car12"         
+    ##  [189] "Car14"          "Card10"         "Casq2"          "Cav2"          
+    ##  [193] "Cbr2"           "Cbr3"           "Cbx8"           "Ccdc107"       
+    ##  [197] "Ccdc112"        "Ccdc114"        "Ccdc124"        "Ccdc130"       
+    ##  [201] "Ccdc134"        "Ccdc141"        "Ccdc146"        "Ccdc160"       
+    ##  [205] "Ccdc28a"        "Ccdc38"         "Ccdc51"         "Ccdc68"        
+    ##  [209] "Ccdc89"         "Ccdc94"         "Cchcr1"         "Ccl8"          
+    ##  [213] "Ccr1l1"         "Cd151"          "Cd200r4"        "Cd209c"        
+    ##  [217] "Cd34"           "Cd3d"           "Cd55b"          "Cd5l"          
+    ##  [221] "Cdc20b"         "Cdc42ep2"       "Cdk15"          "Cdk5r1"        
+    ##  [225] "Cdk9"           "Cdkl4"          "Cdpf1"          "Cdr2l"         
+    ##  [229] "Cebpb"          "Cel"            "Celsr3"         "Cenpm"         
+    ##  [233] "Cenpv"          "Cep131"         "Cep44"          "Ces1d"         
+    ##  [237] "Cfap45"         "Cgn"            "Chchd2-ps"      "Chmp6"         
+    ##  [241] "Chp2"           "Chsy3"          "Churc1"         "Cib1"          
+    ##  [245] "Cib2"           "Cirbp"          "Cisd3"          "Clasrp"        
+    ##  [249] "Clcf1"          "Clcnka"         "Cldn13"         "Cldn20"        
+    ##  [253] "Clec18a"        "Clstn3"         "Cmc2"           "Cmss1"         
+    ##  [257] "Cmtr2"          "Cngb1"          "Cnnm2"          "Cnnm3"         
+    ##  [261] "Cnrip1"         "Cntn3"          "Cntn4"          "Coa7"          
+    ##  [265] "Col4a5"         "Col6a6"         "Colq"           "Commd6"        
+    ##  [269] "Commd9"         "Comtd1"         "Cops9"          "Coq4"          
+    ##  [273] "Coq6"           "Coq8a"          "Cox4i1"         "Cox5b"         
+    ##  [277] "Cox6b2"         "Cox6c"          "Cox7a1"         "Cox7a2"        
+    ##  [281] "Cox7c"          "Cpb1"           "Cpne9"          "Crip1"         
+    ##  [285] "Crispld1"       "Crocc"          "Crtc1"          "Cryba4"        
+    ##  [289] "Cryl1"          "Csk"            "Csrnp1"         "Cst3"          
+    ##  [293] "Cstad"          "Ctnnal1"        "Ctnnbip1"       "Ctrl"          
+    ##  [297] "Ctu1"           "Ctu2"           "Cuedc2"         "Cul7"          
+    ##  [301] "Cxxc5"          "Cyb5d1"         "Cyb5rl"         "Cyct"          
+    ##  [305] "Cygb"           "Cyp26a1"        "Cyp2ab1"        "Cyp2t4"        
+    ##  [309] "Cyp4a31"        "Cyp4f15"        "Cys1"           "D2hgdh"        
+    ##  [313] "D630023F18Rik"  "D630045J12Rik"  "Dbn1"           "Dbndd2"        
+    ##  [317] "Dbpht2"         "Dcaf12l2"       "Dclk3"          "Dcst1"         
+    ##  [321] "Dcstamp"        "Ddit4"          "Ddx25"          "Ddx56"         
+    ##  [325] "Dennd6b"        "Derl3"          "Dexi"           "Dffb"          
+    ##  [329] "Dhtkd1"         "Dhx37"          "Dlec1"          "Dlg3"          
+    ##  [333] "Dlgap1"         "Dmrta1"         "Dnaaf1"         "Dnah1"         
+    ##  [337] "Dnah10"         "Dnah17"         "Dnah2"          "Dnah5"         
+    ##  [341] "Dnah8"          "Dnajb13"        "Dnajb7"         "Dnajc17"       
+    ##  [345] "Dnajc30"        "Dnm3"           "Dohh"           "Dok4"          
+    ##  [349] "Dph7"           "Dpm3"           "Dtd2"           "Dtx2"          
+    ##  [353] "Dusp19"         "Dusp4"          "Dusp5"          "Dusp6"         
+    ##  [357] "Dusp7"          "Dut"            "Dynll1"         "Dyrk4"         
+    ##  [361] "E130311K13Rik"  "E330009J07Rik"  "Eda"            "Eda2r"         
+    ##  [365] "Edar"           "Edil3"          "Eepd1"          "Efhd2"         
+    ##  [369] "Efnb1"          "Efr3b"          "Egfl7"          "Ehf"           
+    ##  [373] "Eid2"           "Elac1"          "Elp6"           "Emc9"          
+    ##  [377] "Eml2"           "Emp1"           "Epb41l1"        "Epha2"         
+    ##  [381] "Ephb2"          "Ephx3"          "Erbb3"          "Ercc1"         
+    ##  [385] "Erf"            "Ern2"           "Erp27"          "Esrra"         
+    ##  [389] "Etfb"           "Ethe1"          "Eva1c"          "Exoc3l4"       
+    ##  [393] "F2rl1"          "F8a"            "Faah"           "Fahd2a"        
+    ##  [397] "Fam131a"        "Fam160a1"       "Fam173a"        "Fam189a1"      
+    ##  [401] "Fam198a"        "Fam19a3"        "Fam207a"        "Fam213b"       
+    ##  [405] "Fam219a"        "Fam219b"        "Fam227b"        "Fam228a"       
+    ##  [409] "Fam241b"        "Fam26e"         "Fam43a"         "Fam46d"        
+    ##  [413] "Fam57b"         "Fam69b"         "Fam71f2"        "Fam72a"        
+    ##  [417] "Fam83f"         "Fam96b"         "Fam98c"         "Fance"         
+    ##  [421] "Fas"            "Fbln2"          "Fbxl15"         "Fbxo27"        
+    ##  [425] "Fbxo36"         "Fbxw21"         "Fbxw9"          "Fcgr4"         
+    ##  [429] "Fchsd1"         "Fcnb"           "Fdx1"           "Ffar1"         
+    ##  [433] "Fhl4"           "Fkbp5"          "Fkbpl"          "Flrt3"         
+    ##  [437] "Flvcr2"         "Fmc1"           "Fndc11"         "Fndc4"         
+    ##  [441] "Folr1"          "Frat1"          "Frmd3"          "Frmpd3"        
+    ##  [445] "Fscn2"          "Fst"            "Fstl3"          "Ftl1"          
+    ##  [449] "Fxyd6"          "Fzd1"           "Fzd8"           "Gabbr2"        
+    ##  [453] "Gad1"           "Gadd45g"        "Gadd45gip1"     "Galnt15"       
+    ##  [457] "Galnt18"        "Galnt6"         "Gar1"           "Gata6"         
+    ##  [461] "Gdf11"          "Gdpd4"          "Gemin6"         "Get4"          
+    ##  [465] "Gfra1"          "Gfra2"          "Gga1"           "Ghrl"          
+    ##  [469] "Gimap7"         "Gipc1"          "Gjb3"           "Glp2r"         
+    ##  [473] "Gm128"          "Gm14025"        "Gm17455"        "Gm4832"        
+    ##  [477] "Gm4943"         "Gm4951"         "Gm5111"         "Gm6034"        
+    ##  [481] "Gm6377"         "Gm6987"         "Gm973"          "Gmds"          
+    ##  [485] "Gmpr"           "Gnat3"          "Gnb1l"          "Gnb2"          
+    ##  [489] "Gngt2"          "Gnl1"           "Gnmt"           "Gorasp1"       
+    ##  [493] "Gpatch2"        "Gpc2"           "Gpc3"           "Gpc5"          
+    ##  [497] "Gpihbp1"        "Gpn2"           "Gpr61"          "Gpt"           
+    ##  [501] "Gpx4"           "Gramd2"         "Grb14"          "Grhpr"         
+    ##  [505] "Grik5"          "Grin3a"         "Grrp1"          "Gstm4"         
+    ##  [509] "Gstt3"          "H2-Aa"          "H2-Bl"          "H2-DMa"        
+    ##  [513] "H2-DMb2"        "H2-Oa"          "H2-Q6"          "H2afj"         
+    ##  [517] "H2afv"          "H2afx"          "H2afz"          "H3f3a"         
+    ##  [521] "Haao"           "Hbb-bh2"        "Hbb-bs"         "Hbq1a"         
+    ##  [525] "Hcar2"          "Hcn3"           "Hdac3"          "Hdhd3"         
+    ##  [529] "Hes6"           "Hexa"           "Hhat"           "Hif3a"         
+    ##  [533] "Hint2"          "Hist1h1b"       "Hist1h1e"       "Hist1h1t"      
+    ##  [537] "Hist1h2ab"      "Hist1h2ac"      "Hist1h2ae"      "Hist1h2ag"     
+    ##  [541] "Hist1h2ah"      "Hist1h2ai"      "Hist1h2an"      "Hist1h2ao"     
+    ##  [545] "Hist1h2ap"      "Hist1h2be"      "Hist1h2bg"      "Hist1h2bh"     
+    ##  [549] "Hist1h2bj"      "Hist1h2bk"      "Hist1h2bl"      "Hist1h2bm"     
+    ##  [553] "Hist1h2bn"      "Hist1h2bp"      "Hist1h2bq"      "Hist1h3a"      
+    ##  [557] "Hist1h3b"       "Hist1h3c"       "Hist1h3e"       "Hist1h3f"      
+    ##  [561] "Hist1h3g"       "Hist1h3h"       "Hist1h3i"       "Hist1h4a"      
+    ##  [565] "Hist1h4b"       "Hist1h4c"       "Hist1h4d"       "Hist1h4f"      
+    ##  [569] "Hist1h4h"       "Hist1h4j"       "Hist1h4n"       "Hist2h2ab"     
+    ##  [573] "Hist2h2ac"      "Hist2h3b"       "Hist2h4"        "Hist3h2ba"     
+    ##  [577] "Hist4h4"        "Hmcn2"          "Hmox2"          "Hook2"         
+    ##  [581] "Hoxa2"          "Hoxb4"          "Hpn"            "Hps6"          
+    ##  [585] "Hras"           "Hsd11b2"        "Hsd17b14"       "Hsd17b7"       
+    ##  [589] "Hsd3b1"         "Hsdl1"          "Hspa1b"         "Hspb11"        
+    ##  [593] "Htatip2"        "Hyal2"          "Hypk"           "Ica1"          
+    ##  [597] "Icam2"          "Icam4"          "Icam5"          "Id1"           
+    ##  [601] "Ier5l"          "Iffo1"          "Ifitm1"         "Ift140"        
+    ##  [605] "Ift22"          "Ift81"          "Igf2bp2"        "Igll1"         
+    ##  [609] "Il17rc"         "Il1a"           "Il2rb"          "Il3ra"         
+    ##  [613] "Il4i1"          "Il6"            "Il7"            "Imp3"          
+    ##  [617] "Inca1"          "Inha"           "Insl6"          "Iqsec2"        
+    ##  [621] "Irf2bpl"        "Isoc2a"         "Isoc2b"         "Itga10"        
+    ##  [625] "Itgb7"          "Itih4"          "Itpka"          "Jak3"          
+    ##  [629] "Josd2"          "Jph3"           "Jrk"            "Kank4"         
+    ##  [633] "Kcna4"          "Kcna6"          "Kcnb1"          "Kcnc1"         
+    ##  [637] "Kcng2"          "Kcnh2"          "Kcnh7"          "Kcnip2"        
+    ##  [641] "Kcnk10"         "Kcnk12"         "Kcnn1"          "Kcnq2"         
+    ##  [645] "Kctd2"          "Kctd21"         "Kif17"          "Kif19a"        
+    ##  [649] "Kirrel"         "Klc2"           "Klc4"           "Klf4"          
+    ##  [653] "Klhdc9"         "Klk10"          "Klk8"           "Klra1"         
+    ##  [657] "Klra3"          "Klra7"          "Klrc3"          "Kmt5c"         
+    ##  [661] "Krba1"          "Krtcap2"        "Krtcap3"        "Lag3"          
+    ##  [665] "Lama2"          "Lamb2"          "Lamp5"          "Lamtor2"       
+    ##  [669] "Lamtor4"        "Large1"         "Lax1"           "Lcat"          
+    ##  [673] "Lefty1"         "Lgals1"         "Lgals3bp"       "Limk1"         
+    ##  [677] "Lims2"          "Lipc"           "Lipt2"          "Llgl2"         
+    ##  [681] "Lpar2"          "Lpcat2b"        "Lpxn"           "Lrp2"          
+    ##  [685] "Lrrc14"         "Lrrc14b"        "Lrrc15"         "Lrrc49"        
+    ##  [689] "Lrrc56"         "Lrrc69"         "Lrrc73"         "Lrrc75a"       
+    ##  [693] "Lsm4"           "Lsmem1"         "Ltbp4"          "Ly6c1"         
+    ##  [697] "Ly6d"           "Ly6g6f"         "Ly6k"           "Lysmd1"        
+    ##  [701] "Lzts2"          "Macrod1"        "Macrod2"        "Magix"         
+    ##  [705] "Mamdc4"         "Man2c1"         "Maob"           "Map1a"         
+    ##  [709] "Map1lc3a"       "Map2"           "Map3k11"        "Map3k13"       
+    ##  [713] "Map3k14"        "Mapk11"         "March10"        "Marco"         
+    ##  [717] "Mars2"          "Marveld1"       "Mc2r"           "Mcc"           
+    ##  [721] "Mccc2"          "Mcpt2"          "Mcrip2"         "Mdfi"          
+    ##  [725] "Mdk"            "Me3"            "Mecr"           "Med29"         
+    ##  [729] "Mef2b"          "Megf8"          "Meis3"          "Metrn"         
+    ##  [733] "Mettl18"        "Mettl26"        "Mex3d"          "Mfsd11"        
+    ##  [737] "Mfsd5"          "Mgarp"          "Mgmt"           "Mgst3"         
+    ##  [741] "Mib2"           "Mien1"          "Mier2"          "Mindy4"        
+    ##  [745] "Mmp24"          "Mn1"            "Mob2"           "Morc4"         
+    ##  [749] "Mpnd"           "Mpped2"         "Mpv17l2"        "Mrm2"          
+    ##  [753] "Mrpl11"         "Mrpl12"         "Mrpl28"         "Mrpl33"        
+    ##  [757] "Mrpl34"         "Mrpl41"         "Mrpl53"         "Mrpl55"        
+    ##  [761] "Mrps11"         "Mrps12"         "Mrps16"         "Mrps18a"       
+    ##  [765] "Mrps18c"        "Mrps27"         "Mrps28"         "Mrto4"         
+    ##  [769] "Ms4a4d"         "Mterf1a"        "Mthfs"          "Mthfsd"        
+    ##  [773] "Mtx1"           "Muc1"           "Mus81"          "Mutyh"         
+    ##  [777] "Mvb12a"         "Mxra8"          "Myh1"           "Myl2"          
+    ##  [781] "Myl4"           "Myl9"           "Mylpf"          "Myo7b"         
+    ##  [785] "Myom2"          "Mypop"          "Mzb1"           "Naaladl1"      
+    ##  [789] "Napb"           "Nat8l"          "Ncam2"          "Ndst3"         
+    ##  [793] "Ndufa2"         "Ndufa7"         "Ndufa8"         "Ndufaf3"       
+    ##  [797] "Ndufaf8"        "Ndufb10"        "Ndufb2"         "Ndufb6"        
+    ##  [801] "Ndufb7"         "Ndufs6"         "Necab3"         "Nedd8"         
+    ##  [805] "Neil1"          "Nenf"           "Nexmif"         "Nfkbil1"       
+    ##  [809] "Nhp2"           "Nhsl1"          "Nim1k"          "Ninj1"         
+    ##  [813] "Nipsnap1"       "Nkd1"           "Nkx1-2"         "Nlgn2"         
+    ##  [817] "Nlrp10"         "Nlrp1a"         "Nmbr"           "Nme6"          
+    ##  [821] "Nnmt"           "Notch3"         "Notch4"         "Npdc1"         
+    ##  [825] "Npm3"           "Nr2c2ap"        "Nr4a1"          "Nrep"          
+    ##  [829] "Nrg4"           "Nsmce3"         "Nt5c3b"         "Ntmt1"         
+    ##  [833] "Ntng1"          "Nubpl"          "Nudc"           "Nudt1"         
+    ##  [837] "Nudt14"         "Nudt16l1"       "Nudt21"         "Nudt6"         
+    ##  [841] "Nudt8"          "Nyap2"          "Nyx"            "Obscn"         
+    ##  [845] "Ogg1"           "Olfr1396"       "Olfr543"        "Oosp1"         
+    ##  [849] "Oplah"          "Opn1sw"         "Ormdl3"         "Oscp1"         
+    ##  [853] "Osgep"          "Ovca2"          "Ovgp1"          "Ovol1"         
+    ##  [857] "Oxld1"          "Oxnad1"         "P2ry2"          "P4ha1"         
+    ##  [861] "P4htm"          "Pabpc1l"        "Pacrg"          "Pafah1b3"      
+    ##  [865] "Panx2"          "Paqr7"          "Pard6a"         "Pard6b"        
+    ##  [869] "Pax8"           "Paxx"           "Pcbp3"          "Pcbp4"         
+    ##  [873] "Pcdhb10"        "Pcdhb11"        "Pcdhb13"        "Pcdhb15"       
+    ##  [877] "Pcdhb17"        "Pcdhb19"        "Pcdhga10"       "Pcdhga7"       
+    ##  [881] "Pcdhgb5"        "Pcdhgc4"        "Pcif1"          "Pcolce"        
+    ##  [885] "Pcyox1l"        "Pdxp"           "Pex10"          "Pex11b"        
+    ##  [889] "Pfdn5"          "Pfdn6"          "Pgm5"           "Phc2"          
+    ##  [893] "Phf11a"         "Phf19"          "Phf21b"         "Phf7"          
+    ##  [897] "Phlda3"         "Phldb3"         "Phyhip"         "Pias3"         
+    ##  [901] "Pias4"          "Pigx"           "Pih1d1"         "Pin1rt1"       
+    ##  [905] "Piwil2"         "Pkp2"           "Pla2g15"        "Pla2g2d"       
+    ##  [909] "Plekha8"        "Plin4"          "Pllp"           "Plpp6"         
+    ##  [913] "Pls3"           "Plscr3"         "Plvap"          "Plxna3"        
+    ##  [917] "Pnkd"           "Pnldc1"         "Pnpla1"         "Poll"          
+    ##  [921] "Polr2f"         "Polr2j"         "Polr3h"         "Polrmt"        
+    ##  [925] "Pomgnt1"        "Pop7"           "Popdc2"         "Ppara"         
+    ##  [929] "Ppcs"           "Ppef1"          "Ppef2"          "Ppm1j"         
+    ##  [933] "Ppm1l"          "Ppp1r14a"       "Ppp1r16a"       "Ppp1r1a"       
+    ##  [937] "Ppp1r35"        "Ppp2r3d"        "Ppp2r5b"        "Ppt2"          
+    ##  [941] "Pqlc2"          "Praf2"          "Prdx2"          "Prelp"         
+    ##  [945] "Prickle3"       "Prkaca"         "Prlr"           "Proca1"        
+    ##  [949] "Prr15"          "Prr7"           "Prss12"         "Prss16"        
+    ##  [953] "Prss48"         "Prss57"         "Prtg"           "Psma8"         
+    ##  [957] "Psmb4"          "Psmb9"          "Psmg3"          "Psmg4"         
+    ##  [961] "Psrc1"          "Ptges2"         "Ptpa"           "Ptpdc1"        
+    ##  [965] "Ptpn18"         "Ptprr"          "Ptpru"          "Ptprv"         
+    ##  [969] "Purg"           "Pwwp2b"         "Pxdc1"          "Pycrl"         
+    ##  [973] "Pygo2"          "Pym1"           "Qpct"           "Qpctl"         
+    ##  [977] "Qprt"           "Qtrt1"          "R3hdm4"         "Rab11fip3"     
+    ##  [981] "Rab11fip4"      "Rab34"          "Rab37"          "Rab40c"        
+    ##  [985] "Rab42"          "Rabac1"         "Rabep2"         "Rabepk"        
+    ##  [989] "Rabl2"          "Rack1"          "Ramp1"          "Rangrf"        
+    ##  [993] "Rapgef3"        "Rasgrf1"        "Rasl10a"        "Rasl12"        
+    ##  [997] "Rassf7"         "Rbm38"          "Rcc1"           "Rcc1l"         
+    ## [1001] "Rce1"           "Rcn3"           "Rd3"            "Rdh5"          
+    ## [1005] "Relb"           "Rem1"           "Rem2"           "Rex1bd"        
+    ## [1009] "Rgs13"          "Rhbdd3"         "Rhob"           "Rhobtb1"       
+    ## [1013] "Rhpn2"          "Ribc1"          "Rilp"           "Rilpl2"        
+    ## [1017] "Rnasek"         "Rnf128"         "Rnf212"         "Rnf25"         
+    ## [1021] "Robo3"          "Rom1"           "Romo1"          "Ropn1l"        
+    ## [1025] "Rp1"            "Rpa2"           "Rpa3"           "Rpl13"         
+    ## [1029] "Rpl14"          "Rpl18"          "Rpl19"          "Rpl22l1"       
+    ## [1033] "Rpl27"          "Rpl29"          "Rpl32l"         "Rpl34-ps1"     
+    ## [1037] "Rpl35a"         "Rpl37a"         "Rpl39"          "Rpl41"         
+    ## [1041] "Rplp0"          "Rplp1"          "Rplp2"          "Rpp40"         
+    ## [1045] "Rps10"          "Rps14"          "Rps16"          "Rps2"          
+    ## [1049] "Rps20"          "Rps21"          "Rps27"          "Rps27rt"       
+    ## [1053] "Rps3"           "Rps4x"          "Rps5"           "Rps6ka4"       
+    ## [1057] "Rps9"           "Rpusd1"         "Rpusd4"         "Rrp12"         
+    ## [1061] "Rrp15"          "Rrp36"          "Rrp9"           "Rsph1"         
+    ## [1065] "Rsph4a"         "Rtkn2"          "Rtl6"           "Rtn1"          
+    ## [1069] "Rxfp1"          "Rxrb"           "S100a1"         "S100a16"       
+    ## [1073] "S100a6"         "S100g"          "S1pr5"          "Sac3d1"        
+    ## [1077] "Sardh"          "Sat2"           "Scamp5"         "Scand1"        
+    ## [1081] "Scarf2"         "Scgb3a1"        "Scml4"          "Scn11a"        
+    ## [1085] "Scn1b"          "Scn4a"          "Scn4b"          "Scn7a"         
+    ## [1089] "Scube1"         "Sdf2l1"         "Sdhaf1"         "Sdhaf3"        
+    ## [1093] "Sdhaf4"         "Sdsl"           "Sec61b"         "Selenoh"       
+    ## [1097] "Sem1"           "Sema3f"         "Sema3g"         "Serinc4"       
+    ## [1101] "Serpina3b"      "Setd4"          "Sf3b4"          "Sf3b5"         
+    ## [1105] "Sgsh"           "Sgsm3"          "Sh2d7"          "Sh3bgr"        
+    ## [1109] "Sh3gl3"         "Sh3tc1"         "Shank1"         "Shf"           
+    ## [1113] "Shisa2"         "Shpk"           "Shroom3"        "Sidt1"         
+    ## [1117] "Sil1"           "Six5"           "Slc12a7"        "Slc12a9"       
+    ## [1121] "Slc15a3"        "Slc16a14"       "Slc16a2"        "Slc16a3"       
+    ## [1125] "Slc24a3"        "Slc25a1"        "Slc25a17"       "Slc25a2"       
+    ## [1129] "Slc25a25"       "Slc25a29"       "Slc25a33"       "Slc25a42"      
+    ## [1133] "Slc25a47"       "Slc27a1"        "Slc27a3"        "Slc2a13"       
+    ## [1137] "Slc2a4"         "Slc2a8"         "Slc35b2"        "Slc35d3"       
+    ## [1141] "Slc44a3"        "Slc46a1"        "Slc50a1"        "Slc52a2"       
+    ## [1145] "Slc5a2"         "Slc5a5"         "Slc5a9"         "Slc6a13"       
+    ## [1149] "Slc6a3"         "Slc9a2"         "Slc9a5"         "Slc9b2"        
+    ## [1153] "Slco2a1"        "Slco4a1"        "Slurp1"         "Smco3"         
+    ## [1157] "Smg9"           "Smim1"          "Smim12"         "Smim22"        
+    ## [1161] "Smim26"         "Smim4"          "Smim5"          "Smyd5"         
+    ## [1165] "Snap47"         "Sned1"          "Snrpd2"         "Snrpd3"        
+    ## [1169] "Snrpe"          "Snrpf"          "Snu13"          "Sox18"         
+    ## [1173] "Sox7"           "Spag4"          "Spata6"         "Spef1"         
+    ## [1177] "Spin4"          "Spns2"          "Spout1"         "Spr"           
+    ## [1181] "Spryd3"         "Spsb1"          "Spsb2"          "Sptbn4"        
+    ## [1185] "Srprb"          "Ssr4"           "Sssca1"         "St8sia1"       
+    ## [1189] "Stap2"          "Stard3nl"       "Stc1"           "Ston1"         
+    ## [1193] "Stx18"          "Supt4a"         "Svbp"           "Syp"           
+    ## [1197] "Syt6"           "Syt9"           "Sytl1"          "Sytl4"         
+    ## [1201] "Tac4"           "Taf10"          "Taf1c"          "Tagln2"        
+    ## [1205] "Tal2"           "Tas1r3"         "Tatdn3"         "Tax1bp3"       
+    ## [1209] "Tbc1d17"        "Tbc1d7"         "Tbx2"           "Tcaf1"         
+    ## [1213] "Tcam1"          "Tcea2"          "Tcea3"          "Tceal1"        
+    ## [1217] "Tcf7"           "Tcp11"          "Tctex1d4"       "Tepsin"        
+    ## [1221] "Tert"           "Tesc"           "Tesmin"         "Tex264"        
+    ## [1225] "Tex45"          "Tfpi2"          "Tg"             "Tgfa"          
+    ## [1229] "Tgm1"           "Tha1"           "Thap7"          "Them4"         
+    ## [1233] "Thrb"           "Tie1"           "Timm13"         "Timm22"        
+    ## [1237] "Timm50"         "Timm8a2"        "Tinagl1"        "Tle2"          
+    ## [1241] "Tlr11"          "Tm4sf19"        "Tmc3"           "Tmed1"         
+    ## [1245] "Tmed9"          "Tmem100"        "Tmem107"        "Tmem108"       
+    ## [1249] "Tmem110"        "Tmem121"        "Tmem132e"       "Tmem141"       
+    ## [1253] "Tmem143"        "Tmem14a"        "Tmem150a"       "Tmem150b"      
+    ## [1257] "Tmem161a"       "Tmem170"        "Tmem181a"       "Tmem184a"      
+    ## [1261] "Tmem192"        "Tmem198b"       "Tmem205"        "Tmem241"       
+    ## [1265] "Tmem246"        "Tmem25"         "Tmem256"        "Tmem258"       
+    ## [1269] "Tmem35b"        "Tmem37"         "Tmem51"         "Tmem79"        
+    ## [1273] "Tmem97"         "Tmprss3"        "Tmsb10"         "Tnfrsf26"      
+    ## [1277] "Tnfrsf4"        "Tnip3"          "Tnni1"          "Tnr"           
+    ## [1281] "Tomm6"          "Tomm7"          "Tox3"           "Tpcn2"         
+    ## [1285] "Trabd2b"        "Trappc3"        "Trappc4"        "Trappc6a"      
+    ## [1289] "Trex1"          "Trib2"          "Tril"           "Trim15"        
+    ## [1293] "Trim3"          "Trim43c"        "Trim46"         "Trim55"        
+    ## [1297] "Trim6"          "Trip6"          "Trmt112"        "Trnau1ap"      
+    ## [1301] "Trp53i13"       "Trp53tg5"       "Tspan14"        "Tspan4"        
+    ## [1305] "Tssc4"          "Tsta3"          "Ttc30a1"        "Ttc39c"        
+    ## [1309] "Ttr"            "Tuba1c"         "Tuba8"          "Tubg2"         
+    ## [1313] "Tufm"           "Tulp3"          "Tvp23b"         "Twnk"          
+    ## [1317] "Tymp"           "Uba52"          "Ube2s"          "Ubfd1"         
+    ## [1321] "Ubiad1"         "Ubxn11"         "Ugt1a2"         "Unc5cl"        
+    ## [1325] "Uox"            "Upb1"           "Upp1"           "Uqcc2"         
+    ## [1329] "Uqcr10"         "Uqcrq"          "Urm1"           "Use1"          
+    ## [1333] "Ushbp1"         "Usmg5"          "Usp27x"         "Usp44"         
+    ## [1337] "Utf1"           "Vash1"          "Vit"            "Vmac"          
+    ## [1341] "Vmn1r4"         "Vmn2r57"        "Vpreb1"         "Vpreb3"        
+    ## [1345] "Vps37b"         "Vsig10"         "Vsig2"          "Vwce"          
+    ## [1349] "Wdr25"          "Wdr35"          "Wdr66"          "Wnk4"          
+    ## [1353] "Wnt4"           "Wnt5b"          "Wrap53"         "Wrap73"        
+    ## [1357] "Xrcc1"          "Xxylt1"         "Yap1"           "Yif1a"         
+    ## [1361] "Yif1b"          "Zbtb49"         "Zc3h12a"        "Zc3h12b"       
+    ## [1365] "Zc3hc1"         "Zcchc12"        "Zdhhc4"         "Zfp108"        
+    ## [1369] "Zfp112"         "Zfp184"         "Zfp235"         "Zfp282"        
+    ## [1373] "Zfp365"         "Zfp385b"        "Zfp41"          "Zfp428"        
+    ## [1377] "Zfp446"         "Zfp449"         "Zfp473"         "Zfp524"        
+    ## [1381] "Zfp566"         "Zfp579"         "Zfp593"         "Zfp689"        
+    ## [1385] "Zfp707"         "Zfp768"         "Zfp771"         "Zfp772"        
+    ## [1389] "Zfp775"         "Zfp777"         "Zfp879"         "Zfp941"        
+    ## [1393] "Zfp963"         "Zfpl1"          "Zfr2"           "Zfyve28"       
+    ## [1397] "Zkscan7"        "Zmynd10"        "Zscan2"         "Zscan20"       
+    ## [1401] "Zswim7"        
+    ## 
+    ## [[3]]
+    ##   [1] "1110038F14Rik" "1700020D05Rik" "1700029H14Rik" "1700066B19Rik"
+    ##   [5] "1810043G02Rik" "3110009E18Rik" "3110062M04Rik" "3300002I08Rik"
+    ##   [9] "4930415O20Rik" "4930432K21Rik" "4930563E22Rik" "4933413G19Rik"
+    ##  [13] "4933428G20Rik" "A930033H14Rik" "Abhd16b"       "Abt1"         
+    ##  [17] "Acod1"         "Acta1"         "Actn2"         "Actn3"        
+    ##  [21] "Adam1a"        "Adam23"        "Adamts2"       "Adck5"        
+    ##  [25] "Adgb"          "Adora3"        "Afap1l2"       "Aff2"         
+    ##  [29] "Agt"           "Ajuba"         "Akap14"        "Akap5"        
+    ##  [33] "Aldh4a1"       "Als2cl"        "Amelx"         "Amigo3"       
+    ##  [37] "Amot"          "Ankrd29"       "Ankrd65"       "Antxr1"       
+    ##  [41] "Aox4"          "Aph1a"         "Arhgef17"      "Armc2"        
+    ##  [45] "Arr3"          "Atp2a1"        "Atp2b2"        "AU022252"     
+    ##  [49] "Auts2"         "Bbof1"         "BC049352"      "Bcam"         
+    ##  [53] "Bcat1"         "Bcl2l14"       "Bean1"         "Bend7"        
+    ##  [57] "Bhlhe41"       "C130050O18Rik" "C130074G19Rik" "C1qtnf9"      
+    ##  [61] "C1s1"          "C2"            "Cabp4"         "Cacna1s"      
+    ##  [65] "Cacnb1"        "Calcr"         "Calr4"         "Camk2n2"      
+    ##  [69] "Casp12"        "Catsperd"      "Cbln3"         "Ccdc102a"     
+    ##  [73] "Ccdc142"       "Ccdc157"       "Ccdc24"        "Ccdc62"       
+    ##  [77] "Ccdc85a"       "Ccdc92"        "Ccl3"          "Ccl5"         
+    ##  [81] "Ccm2l"         "Ccnjl"         "Cd207"         "Cd5"          
+    ##  [85] "Cd59b"         "Cdh4"          "Cdnf"          "Cecr6"        
+    ##  [89] "Celf3"         "Cetn4"         "Cfap161"       "Chl1"         
+    ##  [93] "Chst13"        "Clec9a"        "Cmya5"         "Cnnm4"        
+    ##  [97] "Cntn2"         "Col14a1"       "Col28a1"       "Col6a4"       
+    ## [101] "Coq8b"         "Cpa6"          "Cped1"         "Cpne4"        
+    ## [105] "Cpne5"         "Cpq"           "Cpsf4l"        "Crlf2"        
+    ## [109] "Crtac1"        "Crtam"         "Crybg2"        "Csmd1"        
+    ## [113] "Csmd2"         "Csrp2"         "Cth"           "Cxcl14"       
+    ## [117] "Cxcl9"         "Cyp4b1"        "Dcst2"         "Dgcr6"        
+    ## [121] "Dkk3"          "Dll4"          "Dmpk"          "Dsg2"         
+    ## [125] "Dsp"           "Dtna"          "Ebf2"          "Ece1"         
+    ## [129] "Ece2"          "Ecscr"         "Efna1"         "Efnb2"        
+    ## [133] "Ell3"          "Elovl7"        "Epb41l4a"      "Ephx2"        
+    ## [137] "Epop"          "Erc2"          "Esam"          "Esm1"         
+    ## [141] "Exph5"         "Eya2"          "F11r"          "F3"           
+    ## [145] "Fam13c"        "Fam229b"       "Fat4"          "Fbln5"        
+    ## [149] "Fbn2"          "Fbp1"          "Fbxo32"        "Fbxo40"       
+    ## [153] "Fhl3"          "Filip1"        "Fmo2"          "Fmod"         
+    ## [157] "Frmd5"         "Frmpd4"        "Fscn1"         "Fut10"        
+    ## [161] "Fut2"          "Fxyd7"         "Gabbr1"        "Gas1"         
+    ## [165] "Gatsl2"        "Gfi1"          "Gfpt2"         "Gjc1"         
+    ## [169] "Gli3"          "Glis1"         "Glt28d2"       "Glt8d1"       
+    ## [173] "Gm20594"       "Gm8369"        "Gnaz"          "Gnb3"         
+    ## [177] "Gng7"          "Gp6"           "Gper1"         "Gpr15"        
+    ## [181] "Gpr55"         "Gpr63"         "Gpx3"          "Gpx7"         
+    ## [185] "Gpx8"          "Grasp"         "Gsdma"         "Gstm7"        
+    ## [189] "Gucy2g"        "H19"           "Hamp"          "Hba-a2"       
+    ## [193] "Hist2h3c1"     "Hmga2"         "Hoxb3"         "Ica1l"        
+    ## [197] "Ifnk"          "Iglon5"        "Iigp1"         "Il33"         
+    ## [201] "Inhbb"         "Irx3"          "Itih3"         "Kcnj16"       
+    ## [205] "Kcnk1"         "Kdm8"          "Kif5a"         "Kirrel3"      
+    ## [209] "Kiss1r"        "Klb"           "Klf8"          "Klhl33"       
+    ## [213] "Klhl35"        "Klk1b27"       "Klra17"        "Klra5"        
+    ## [217] "Klrc1"         "Klrc2"         "Lama1"         "Lama3"        
+    ## [221] "Lamb1"         "Layn"          "Lca5l"         "Lctl"         
+    ## [225] "Ldhal6b"       "Ldlrad4"       "Lmln"          "Lmo7"         
+    ## [229] "Loxl2"         "Lpar5"         "Ly6g6c"        "Lypd6b"       
+    ## [233] "Lzts1"         "Mab21l2"       "Map6"          "Mapk4"        
+    ## [237] "Mapt"          "Mdga1"         "Megf6"         "Mfap3l"       
+    ## [241] "Mfsd7a"        "Mgp"           "Mkrn3"         "Mkx"          
+    ## [245] "Mlxipl"        "Mmel1"         "Mmp16"         "Mmp23"        
+    ## [249] "Mmrn2"         "Mpig6b"        "Mrpl16"        "Mrpl27"       
+    ## [253] "Mst1r"         "mt-Nd3"        "Mtcl1"         "Muc4"         
+    ## [257] "Muc5b"         "Mug1"          "Myo6"          "Mypn"         
+    ## [261] "Myrfl"         "Naalad2"       "Nap1l3"        "Nbea"         
+    ## [265] "Ncan"          "Nckap5"        "Ndnf"          "Necab1"       
+    ## [269] "Nectin2"       "Ngfr"          "Nhs"           "Nlrc3"        
+    ## [273] "Nmnat1"        "Nod2"          "Nodal"         "Ntn4"         
+    ## [277] "Oas1g"         "Oasl2"         "Ogn"           "Olfr231"      
+    ## [281] "Olfr629"       "Orm3"          "Osgin1"        "Otof"         
+    ## [285] "P2rx5"         "P2rx7"         "P3h2"          "Pabpc4l"      
+    ## [289] "Pbld2"         "Pbx4"          "Pcdhb6"        "Pcdhga5"      
+    ## [293] "Pcdhgb6"       "Pcdhgc3"       "Pdgfc"         "Pdgfra"       
+    ## [297] "Pdgfrb"        "Pdlim4"        "Pfn2"          "Pgghg"        
+    ## [301] "Pglyrp2"       "Pgr"           "Phf11c"        "Phf13"        
+    ## [305] "Phlda1"        "Pick1"         "Pigr"          "Pkd1l2"       
+    ## [309] "Pla1a"         "Plcd3"         "Plcxd2"        "Plekha6"      
+    ## [313] "Plekhg1"       "Plekhg6"       "Plscr2"        "Plscr4"       
+    ## [317] "Pm20d2"        "Podn"          "Porcn"         "Ppp2r2b"      
+    ## [321] "Prdm5"         "Prg4"          "Proser2"       "Prox2"        
+    ## [325] "Prr15l"        "Prrg4"         "Ptchd1"        "Ptgdr"        
+    ## [329] "Ptgds"         "Ptrh1"         "Pus1"          "Pzp"          
+    ## [333] "Rab3b"         "Raet1e"        "Ramp2"         "Rarg"         
+    ## [337] "Rasal2"        "Rasgrf2"       "Rasl11a"       "Rbp7"         
+    ## [341] "Rgl3"          "Rgs3"          "Rgs4"          "Rgs5"         
+    ## [345] "Rgs8"          "Rimbp3"        "Rimkla"        "Rimklb"       
+    ## [349] "Rnf113a1"      "Rnf17"         "Rs1"           "Rsph14"       
+    ## [353] "Rsph9"         "Rufy3"         "Rwdd3"         "Ryr2"         
+    ## [357] "Ryr3"          "Sbspon"        "Scd1"          "Scn1a"        
+    ## [361] "Scn3b"         "Scrn1"         "Sdk2"          "Sec14l5"      
+    ## [365] "Sel1l3"        "Sema3a"        "Sema4f"        "Serpina3i"    
+    ## [369] "Sez6l2"        "Sgtb"          "Shroom4"       "Skap1"        
+    ## [373] "Slc16a9"       "Slc1a3"        "Slc24a1"       "Slc25a30"     
+    ## [377] "Slc26a9"       "Slc2a2"        "Slc39a12"      "Slc4a10"      
+    ## [381] "Slc5a6"        "Slc6a19"       "Slc6a8"        "Slc9a9"       
+    ## [385] "Slco1a5"       "Slco2b1"       "Slit1"         "Smagp"        
+    ## [389] "Snapc2"        "Sobp"          "Sowahd"        "Spata21"      
+    ## [393] "Spata25"       "Spata48"       "Spata9"        "Spdya"        
+    ## [397] "Spint1"        "Srl"           "Srrd"          "Ssc5d"        
+    ## [401] "Steap2"        "Stox2"         "Tango6"        "Tcap"         
+    ## [405] "Tek"           "Terf2ip"       "Tex11"         "Tfpi"         
+    ## [409] "Tgfb2"         "Tgfbr3l"       "Tlcd2"         "Tldc2"        
+    ## [413] "Tle6"          "Tlr1"          "Tlr5"          "Tmc2"         
+    ## [417] "Tmem144"       "Tmem156"       "Tmem200b"      "Tmem221"      
+    ## [421] "Tmem38a"       "Tmem86a"       "Tmem88"        "Tmem95"       
+    ## [425] "Tmod4"         "Tnfrsf25"      "Tnnc2"         "Tph1"         
+    ## [429] "Trcg1"         "Trim17"        "Tro"           "Trpc1"        
+    ## [433] "Trpv4"         "Ttpa"          "Ttyh1"         "Uggt2"        
+    ## [437] "Unc79"         "Usp13"         "Vegfc"         "Vstm5"        
+    ## [441] "Vwa1"          "Wdr72"         "Wdr86"         "Xkr6"         
+    ## [445] "Xylt2"         "Zbtb8a"        "Zc3h3"         "Zc4h2"        
+    ## [449] "Zfp202"        "Zfp28"         "Zfp37"         "Zfp385c"      
+    ## [453] "Zfp438"        "Zfp454"        "Zfp462"        "Zfp503"       
+    ## [457] "Zfp595"        "Zfp61"         "Zfp712"        "Zfp781"       
+    ## [461] "Zfp939"        "Zfp971"       
+    ## 
+    ## [[4]]
+    ##   [1] "1700001O22Rik" "1700102P08Rik" "2610528J11Rik" "4921536K21Rik"
+    ##   [5] "Abcb1a"        "Abcb6"         "Abhd14b"       "Acacb"        
+    ##   [9] "Adamts20"      "Adgrl1"        "Ak9"           "Aldh1a3"      
+    ##  [13] "Amigo2"        "Ano5"          "Arhgap33"      "Arl13a"       
+    ##  [17] "Arl2"          "Armc12"        "Avpi1"         "B230217C12Rik"
+    ##  [21] "Bcat2"         "Bicdl2"        "Borcs6"        "C8g"          
+    ##  [25] "Ccdc36"        "Cfap157"       "Cfb"           "Chpf2"        
+    ##  [29] "Cideb"         "Cited4"        "Clca3a2"       "Clcn1"        
+    ##  [33] "Cldnd2"        "Cltb"          "Col18a1"       "Cyb561"       
+    ##  [37] "Cyp2f2"        "Dchs1"         "Dhx34"         "Dmwd"         
+    ##  [41] "Dnaaf3"        "Dnajb3"        "Dpysl5"        "Efna4"        
+    ##  [45] "Exosc5"        "Fam131b"       "Fam167a"       "Fam171a2"     
+    ##  [49] "Fam173b"       "Fam184a"       "Fam71e2"       "Fcamr"        
+    ##  [53] "Fga"           "Fitm2"         "Foxd2"         "Frmpd1"       
+    ##  [57] "Gas8"          "Gja5"          "Gkn3"          "Gprc5d"       
+    ##  [61] "Gtpbp3"        "Gtpbp6"        "Guca1b"        "Gucy1a2"      
+    ##  [65] "H3f3c"         "Hist1h2ad"     "Hmgcs2"        "Hoxa5"        
+    ##  [69] "Hoxa6"         "Hs6st2"        "Hspb8"         "Htra3"        
+    ##  [73] "Ift27"         "Igflr1"        "Il12rb2"       "Il4"          
+    ##  [77] "Impg1"         "Itln1"         "Kcnc3"         "Kcnh1"        
+    ##  [81] "Kcnh4"         "Kcnk7"         "Khdc3"         "Klf12"        
+    ##  [85] "Klf15"         "Klhl13"        "Krt10"         "Krt83"        
+    ##  [89] "Lars2"         "Lhx1"          "Lrrc23"        "Mageb3"       
+    ##  [93] "Mall"          "Matn3"         "Meox1"         "Mgat4c"       
+    ##  [97] "Mlana"         "Mmp17"         "Mospd3"        "Mpzl1"        
+    ## [101] "Mybpc3"        "Mycn"          "Nags"          "Nckap5l"      
+    ## [105] "Nrn1l"         "Nxpe5"         "Nyap1"         "Obsl1"        
+    ## [109] "Odf3b"         "Olfm1"         "P3h3"          "P4ha3"        
+    ## [113] "Pacsin3"       "Padi6"         "Pcdhb22"       "Pde6g"        
+    ## [117] "Pgp"           "Phospho1"      "Pkdcc"         "Pld6"         
+    ## [121] "Ppp1r13l"      "Prdm11"        "Prkg2"         "Prr18"        
+    ## [125] "Prr22"         "Prrg2"         "Prss21"        "Prss23"       
+    ## [129] "Prss36"        "Psors1c2"      "Pxmp2"         "Rab25"        
+    ## [133] "Raver2"        "Rbp4"          "Rims3"         "Ripor3"       
+    ## [137] "Rnf32"         "Rps19bp1"      "Rtn2"          "S100a3"       
+    ## [141] "S100a7a"       "Sag"           "Serpinb9e"     "Sh3rf3"       
+    ## [145] "Sirt4"         "Slc19a1"       "Slc36a2"       "Slc3a1"       
+    ## [149] "Slfnl1"        "Snta1"         "Socs1"         "Spag8"        
+    ## [153] "Speg"          "Spred3"        "Srcin1"        "Srgap1"       
+    ## [157] "Ssh3"          "Stk32b"        "Syna"          "Tbx6"         
+    ## [161] "Tcaf2"         "Tchh"          "Tcl1b2"        "Tctex1d1"     
+    ## [165] "Tead3"         "Tm6sf2"        "Tmem116"       "Tmem120b"     
+    ## [169] "Tmem125"       "Tmem98"        "Tnfrsf12a"     "Tnni3"        
+    ## [173] "Trib1"         "Ttc36"         "Tulp2"         "Umod"         
+    ## [177] "Vsnl1"         "Vwa5b1"        "Wfikkn1"       "Wipf3"        
+    ## [181] "Ybx2"          "Zbtb12"        "Zfp433"        "Znhit2"       
+    ## 
+    ## [[5]]
+    ##   [1] "1700001P01Rik" "1810024B03Rik" "2610318N02Rik" "3632451O06Rik"
+    ##   [5] "4931408C20Rik" "4931428F04Rik" "4931429L15Rik" "A730046J19Rik"
+    ##   [9] "Abca8a"        "Abhd12b"       "Abhd6"         "Acan"         
+    ##  [13] "Ackr2"         "Acsf3"         "Acss3"         "Actl7b"       
+    ##  [17] "Actr3b"        "Adam2"         "Adamts4"       "Adgrg4"       
+    ##  [21] "Adprm"         "Agbl2"         "AI661453"      "Alb"          
+    ##  [25] "Aldh7a1"       "Alkbh6"        "Alpl"          "Amdhd2"       
+    ##  [29] "Amy1"          "Angptl6"       "Ankrd13b"      "Ankrd24"      
+    ##  [33] "Ankrd36"       "Aox3"          "Apoc2"         "Apol7c"       
+    ##  [37] "Apon"          "Ar"            "Arg1"          "Arg2"         
+    ##  [41] "Arhgef25"      "Arl14"         "Art1"          "Arvcf"        
+    ##  [45] "Asap3"         "Asgr2"         "Asic1"         "Atf3"         
+    ##  [49] "Atp4a"         "Awat2"         "B3galt4"       "BC030870"     
+    ##  [53] "Bcl2a1d"       "Bcl3"          "Bdh1"          "Best3"        
+    ##  [57] "Bex1"          "Bik"           "Brinp2"        "Btbd11"       
+    ##  [61] "Btbd18"        "Camk2a"        "Capn6"         "Casq1"        
+    ##  [65] "Catsper3"      "Cbs"           "Ccdc120"       "Ccdc149"      
+    ##  [69] "Ccdc153"       "Ccdc27"        "Ccdc30"        "Ccdc33"       
+    ##  [73] "Ccdc63"        "Ccdc96"        "Cct8l1"        "Cd101"        
+    ##  [77] "Cd200r2"       "Cd209a"        "Cd300ld"       "Cd8a"         
+    ##  [81] "Cdkl3"         "Ceacam2"       "Celsr1"        "Cep295nl"     
+    ##  [85] "Cfap43"        "Cfap70"        "Chac1"         "Chrna2"       
+    ##  [89] "Chrnb4"        "Chst1"         "Ciita"         "Ckm"          
+    ##  [93] "Cldn7"         "Clec3a"        "Clic3"         "Clic5"        
+    ##  [97] "Clip2"         "Clip4"         "Clnk"          "Cma1"         
+    ## [101] "Cnmd"          "Cnpy3"         "Cntn1"         "Coch"         
+    ## [105] "Col17a1"       "Col25a1"       "Col7a1"        "Col9a1"       
+    ## [109] "Col9a3"        "Comp"          "Copz2"         "Cox6a2"       
+    ## [113] "Cpn1"          "Creb3l2"       "Creb3l3"       "Creb5"        
+    ## [117] "Cthrc1"        "Cul9"          "Cybrd1"        "Cyp11a1"      
+    ## [121] "Cyp2c23"       "Cyp2j6"        "Dab2ip"        "Dbndd1"       
+    ## [125] "Dcakd"         "Ddah1"         "Ddi1"          "Dedd2"        
+    ## [129] "Deptor"        "Dkk1"          "Dlgap2"        "Dmrt3"        
+    ## [133] "Dnajb5"        "Dnajc12"       "Dnmt3l"        "Doc2g"        
+    ## [137] "Dpt"           "Dpyd"          "Dxo"           "E230025N22Rik"
+    ## [141] "Ebf4"          "Echdc1"        "Efcab12"       "Efcab5"       
+    ## [145] "Egf"           "Egfl6"         "Elovl3"        "Elovl4"       
+    ## [149] "Emx2"          "Epgn"          "Eqtn"          "Esrp2"        
+    ## [153] "Etnk2"         "Eva1a"         "F9"            "Fam169a"      
+    ## [157] "Fblim1"        "Fbxl21"        "Fbxo4"         "Fbxw13"       
+    ## [161] "Fbxw17"        "Fgf10"         "Fgf2"          "Fgf7"         
+    ## [165] "Fhad1"         "Fjx1"          "Fkbp11"        "Flywch2"      
+    ## [169] "Foxi1"         "Galnt12"       "Gata3"         "Gcnt4"        
+    ## [173] "Gdf5"          "Gfod2"         "Ggact"         "Ghrhr"        
+    ## [177] "Gif"           "Glb1l2"        "Gli1"          "Gm10045"      
+    ## [181] "Gm13288"       "Gm2022"        "Gm3336"        "Gm4841"       
+    ## [185] "Gm4952"        "Gm5294"        "Gm5416"        "Gm595"        
+    ## [189] "Gm8165"        "Gm8439"        "Gml2"          "Gna15"        
+    ## [193] "Gpatch3"       "Gpc6"          "Gpr151"        "Gpr152"       
+    ## [197] "Gpr157"        "Gpr27"         "Gprasp2"       "Grb7"         
+    ## [201] "Grem2"         "Gsto2"         "H2-T3"         "Habp2"        
+    ## [205] "Hapln1"        "Hc"            "Hic2"          "Hist1h2ba"    
+    ## [209] "Hlcs"          "Hmgn3"         "Hnf1a"         "Hrc"          
+    ## [213] "Hsd17b2"       "Hsf2bp"        "Hspb9"         "Htr5b"        
+    ## [217] "Icos"          "Ifi205"        "Ifitm5"        "Ifng"         
+    ## [221] "Igdcc4"        "Il12b"         "Il18"          "Irgq"         
+    ## [225] "Itgb4"         "Itih5l-ps"     "Jakmip2"       "Kcnd3"        
+    ## [229] "Kcnj6"         "Klhl10"        "Klhl21"        "Klhl30"       
+    ## [233] "Klhl8"         "Klk1b11"       "Kndc1"         "Krt222"       
+    ## [237] "Kynu"          "L3hypdh"       "L3mbtl1"       "Lad1"         
+    ## [241] "Lage3"         "Lgals2"        "Lhx6"          "Liph"         
+    ## [245] "Lrmda"         "Lrrc34"        "Lrrc51"        "Lrrc6"        
+    ## [249] "Lrrc75b"       "Lrrc9"         "Lrrn4cl"       "Lta"          
+    ## [253] "Lurap1"        "Lurap1l"       "Lvrn"          "Mapk12"       
+    ## [257] "Mapk15"        "Mapre3"        "Mark4"         "Matn4"        
+    ## [261] "Mcam"          "Mcpt1"         "Mcpt4"         "Mcub"         
+    ## [265] "Methig1"       "Mfap2"         "Mgl2"          "Mia2"         
+    ## [269] "Mmgt2"         "Mmp12"         "Mon1a"         "Morn4"        
+    ## [273] "Mpzl3"         "Mrgpre"        "Mroh8"         "Ms4a1"        
+    ## [277] "Ms4a8a"        "Msh4"          "Msh5"          "Mthfr"        
+    ## [281] "Mustn1"        "Myo16"         "Myo18b"        "Myo3b"        
+    ## [285] "Myrf"          "Myzap"         "Ncdn"          "Nek11"        
+    ## [289] "Nek3"          "Nfatc2"        "Ngf"           "Nkd2"         
+    ## [293] "Nlgn3"         "Nlrp4e"        "Nostrin"       "Nova1"        
+    ## [297] "Nphp4"         "Npnt"          "Npr3"          "Nr1h5"        
+    ## [301] "Nr2f6"         "Nr4a2"         "Nr6a1"         "Nrg2"         
+    ## [305] "Nsg2"          "Ntng2"         "Nxnl1"         "Olfm2"        
+    ## [309] "Olfm5"         "Olfr372"       "Olfr632"       "Olfr657"      
+    ## [313] "Olfr920"       "Olfr99"        "Oosp2"         "Osbpl5"       
+    ## [317] "Oscar"         "Oxct2b"        "Palm2"         "Panx3"        
+    ## [321] "Papln"         "Parva"         "Pck1"          "Pclo"         
+    ## [325] "Pcp4"          "Pdk4"          "Pecr"          "Pex26"        
+    ## [329] "Pfn4"          "Pfpl"          "Pglyrp4"       "Phpt1"        
+    ## [333] "Piezo2"        "Pim3"          "Pkn3"          "Pkp3"         
+    ## [337] "Pla2g3"        "Plau"          "Plcxd1"        "Plekhf1"      
+    ## [341] "Plg"           "Plk3"          "Plppr4"        "Pmel"         
+    ## [345] "Pop4"          "Ppp1r1b"       "Ppp3cc"        "Prnd"         
+    ## [349] "Prol1"         "Prps1l1"       "Prrt3"         "Prss30"       
+    ## [353] "Prss50"        "Prss8"         "Ptprn2"        "Ptx3"         
+    ## [357] "Pvr"           "Rab19"         "Rac3"          "Rai2"         
+    ## [361] "Rapgef4"       "Rbm11"         "Rfx4"          "Rgl2"         
+    ## [365] "Rgs9"          "Ripk4"         "Rnase2a"       "Rph3a"        
+    ## [369] "Rsg1"          "S100b"         "S1pr2"         "Sall2"        
+    ## [373] "Samd10"        "Samd7"         "Sapcd1"        "Scgn"         
+    ## [377] "Scin"          "Scn2b"         "Sdcbp2"        "Serp2"        
+    ## [381] "Serpina3c"     "Serpinb7"      "Sertad3"       "Sh3bp1"       
+    ## [385] "Sh3bp4"        "Shc2"          "Shisa4"        "Sipa1l2"      
+    ## [389] "Slamf9"        "Slc12a5"       "Slc17a4"       "Slc22a12"     
+    ## [393] "Slc22a17"      "Slc25a43"      "Slc26a10"      "Slc27a2"      
+    ## [397] "Slc2a9"        "Slc38a4"       "Slc39a5"       "Slc45a1"      
+    ## [401] "Slc52a3"       "Slc6a15"       "Slx1b"         "Smpd2"        
+    ## [405] "Smpd5"         "Snph"          "Sntg2"         "Sox11"        
+    ## [409] "St6galnac5"    "Stfa1"         "Stox1"         "Stra6l"       
+    ## [413] "Stum"          "Sult2b1"       "Sun5"          "Surf2"        
+    ## [417] "Svopl"         "Synj2"         "Synpo2"        "Tbc1d2"       
+    ## [421] "Tbx21"         "Tcf24"         "Tcstv1"        "Tdrd9"        
+    ## [425] "Tead2"         "Tex14"         "Thegl"         "Tigd3"        
+    ## [429] "Tigit"         "Timp4"         "Tk2"           "Tktl1"        
+    ## [433] "Tmem132a"      "Tmem159"       "Tmem253"       "Tmem262"      
+    ## [437] "Tmem52b"       "Tmem88b"       "Tmem8b"        "Tmie"         
+    ## [441] "Tmprss6"       "Tnfaip8l1"     "Tnfrsf9"       "Tnfsf9"       
+    ## [445] "Tnk1"          "Tnn"           "Tnnc1"         "Tns4"         
+    ## [449] "Tomm20l"       "Tox2"          "Tph2"          "Tppp"         
+    ## [453] "Tprg"          "Trdn"          "Trim62"        "Trim68"       
+    ## [457] "Triqk"         "Trnp1"         "Trp53i11"      "Trpc5"        
+    ## [461] "Trpc5os"       "Trpm3"         "Trpm4"         "Tspear"       
+    ## [465] "Tubb4a"        "Tvp23a"        "Ubtd1"         "Uchl1"        
+    ## [469] "Ugt3a2"        "Unc5a"         "Unc93a"        "Vmn2r18"      
+    ## [473] "Vpreb2"        "Vsig4"         "Washc1"        "Wdpcp"        
+    ## [477] "Wisp1"         "Wnt10a"        "Wnt11"         "Wnt16"        
+    ## [481] "Wnt5a"         "Wwc1"          "Xylb"          "Ydjc"         
+    ## [485] "Ypel1"         "Zap70"         "Zbed5"         "Zbtb32"       
+    ## [489] "Zc3h12d"       "Zdhhc8"        "Zfp111"        "Zfp296"       
+    ## [493] "Zfp395"        "Zfp423"        "Zfp455"        "Zfp523"       
+    ## [497] "Zfp607b"       "Zfp647"        "Zfp784"        "Zfp92"        
+    ## [501] "Zfp974"        "Zfyve21"       "Zkscan16"      "Zmat5"        
+    ## [505] "Znrd1as"      
+    ## 
+    ## [[6]]
+    ##   [1] "1700008O03Rik" "1700019A02Rik" "1700028K03Rik" "1700034J05Rik"
+    ##   [5] "1810011H11Rik" "2010005H15Rik" "4430402I18Rik" "4930447C04Rik"
+    ##   [9] "4933430I17Rik" "5430419D17Rik" "5730409E04Rik" "6430550D23Rik"
+    ##  [13] "9130019O22Rik" "9930012K11Rik" "A1cf"          "A430105I19Rik"
+    ##  [17] "Abca8b"        "Abcc3"         "Abcc9"         "Abcg8"        
+    ##  [21] "Abhd3"         "Acnat1"        "Acot6"         "Actg2"        
+    ##  [25] "Actl10"        "Adad1"         "Adam22"        "Adam4"        
+    ##  [29] "Adam5"         "Adamts12"      "Adamtsl3"      "Adap2"        
+    ##  [33] "Adarb1"        "Adgrf5"        "Adgrg2"        "Adh1"         
+    ##  [37] "Aebp1"         "AF067061"      "Afg1l"         "Agr2"         
+    ##  [41] "AI846148"      "Aicda"         "Ak8"           "Aknad1"       
+    ##  [45] "Akr1c14"       "Aldh1l2"       "Amdhd1"        "Amotl2"       
+    ##  [49] "Amz1"          "Angpt4"        "Angptl1"       "Ankrd45"      
+    ##  [53] "Ankub1"        "Aoc3"          "Apc2"          "Apobec2"      
+    ##  [57] "Apod"          "Apol11b"       "Apol6"         "Arfgef3"      
+    ##  [61] "Arhgef15"      "Arhgef5"       "Arl10"         "Asb4"         
+    ##  [65] "Aspn"          "Asxl3"         "Atp10b"        "Atp8b3"       
+    ##  [69] "Atp8b5"        "AU041133"      "AW146154"      "B3galt2"      
+    ##  [73] "Baiap2l1"      "Blcap"         "Bmp2"          "Bmp8b"        
+    ##  [77] "Brf2"          "Bst2"          "Btd"           "C4b"          
+    ##  [81] "C8a"           "Cacna2d3"      "Cadps2"        "Calr3"        
+    ##  [85] "Camk2b"        "Capn3"         "Carnmt1"       "Cavin3"       
+    ##  [89] "Cc2d2b"        "Ccdc116"       "Ccdc148"       "Ccdc8"        
+    ##  [93] "Ccl12"         "Ccser1"        "Cct6b"         "Cd248"        
+    ##  [97] "Cd300lg"       "Cd46"          "Cdh2"          "Cdkl2"        
+    ## [101] "Cdkl5"         "Cdkn1c"        "Cdon"          "Ceacam1"      
+    ## [105] "Ceacam18"      "Cemip"         "Cep126"        "Ces1g"        
+    ## [109] "Chd5"          "Chrdl1"        "Chst2"         "Chst7"        
+    ## [113] "Clca3b"        "Clec14a"       "Clec1a"        "Clec4b2"      
+    ## [117] "Clec4f"        "Clmp"          "Cmpk2"         "Cnnm1"        
+    ## [121] "Cntnap1"       "Cobl"          "Col16a1"       "Col4a3"       
+    ## [125] "Col6a5"        "Colgalt2"      "Coro2b"        "Cplx3"        
+    ## [129] "Cpne6"         "Cpxm1"         "Cr2"           "Crisp2"       
+    ## [133] "Crp"           "Cry2"          "Csnka2ip"      "Cspg5"        
+    ## [137] "Cts8"          "Cttnbp2"       "Cxcl10"        "Cycs"         
+    ## [141] "Cyp1a1"        "Cysltr2"       "Cytl1"         "D7Ertd443e"   
+    ## [145] "Daam2"         "Dazl"          "Dclk1"         "Dctd"         
+    ## [149] "Ddit4l"        "Ddx4"          "Degs2"         "Dhx58"        
+    ## [153] "Disp3"         "Dmbt1"         "Dmc1"          "Dnah11"       
+    ## [157] "Dnah12"        "Dnah7c"        "Dnase1"        "Dpep1"        
+    ## [161] "Dpysl3"        "Drc3"          "Drp2"          "Duox1"        
+    ## [165] "Dusp27"        "Dysf"          "Dzank1"        "Efcc1"        
+    ## [169] "Efemp2"        "Elavl4"        "Eml1"          "Epha1"        
+    ## [173] "Ephb4"         "Epm2a"         "Erich6"        "Esr2"         
+    ## [177] "Etv1"          "Evc2"          "Exoc3l2"       "F2rl2"        
+    ## [181] "F2rl3"         "F8"            "Fam110b"       "Fam129b"      
+    ## [185] "Fam135a"       "Fam159b"       "Fam166a"       "Fam169b"      
+    ## [189] "Fam196b"       "Fam205c"       "Fam212b"       "Fam217b"      
+    ## [193] "Fam3b"         "Fam71d"        "Fap"           "Farp2"        
+    ## [197] "Fbn1"          "Fbxl7"         "Fbxo17"        "Fbxw10"       
+    ## [201] "Fgd5"          "Fgf16"         "Fgfr2"         "Fign"         
+    ## [205] "Flnc"          "Flt1"          "Flt4"          "Fmo1"         
+    ## [209] "Folr2"         "Frk"           "Gabrb1"        "Gabrr2"       
+    ## [213] "Garnl3"        "Gcsam"         "Gdpd2"         "Ggnbp1"       
+    ## [217] "Gimap4"        "Gimap5"        "Gkap1"         "Gm10471"      
+    ## [221] "Gm17660"       "Gm4787"        "Gm5141"        "Gm5565"       
+    ## [225] "Gm5767"        "Gm7173"        "Gnai1"         "Gnao1"        
+    ## [229] "Gpat2"         "Gpc4"          "Gpm6a"         "Gpr162"       
+    ## [233] "Gpr183"        "Gpr21"         "Gpr22"         "Gpr87"        
+    ## [237] "Gpr88"         "Gprc5c"        "Gstk1"         "Gstt1"        
+    ## [241] "Gxylt2"        "H2-Ab1"        "H2-Ea-ps"      "H3f3b"        
+    ## [245] "Has1"          "Heatr9"        "Hectd2"        "Hepacam2"     
+    ## [249] "Heph"          "Hfe"           "Hipk4"         "Homer2"       
+    ## [253] "Hoxc10"        "Hoxc6"         "Hrct1"         "Hsf3"         
+    ## [257] "Hsf4"          "Hspa12a"       "Hyal6"         "Id4"          
+    ## [261] "Idi2"          "Ifit3"         "Ifitm10"       "Igfbp3"       
+    ## [265] "Igfn1"         "Il12a"         "Il13"          "Il2"          
+    ## [269] "Il34"          "Ip6k3"         "Iqcg"          "Irgc1"        
+    ## [273] "Itga3"         "Itgae"         "Itgb1bp2"      "Itk"          
+    ## [277] "Ivl"           "Jam2"          "Jph1"          "Kcnj5"        
+    ## [281] "Kcnt2"         "Klhdc8b"       "Klhl31"        "Klhl34"       
+    ## [285] "Klra4"         "Klra6"         "Klrb1b"        "Kng2"         
+    ## [289] "Krt80"         "Lama5"         "Lancl3"        "Laptm4b"      
+    ## [293] "Lat"           "Lct"           "Lepr"          "Lexm"         
+    ## [297] "Lin28b"        "Lmcd1"         "Lonrf2"        "Lpar1"        
+    ## [301] "Lrrc17"        "Lrrc18"        "Lrrc24"        "Lrrc32"       
+    ## [305] "Lrrc36"        "Lrrc4"         "Lrrc63"        "Lrrc71"       
+    ## [309] "Ltbp2"         "Ly6f"          "Ly6g5b"        "Lyve1"        
+    ## [313] "Mageh1"        "Mamld1"        "Map3k19"       "Marveld2"     
+    ## [317] "Masp2"         "Mb21d2"        "Mcoln3"        "Megf11"       
+    ## [321] "Meis2"         "Mest"          "Mfge8"         "Mfsd3"        
+    ## [325] "Mfsd9"         "Mid2"          "Mpdz"          "Mpl"          
+    ## [329] "Mrap"          "Mrgpra2b"      "Ms4a14"        "Ms4a7"        
+    ## [333] "Msantd1"       "Msi1"          "Mxra7"         "Myh11"        
+    ## [337] "Myh4"          "Myl1"          "Mylk4"         "Myo15"        
+    ## [341] "Ncald"         "Nebl"          "Negr1"         "Neurl2"       
+    ## [345] "Nfatc4"        "Npr1"          "Npr2"          "Npy"          
+    ## [349] "Npy6r"         "Nr2f2"         "Nr5a2"         "Nrcam"        
+    ## [353] "Nrn1"          "Nsg1"          "Nwd1"          "Nxnl2"        
+    ## [357] "Olfr248"       "Olfr433"       "Olfr631"       "Omd"          
+    ## [361] "Omp"           "Osmr"          "Osr1"          "P4ha2"        
+    ## [365] "Pak3"          "Pappa"         "Pard3"         "Parp12"       
+    ## [369] "Parp6"         "Pcdh17"        "Pcdh7"         "Pcdhb20"      
+    ## [373] "Pcdhb5"        "Pcdhb9"        "Pcdhga11"      "Pcdhgb4"      
+    ## [377] "Pcp2"          "Pcp4l1"        "Pde1a"         "Pde1b"        
+    ## [381] "Pde3a"         "Pde9a"         "Pdgfa"         "Pdzrn4"       
+    ## [385] "Pex11g"        "Phactr1"       "Pipox"         "Pkdrej"       
+    ## [389] "Pld2"          "Plod2"         "Plp1"          "Plpp3"        
+    ## [393] "Plxna2"        "Plxnb1"        "Pnck"          "Podnl1"       
+    ## [397] "Pou2f2"        "Pou2f3"        "Pparg"         "Ppargc1a"     
+    ## [401] "Ppfia2"        "Ppl"           "Ppp1r14c"      "Prex2"        
+    ## [405] "Prf1"          "Prickle2"      "Prkcg"         "Prkg1"        
+    ## [409] "Prodh"         "Prr16"         "Prr5l"         "Prrt2"        
+    ## [413] "Psg16"         "Pter"          "Ptgfr"         "Ptgis"        
+    ## [417] "Pth1r"         "Ptprg"         "Pus7l"         "Pxdn"         
+    ## [421] "Pycr1"         "Rab13"         "Rasip1"        "Rbfox1"       
+    ## [425] "Rbks"          "Reep1"         "Retn"          "Retnlb"       
+    ## [429] "Rft1"          "Rgs6"          "Rgs7bp"        "Rgs9bp"       
+    ## [433] "Rhobtb3"       "Rhod"          "Ric3"          "Rln1"         
+    ## [437] "Rnf150"        "Rnf151"        "Rnf180"        "Robo1"        
+    ## [441] "Rora"          "Rph3al"        "Rpl10l"        "Rspo3"        
+    ## [445] "Rufy4"         "S1pr3"         "Samd3"         "Sema3d"       
+    ## [449] "Sema6a"        "Sergef"        "Serpina1b"     "Serpinb1a"    
+    ## [453] "Serpinb8"      "Serpine3"      "Setd6"         "Sfn"          
+    ## [457] "Sfrp4"         "Sh2d4b"        "Shroom2"       "Six4"         
+    ## [461] "Slc10a6"       "Slc12a1"       "Slc15a2"       "Slc17a1"      
+    ## [465] "Slc17a9"       "Slc1a2"        "Slc22a6"       "Slc25a18"     
+    ## [469] "Slc26a7"       "Slc30a8"       "Slc35g2"       "Slc41a2"      
+    ## [473] "Slc46a2"       "Slc4a3"        "Slc4a4"        "Slc4a5"       
+    ## [477] "Slc7a4"        "Slco1a6"       "Slit3"         "Smarca1"      
+    ## [481] "Smim24"        "Sox5"          "Spaca6"        "Spag17"       
+    ## [485] "Spats2"        "Spats2l"       "Sphkap"        "Spic"         
+    ## [489] "Spink4"        "Spon1"         "Spry1"         "Spryd4"       
+    ## [493] "St8sia2"       "St8sia6"       "Stab2"         "Sulf1"        
+    ## [497] "Sult1a1"       "Sumo2"         "Sv2b"          "Sybu"         
+    ## [501] "Syn1"          "Syt15"         "Syt7"          "Sytl5"        
+    ## [505] "Tacr1"         "Tarm1"         "Tctn3"         "Tead1"        
+    ## [509] "Tespa1"        "Tgtp1"         "Tgtp2"         "Thnsl1"       
+    ## [513] "Thrsp"         "Thsd7a"        "Thsd7b"        "Tln2"         
+    ## [517] "Tlr3"          "Tm4sf5"        "Tmc1"          "Tmem101"      
+    ## [521] "Tmem178"       "Tmem218"       "Tmem235"       "Tmem255a"     
+    ## [525] "Tmem41a"       "Tmem47"        "Tmem53"        "Tmem91"       
+    ## [529] "Tmtc1"         "Tnfrsf19"      "Tnfsf8"        "Tnks1bp1"     
+    ## [533] "Tomt"          "Tppp3"         "Trim13"        "Trim47"       
+    ## [537] "Trim67"        "Trpa1"         "Tsc22d3"       "Tshb"         
+    ## [541] "Tshz3"         "Tspan11"       "Tspan12"       "Ttc12"        
+    ## [545] "Ttn"           "Txk"           "Txnrd3"        "Ube2d2b"      
+    ## [549] "Ugt1a1"        "Ugt1a5"        "Ugt1a6a"       "Ugt1a6b"      
+    ## [553] "Unc13b"        "Unkl"          "Vamp5"         "Vcan"         
+    ## [557] "Vdr"           "Vegfd"         "Vsx1"          "Vwa7"         
+    ## [561] "Vwc2"          "Wdr31"         "Wisp2"         "Wisp3"        
+    ## [565] "Wnt2b"         "Xcl1"          "Xcr1"          "Xirp2"        
+    ## [569] "Zbp1"          "Zbtb46"        "Zfp300"        "Zfp334"       
+    ## [573] "Zfp36l3"       "Zfp57"         "Zfp618"        "Zfp697"       
+    ## [577] "Zfp991"        "Zfyve9"        "Zg16"          "Zic3"         
+    ## [581] "Zscan18"      
+    ## 
+    ## [[7]]
+    ##   [1] "1700010I14Rik" "1700029J07Rik" "4921507P07Rik" "5430427O19Rik"
+    ##   [5] "A2m"           "A530099J19Rik" "Aanat"         "Acot1"        
+    ##   [9] "Adamdec1"      "Adh6b"         "Adhfe1"        "Agbl1"        
+    ##  [13] "AI481877"      "Aldh1a2"       "Amer2"         "Aox2"         
+    ##  [17] "Arl9"          "Arnt2"         "Asb14"         "Atp1a3"       
+    ##  [21] "Avil"          "Batf2"         "BC051142"      "Bcas1"        
+    ##  [25] "Bckdha"        "Bend5"         "Best1"         "Bex6"         
+    ##  [29] "Bhlha15"       "Blk"           "Bmp4"          "Bmpr1a"       
+    ##  [33] "Bpifc"         "Btn1a1"        "C130026I21Rik" "Camsap3"      
+    ##  [37] "Cand2"         "Card6"         "Casp4"         "Ccdc122"      
+    ##  [41] "Ccpg1os"       "Cd209f"        "Cd209g"        "Cd300e"       
+    ##  [45] "Cd33"          "Cd3e"          "Cd3g"          "Cd4"          
+    ##  [49] "Cd79a"         "Cd80"          "Cdk14"         "Cdk5"         
+    ##  [53] "Cenps"         "Chil4"         "Chil5"         "Chit1"        
+    ##  [57] "Cnih2"         "Col10a1"       "Col23a1"       "Col4a4"       
+    ##  [61] "Col8a1"        "Crisp3"        "Cryab"         "Csf2ra"       
+    ##  [65] "Csrp3"         "Ctf1"          "Cyp17a1"       "Cyp4f17"      
+    ##  [69] "Cystm1"        "D430042O09Rik" "Dach2"         "Dcc"          
+    ##  [73] "Ddb2"          "Ddc"           "Dennd2a"       "Dgkq"         
+    ##  [77] "Dnase1l2"      "Dsc2"          "Eml6"          "Epha7"        
+    ##  [81] "Ephx1"         "Eva1b"         "Evi2b"         "Fam13a"       
+    ##  [85] "Fam171b"       "Fam24a"        "Fam71e1"       "Fancd2os"     
+    ##  [89] "Fbxo16"        "Fcrl6"         "Fkbp7"         "Fos"          
+    ##  [93] "Fyb2"          "Gbp10"         "Gcnt7"         "Gdi1"         
+    ##  [97] "Gimap3"        "Glod5"         "Gpr12"         "Gpr25"        
+    ## [101] "Grip1"         "Grm8"          "Havcr2"        "Heyl"         
+    ## [105] "Hlx"           "Hoxa10"        "Hoxb1"         "Hoxd8"        
+    ## [109] "Hyal5"         "Hykk"          "I830077J02Rik" "Ifi213"       
+    ## [113] "Ifit1"         "Ift74"         "Il10"          "Il18r1"       
+    ## [117] "Il1f9"         "Inhba"         "Itpk1"         "Jchain"       
+    ## [121] "Kcne3"         "Kcnk13"        "Kctd11"        "Kdelc2"       
+    ## [125] "Kdelr3"        "Kif26b"        "Klf7"          "Klhl32"       
+    ## [129] "Klrb1a"        "Klrb1c"        "L1cam"         "Lenep"        
+    ## [133] "Lilrb4"        "Lix1"          "Lrrc10b"       "Lrrc37a"      
+    ## [137] "Lss"           "Ly6a"          "Ly6i"          "Maf"          
+    ## [141] "Mal2"          "Man1c1"        "Map7d3"        "Marc1"        
+    ## [145] "Meg3"          "Mei4"          "Mex3a"         "Mid1"         
+    ## [149] "Miox"          "Mmp28"         "Mras"          "mt-Atp6"      
+    ## [153] "mt-Atp8"       "mt-Cytb"       "mt-Nd1"        "mt-Nd2"       
+    ## [157] "mt-Nd4"        "mt-Nd5"        "mt-Nd6"        "Mvk"          
+    ## [161] "Myh13"         "Nab2"          "Naip1"         "Ndrg2"        
+    ## [165] "Nlrp3"         "Nol3"          "Noxred1"       "Npas3"        
+    ## [169] "Npm2"          "Nrxn1"         "Oas1a"         "Olfml2a"      
+    ## [173] "Olfr432"       "Oprm1"         "Orm1"          "Osm"          
+    ## [177] "Pcbd1"         "Pcdh11x"       "Pcdhga1"       "Pcdhga12"     
+    ## [181] "Pcdhga4"       "Pcdhgb1"       "Pdgfrl"        "Pdxk"         
+    ## [185] "Pemt"          "Pgpep1l"       "Phyhd1"        "Pik3r5"       
+    ## [189] "Plcl1"         "Pomgnt2"       "Pou4f1"        "Ppp1r3e"      
+    ## [193] "Prag1"         "Prdm16"        "Prkaa2"        "Prm1"         
+    ## [197] "Pstpip2"       "Ptgir"         "Ptn"           "Pydc3"        
+    ## [201] "Qrfp"          "Rab26"         "Rab39b"        "Rab7"         
+    ## [205] "Rara"          "Rerg"          "Rhbdl1"        "Rspo1"        
+    ## [209] "Rtl5"          "Rtn4r"         "Ryr1"          "Scrg1"        
+    ## [213] "Sdr42e1"       "Sema4g"        "Sfrp2"         "Sftpb"        
+    ## [217] "Sfxn5"         "Sgsm2"         "Shank2"        "Shisa3"       
+    ## [221] "Siglech"       "Sirpb1c"       "Slc18b1"       "Slc39a14"     
+    ## [225] "Slc39a4"       "Slc6a20b"      "Slco4c1"       "Slco5a1"      
+    ## [229] "Slfn4"         "Snap23"        "Soat2"         "Sp6"          
+    ## [233] "Spata2l"       "Spon2"         "Ssmem1"        "Supt7l"       
+    ## [237] "Sycp2"         "Synm"          "Tacstd2"       "Tagln"        
+    ## [241] "Tas1r1"        "Tcf15"         "Tdrd12"        "Tdrkh"        
+    ## [245] "Themis"        "Timd2"         "Tmcc3"         "Tmprss7"      
+    ## [249] "Tnfrsf11b"     "Tnfrsf13b"     "Tnfsf13"       "Trat1"        
+    ## [253] "Trim32"        "Trim65"        "Trpc3"         "Trpt1"        
+    ## [257] "Tslp"          "Ttc30b"        "Ttc39d"        "Tubb2b"       
+    ## [261] "Tubb6"         "Tyw3"          "Ugt8a"         "Xkrx"         
+    ## [265] "Zc2hc1c"       "Zfhx2"         "Zfp105"        "Zfp11"        
+    ## [269] "Zfp418"        "Zfp457"        "Zfp51"         "Zfp819"       
+    ## 
+    ## [[8]]
+    ##   [1] "1700012B09Rik" "1700056E22Rik" "1700061G19Rik" "2010109I03Rik"
+    ##   [5] "3425401B19Rik" "4930407I10Rik" "4930486L24Rik" "4930502E18Rik"
+    ##   [9] "4930562C15Rik" "A630076J17Rik" "Acad12"        "Acox2"        
+    ##  [13] "Acvr1"         "Acvr2b"        "Adam11"        "Adam3"        
+    ##  [17] "Adamts9"       "Adcy1"         "Adm"           "Adra1b"       
+    ##  [21] "Adra2b"        "AI593442"      "Aldh1b1"       "Alox12e"      
+    ##  [25] "Ambp"          "Ampd1"         "Ankrd42"       "Ankrd66"      
+    ##  [29] "Anpep"         "Apln"          "Apoc1"         "Apol9b"       
+    ##  [33] "Arc"           "Arv1"          "Asb15"         "Atp1a2"       
+    ##  [37] "Atp6v0d2"      "Atp6v0e2"      "Aven"          "Avpr2"        
+    ##  [41] "Awat1"         "Axdnd1"        "Azin2"         "B3galt1"      
+    ##  [45] "B4galnt3"      "B4galt7"       "B4gat1"        "BC049715"     
+    ##  [49] "BC049762"      "Bcan"          "Bcl2l15"       "Bcl7c"        
+    ##  [53] "Bend6"         "Bglap"         "Bglap2"        "Bglap3"       
+    ##  [57] "Bhlhe22"       "Bicc1"         "Brinp3"        "C6"           
+    ##  [61] "Cacna1a"       "Cacna1b"       "Cacna2d4"      "Cacnb2"       
+    ##  [65] "Capn12"        "Car3"          "Car7"          "Ccdc103"      
+    ##  [69] "Ccdc126"       "Ccdc155"       "Ccdc166"       "Ccdc190"      
+    ##  [73] "Ccdc80"        "Ccl17"         "Ccl22"         "Ccl25"        
+    ##  [77] "Ccl4"          "Ccl7"          "Ccr4"          "Ccr6"         
+    ##  [81] "Cd160"         "Cd1d2"         "Cd200r3"       "Cd28"         
+    ##  [85] "Cd6"           "Cda"           "Cdh13"         "Cdh17"        
+    ##  [89] "Cdh24"         "Cdkn1a"        "Cdo1"          "Celf5"        
+    ##  [93] "Cfap53"        "Cfap73"        "Cgnl1"         "Ch25h"        
+    ##  [97] "Clec12b"       "Clec4n"        "Clhc1"         "Cmbl"         
+    ## [101] "Col11a1"       "Col13a1"       "Col19a1"       "Col1a1"       
+    ## [105] "Col1a2"        "Col22a1"       "Col24a1"       "Col2a1"       
+    ## [109] "Col5a2"        "Coq10a"        "Coro6"         "Cpe"          
+    ## [113] "Cpz"           "Creb3l1"       "Creb3l4"       "Cryz"         
+    ## [117] "Csrnp3"        "Ctla4"         "Cxcr6"         "Cyp26c1"      
+    ## [121] "Cyp2b10"       "Cyp2s1"        "Cyp4f39"       "D1Pas1"       
+    ## [125] "D330045A20Rik" "D430019H16Rik" "Dagla"         "Dbx2"         
+    ## [129] "Dcn"           "Det1"          "Dgki"          "Disc1"        
+    ## [133] "Dixdc1"        "Dll1"          "Dlx5"          "Dmp1"         
+    ## [137] "Dok5"          "Dpp7"          "Dscam"         "Dusp9"        
+    ## [141] "E030018B13Rik" "Efcab1"        "Efcab9"        "Efna5"        
+    ## [145] "Efs"           "Enpep"         "Entpd3"        "Epha10"       
+    ## [149] "Epha3"         "Epha4"         "Erbb2"         "Erich5"       
+    ## [153] "Evc"           "Extl1"         "F830016B08Rik" "F830045P16Rik"
+    ## [157] "Fam124a"       "Fam178b"       "Fam196a"       "Fam20c"       
+    ## [161] "Fam217a"       "Fam78b"        "Fam83e"        "Fam83h"       
+    ## [165] "Fasl"          "Fbxo41"        "Fhit"          "Fhod3"        
+    ## [169] "Fignl2"        "Fkbp14"        "Fkbp9"         "Foxp2"        
+    ## [173] "Foxs1"         "Fras1"         "Fuk"           "Fxyd1"        
+    ## [177] "Gbp4"          "Gbx2"          "Gdf15"         "Gfra4"        
+    ## [181] "Glis2"         "Glrb"          "Gm17359"       "Gm19345"      
+    ## [185] "Gm4788"        "Gm7694"        "Gnb5"          "Gpbar1"       
+    ## [189] "Gpd1"          "Gpr149"        "Gpsm1"         "Grik2"        
+    ## [193] "Grik3"         "Gsta3"         "Gtf2a1l"       "Gzme"         
+    ## [197] "H1fx"          "H2afy2"        "Hcrtr2"        "Hdac11"       
+    ## [201] "Hebp2"         "Hey1"          "Hic1"          "Hid1"         
+    ## [205] "Hist1h4k"      "Hmces"         "Hnf4a"         "Hoxc4"        
+    ## [209] "Hoxd9"         "Hrh4"          "Hs3st1"        "Hspa1l"       
+    ## [213] "Ibsp"          "Ifit3b"        "Igfbp6"        "Ihh"          
+    ## [217] "Ikzf4"         "Il17f"         "Il1f5"         "Il20rb"       
+    ## [221] "Insc"          "Iqck"          "Iqub"          "Isg15"        
+    ## [225] "Ispd"          "Itga2"         "Izumo1r"       "Jag2"         
+    ## [229] "Kank1"         "Kazn"          "Kcnab1"        "Kcnc4"        
+    ## [233] "Kcnd1"         "Kcne4"         "Kcnj1"         "Kcnj10"       
+    ## [237] "Kcnj13"        "Kcnj3"         "Kcnj9"         "Klhl38"       
+    ## [241] "Klhl4"         "Klrb1"         "Klre1"         "Klrg1"        
+    ## [245] "Klri1"         "Krt86"         "Larp6"         "Ldb3"         
+    ## [249] "Lgals12"       "Lgi1"          "Lhfpl1"        "Lkaaear1"     
+    ## [253] "Lox"           "Loxl1"         "Lrrc55"        "Lrrc8e"       
+    ## [257] "Ltbp3"         "Ly6g6e"        "Lypd6"         "Lyplal1"      
+    ## [261] "Mak"           "Mamdc2"        "Maneal"        "Map3k21"      
+    ## [265] "Map3k7cl"      "Mc1r"          "Mdga2"         "Medag"        
+    ## [269] "Mepe"          "Mettl21a"      "Mettl21c"      "Mfsd13b"      
+    ## [273] "Mfsd6l"        "Mical2"        "Mmp13"         "Mok"          
+    ## [277] "Mrc2"          "Ms4a4b"        "Mum1l1"        "Musk"         
+    ## [281] "Mybpc1"        "Mybphl"        "Myh2"          "Myl10"        
+    ## [285] "Myo1b"         "Myo5c"         "Myot"          "Nccrp1"       
+    ## [289] "Ndrg4"         "Neb"           "Nectin1"       "Nes"          
+    ## [293] "Nhlh2"         "Nos3"          "Npas2"         "Npas4"        
+    ## [297] "Nr1h3"         "Nr4a3"         "Nrarp"         "Nrbp2"        
+    ## [301] "Nrp2"          "Nrxn2"         "Ntpcr"         "Ntrk3"        
+    ## [305] "Nxf2"          "Nynrin"        "Ocstamp"       "Olfr314"      
+    ## [309] "Olfr324"       "Olfr397"       "Olfr419"       "Olfr56"       
+    ## [313] "Ophn1"         "P2rx6"         "P3h4"          "Paqr3"        
+    ## [317] "Paqr6"         "Park2"         "Pate2"         "Patl2"        
+    ## [321] "Pcdh12"        "Pcdh18"        "Pcdh9"         "Pcdhga2"      
+    ## [325] "Pcdhga9"       "Pcdhgb2"       "Pcdhgc5"       "Pde1c"        
+    ## [329] "Pdk2"          "Pdpn"          "Peg3"          "Penk"         
+    ## [333] "Pgbd1"         "Phactr3"       "Phex"          "Pkd2"         
+    ## [337] "Pkib"          "Pla2g4e"       "Plb1"          "Plbd2"        
+    ## [341] "Plcd1"         "Plch1"         "Plekha4"       "Plekhh3"      
+    ## [345] "Plxnb3"        "Pm20d1"        "Pmp22"         "Pomc"         
+    ## [349] "Postn"         "Ppargc1b"      "Ppp4r4"        "Prdm12"       
+    ## [353] "Prok2"         "Prss35"        "Ptger3"        "Ptges3l"      
+    ## [357] "Ptgs2"         "Ptpn14"        "Pxt1"          "Qrich2"       
+    ## [361] "Rab40b"        "Radil"         "Rasd1"         "Rasgef1a"     
+    ## [365] "Rassf8"        "Rcan2"         "Rec8"          "Renbp"        
+    ## [369] "Rgmb"          "Rnd2"          "Rnls"          "Robo2"        
+    ## [373] "Rpl3l"         "Rragb"         "Rspo2"         "Rtkn"         
+    ## [377] "Rwdd2a"        "Rxfp4"         "Samd5"         "Saxo2"        
+    ## [381] "Scarf1"        "Scgb1a1"       "Scn2a"         "Scrn2"        
+    ## [385] "Sec16b"        "Sema3b"        "Sema5a"        "Sema6c"       
+    ## [389] "Sema7a"        "Serinc2"       "Serpina3n"     "Serpinc1"     
+    ## [393] "Sftpa1"        "Sgca"          "Sgcd"          "Sh3d21"       
+    ## [397] "Shox2"         "Siglec15"      "Slc14a2"       "Slc23a3"      
+    ## [401] "Slc23a4"       "Slc25a31"      "Slc27a6"       "Slc28a3"      
+    ## [405] "Slc35e4"       "Slc38a6"       "Slc39a3"       "Slc44a5"      
+    ## [409] "Slc4a11"       "Slc51b"        "Slc6a2"        "Slc7a2"       
+    ## [413] "Slc9b1"        "Slit2"         "Slitrk6"       "Smad6"        
+    ## [417] "Smad9"         "Smpd1"         "Smpd3"         "Snx21"        
+    ## [421] "Sost"          "Sp7"           "Spag11b"       "Spin2c"       
+    ## [425] "Spp1"          "Sptbn5"        "Srpx2"         "Srsf12"       
+    ## [429] "Sspn"          "Sstr1"         "St18"          "Stau2"        
+    ## [433] "Stc2"          "Stoml1"        "Susd2"         "Syngr4"       
+    ## [437] "Sypl2"         "Sytl2"         "Taf7l"         "Tbata"        
+    ## [441] "Tdg"           "Tdo2"          "Tecrl"         "Tex21"        
+    ## [445] "Tgfb3"         "Tgif2"         "Thbs2"         "Them7"        
+    ## [449] "Timp1"         "Tldc1"         "Tlr12"         "Tmem119"      
+    ## [453] "Tmem200a"      "Tmem215"       "Tmem220"       "Tmem229a"     
+    ## [457] "Tmem238"       "Tmem42"        "Tmem45a"       "Tmem52"       
+    ## [461] "Tmppe"         "Tmtc4"         "Tnfsf15"       "Tnfsf4"       
+    ## [465] "Trim69"        "Ttc26"         "Ttc39a"        "Ttc9b"        
+    ## [469] "Ttll1"         "Txlnb"         "Uap1l1"        "Unc5b"        
+    ## [473] "Usp51"         "Vldlr"         "Vstm4"         "Vwa5b2"       
+    ## [477] "Wdr38"         "Wdr64"         "Whrn"          "Wnk2"         
+    ## [481] "Xpnpep2"       "Xrra1"         "Zan"           "Zbtb7c"       
+    ## [485] "Zc2hc1a"       "Zcwpw1"        "Zdbf2"         "Zfp109"       
+    ## [489] "Zfp345"        "Zfp366"        "Zfp383"        "Zfp532"       
+    ## [493] "Zfp558"        "Zfp580"        "Zfp711"        "Zfp9"         
+    ## [497] "Zfp937"        "Zfp940"        "Zfp97"         "Zfp981"       
+    ## 
+    ## [[9]]
+    ##   [1] "1700016C15Rik" "1700065D16Rik" "2610528A11Rik" "4930452B06Rik"
+    ##   [5] "4930563M21Rik" "5330417C22Rik" "6430573F11Rik" "A930009A15Rik"
+    ##   [9] "Acat3"         "Accs"          "Ackr3"         "Acp4"         
+    ##  [13] "Adamts15"      "Adamts17"      "Adcy10"        "Adgrv1"       
+    ##  [17] "Agmo"          "Agrp"          "Ak5"           "Aldh1l1"      
+    ##  [21] "Ang"           "Angel1"        "Ankrd55"       "Ankrd63"      
+    ##  [25] "Apob"          "Arhgef26"      "Art3"          "Atp4b"        
+    ##  [29] "BC048671"      "Bcl2a1b"       "Bex2"          "Bmper"        
+    ##  [33] "Btnl9"         "Cabcoco1"      "Cacna1i"       "Calml4"       
+    ##  [37] "Car8"          "Carns1"        "Catsperg1"     "Ccl28"        
+    ##  [41] "Ccnb3"         "Ccr10"         "Ccr5"          "Cd209e"       
+    ##  [45] "Cd8b1"         "Cdk18"         "Ceacam19"      "Celf4"        
+    ##  [49] "Cep170b"       "Cfap74"        "Cfap77"        "Cftr"         
+    ##  [53] "Chic1"         "Chrnb2"        "Chst14"        "Clip3"        
+    ##  [57] "Cmklr1"        "Cnn1"          "Cnr1"          "Col6a1"       
+    ##  [61] "Col8a2"        "Cpeb1"         "Cry1"          "Csdc2"        
+    ##  [65] "Cx3cl1"        "Cxcl16"        "Cxcr1"         "Cyp4x1"       
+    ##  [69] "Dact3"         "Dbil5"         "Ddn"           "Des"          
+    ##  [73] "Dkkl1"         "Dmrta2"        "Dnah7a"        "Dnal1"        
+    ##  [77] "Dus4l"         "Dusp23"        "Dzip1l"        "Echdc2"       
+    ##  [81] "Echdc3"        "Efhc1"         "Egr3"          "Elovl2"       
+    ##  [85] "Epcam"         "Esrrb"         "Evl"           "Ext2"         
+    ##  [89] "Fastkd3"       "Fbxl13"        "Fcrls"         "Fgd1"         
+    ##  [93] "Frem3"         "Frs3"          "Fscn3"         "Galnt5"       
+    ##  [97] "Gatb"          "Gipc2"         "Glra4"         "Gls2"         
+    ## [101] "Gml"           "Gnat2"         "Gpr153"        "Gpr176"       
+    ## [105] "Gsg1l"         "Havcr1"        "Hcn4"          "Hes5"         
+    ## [109] "Hesx1"         "Hey2"          "Hs1bp3"        "Hsbp1l1"      
+    ## [113] "Ifitm7"        "Igsf5"         "Igsf9"         "Inpp5j"       
+    ## [117] "Kif5c"         "Klk1"          "Klra9"         "Klrd1"        
+    ## [121] "Leng9"         "Lgr4"          "Lhpp"          "Lin7a"        
+    ## [125] "Lrp11"         "Lrrc19"        "Lrrc27"        "Lrrc46"       
+    ## [129] "Lrrd1"         "Ltc4s"         "Lyrm1"         "Lysmd2"       
+    ## [133] "Magee1"        "Magee2"        "Map10"         "Meiob"        
+    ## [137] "Meioc"         "Mmp19"         "Mmp27"         "Mroh1"        
+    ## [141] "Ms4a4a"        "Mthfd2l"       "Myadml2"       "Nat8f2"       
+    ## [145] "Nhlrc1"        "Nipal1"        "Nkapl"         "Nmb"          
+    ## [149] "Nnat"          "Nphp3"         "Nudt22"        "Nutm1"        
+    ## [153] "Olfr67"        "Olfr69"        "Osbpl6"        "Pars2"        
+    ## [157] "Pcdhb3"        "Pcdhga3"       "Pcolce2"       "Pdcd1lg2"     
+    ## [161] "Pde8b"         "Pdia5"         "Pdzph1"        "Pigz"         
+    ## [165] "Pkia"          "Pkmyt1"        "Pla2g5"        "Plekhs1"      
+    ## [169] "Plpp7"         "Poln"          "Ppp1r26"       "Prickle4"     
+    ## [173] "Prmt2"         "Ptpn20"        "Rab15"         "Rab20"        
+    ## [177] "Rab7b"         "Rasal1"        "Rdh16"         "Ren1"         
+    ## [181] "Rnase1"        "Rnase2b"       "Rnaseh1"       "Rpl39l"       
+    ## [185] "Rps28"         "Rtbdn"         "Sarm1"         "Scg5"         
+    ## [189] "Scn3a"         "Sgpp2"         "Sgsm1"         "Sh2d1a"       
+    ## [193] "Sh2d1b1"       "Shroom1"       "Sigirr"        "Slc13a3"      
+    ## [197] "Slc22a20"      "Slc25a27"      "Slc35f2"       "Slc36a3"      
+    ## [201] "Slc39a2"       "Slc5a11"       "Smarcd3"       "Smim6"        
+    ## [205] "Sntb1"         "Spaar"         "Speer2"        "Ssc4d"        
+    ## [209] "Stard13"       "Stbd1"         "Stk32a"        "Stk36"        
+    ## [213] "Stkld1"        "Styk1"         "Sult5a1"       "Sv2a"         
+    ## [217] "Syde1"         "Syndig1l"      "Sytl3"         "Tbc1d16"      
+    ## [221] "Tcf7l1"        "Tcim"          "Tmem117"       "Tmem151b"     
+    ## [225] "Tmem158"       "Tmem202"       "Tmem44"        "Tnnt3"        
+    ## [229] "Tox"           "Tpbgl"         "Traf1"         "Trem2"        
+    ## [233] "Trim40"        "Trim9"         "Trmt1"         "Tspan9"       
+    ## [237] "Tspyl4"        "Tsr3"          "Tssk4"         "Ttll9"        
+    ## [241] "Tub"           "Tusc5"         "Ube2d1"        "Ube2e2"       
+    ## [245] "Vmn1r21"       "Wnk3"          "Wnt6"          "Zbtb3"        
+    ## [249] "Zdhhc1"        "Zfp354a"       "Zfp551"        "Zfp651"       
+    ## 
+    ## [[10]]
+    ##   [1] "1700016G14Rik" "1700092M07Rik" "4931414P19Rik" "9130409I23Rik"
+    ##   [5] "9430069I07Rik" "Abca6"         "Adam32"        "Adamts1"      
+    ##   [9] "Adamtsl4"      "Adcy9"         "AI464131"      "Aldh8a1"      
+    ##  [13] "Angptl7"       "Ankrd13d"      "Anks6"         "Ano2"         
+    ##  [17] "Ap1s1"         "Apex1"         "Asb16"         "Bbs5"         
+    ##  [21] "Bcl2l12"       "Bnipl"         "Bud13"         "Cables1"      
+    ##  [25] "Cadm4"         "Cbln1"         "Cbx7"          "Ccbe1"        
+    ##  [29] "Ccdc159"       "Ccdc170"       "Ccdc180"       "Ccdc78"       
+    ##  [33] "Ccl2"          "Cd247"         "Cd69"          "Cdc42ep1"     
+    ##  [37] "Cdr1"          "Ceacam16"      "Clec2g"        "Cnga4"        
+    ##  [41] "Cnih3"         "Cntnap2"       "Coprs"         "Cpa5"         
+    ##  [45] "Creg2"         "Cryba1"        "Cxcl12"        "Cyp2j9"       
+    ##  [49] "Cyp4f13"       "Dact1"         "Dgcr14"        "Dlg4"         
+    ##  [53] "Dlx3"          "Dmkn"          "Dph1"          "Dusp14"       
+    ##  [57] "Dync2li1"      "Enc1"          "Endog"         "Etfbkmt"      
+    ##  [61] "Fabp4"         "Fabp7"         "Fads6"         "Fam124b"      
+    ##  [65] "Fam167b"       "Fam181b"       "Fam198b"       "Fndc3c1"      
+    ##  [69] "Frg2f1"        "Fsip1"         "Fsip2"         "Gbp2b"        
+    ##  [73] "Gcat"          "Gdap1"         "Gdpd5"         "Ggt1"         
+    ##  [77] "Gja6"          "Gli2"          "Gm5134"        "Gm6583"       
+    ##  [81] "Gna14"         "Gng4"          "Gprin3"        "Grhl1"        
+    ##  [85] "Grid2"         "Grm1"          "Grm6"          "Gsta2"        
+    ##  [89] "H2-M9"         "H2-Q7"         "Henmt1"        "Higd1b"       
+    ##  [93] "Hilpda"        "Hpse2"         "Hus1b"         "Id3"          
+    ##  [97] "Ift43"         "Igdcc3"        "Igfals"        "Il22ra2"      
+    ## [101] "Insm2"         "Irs3"          "Ism1"          "Kbtbd13"      
+    ## [105] "Kcnj15"        "Kcnt1"         "Kctd15"        "Kif27"        
+    ## [109] "Kifc2"         "Krt18"         "Ky"            "Ldhb"         
+    ## [113] "Lgi2"          "Lhx2"          "Lipg"          "Lipt1"        
+    ## [117] "Lpar4"         "Lrig3"         "Lrriq3"        "Lsm7"         
+    ## [121] "Lysmd4"        "M1ap"          "Maff"          "Majin"        
+    ## [125] "Map9"          "Mark1"         "Matk"          "Mfsd4b5"      
+    ## [129] "Mlf1"          "Mpp4"          "Mrap2"         "Myoz3"        
+    ## [133] "Nap1l5"        "Nat8f4"        "Ndufa1"        "Nkiras2"      
+    ## [137] "Nova2"         "Noxo1"         "Nr3c2"         "Ntm"          
+    ## [141] "Ntrk2"         "Nudt17"        "Nutf2"         "Nxf3"         
+    ## [145] "Oaz3"          "Olfr1444"      "Osbp2"         "P2rx2"        
+    ## [149] "Parm1"         "Pcdhb16"       "Pcdhb18"       "Pcdhb2"       
+    ## [153] "Pcdhb21"       "Pcdhgb7"       "Pcdhgb8"       "Pcnx4"        
+    ## [157] "Pdzd7"         "Pgap3"         "Pgf"           "Phldb1"       
+    ## [161] "Pik3c2g"       "Plac8"         "Pou5f2"        "Ppp1r3c"      
+    ## [165] "Prrg3"         "Prss53"        "Ptgdr2"        "Pygm"         
+    ## [169] "Pygo1"         "Qsox2"         "Rab33a"        "Ranbp3l"      
+    ## [173] "Rap1gap"       "Rdh9"          "Rin1"          "Rnf225"       
+    ## [177] "Rpp25"         "Rps18"         "Rusc1"         "S100a10"      
+    ## [181] "S100a13"       "Sdk1"          "Serpind1"      "Shisa8"       
+    ## [185] "Slc18a1"       "Slc28a1"       "Slc29a4"       "Slc34a1"      
+    ## [189] "Slc35g3"       "Sorbs3"        "Sox17"         "Sox9"         
+    ## [193] "Spag6"         "Spdye4b"       "Spry4"         "Spsb4"        
+    ## [197] "St14"          "Stk19"         "Stx19"         "Syt13"        
+    ## [201] "Tceal3"        "Tctn2"         "Terb1"         "Tfpt"         
+    ## [205] "Thbs3"         "Thnsl2"        "Tmem176a"      "Tmem191c"     
+    ## [209] "Top1mt"        "Trappc2"       "Trim43a"       "Trip10"       
+    ## [213] "Tsen54"        "Tspan6"        "Ttll11"        "Ttll13"       
+    ## [217] "Ttyh2"         "Twist1"        "Tyro3"         "Ulk4"         
+    ## [221] "Usp50"         "Uty"           "Wdr95"         "Wee2"         
+    ## [225] "Wif1"          "Wnt10b"        "Wscd1"         "Wtip"         
+    ## [229] "Zcchc18"       "Zfp13"         "Zfp786"        "Zic2"         
+    ## 
+    ## [[11]]
+    ##   [1] "1700019D03Rik" "2900026A02Rik" "9930104L06Rik" "Acp6"         
+    ##   [5] "Adamts14"      "Adamtsl5"      "Adora2b"       "AI413582"     
+    ##   [9] "Ak7"           "Akr1b8"        "Akr1c12"       "Aldob"        
+    ##  [13] "Alkbh2"        "Alyref2"       "Amd2"          "Ankdd1b"      
+    ##  [17] "Ano8"          "Aplnr"         "Arrdc5"        "Arsa"         
+    ##  [21] "Aspa"          "Atg9b"         "Atp1b2"        "Atp9a"        
+    ##  [25] "B3gnt4"        "B4galt4"       "Baat"          "Bbs1"         
+    ##  [29] "BC016579"      "BC024978"      "BC051019"      "Bfsp2"        
+    ##  [33] "Bmp6"          "Bmyc"          "Brdt"          "Bspry"        
+    ##  [37] "C030006K11Rik" "C2cd4a"        "Cabyr"         "Cacna1f"      
+    ##  [41] "Camk1g"        "Carmil3"       "Cbln2"         "Ccdc106"      
+    ##  [45] "Ccdc138"       "Ccdc3"         "Cd19"          "Cd209d"       
+    ##  [49] "Cd27"          "Cd320"         "Cdk20"         "Cfap100"      
+    ##  [53] "Chchd6"        "Chkb"          "Chrd"          "Cish"         
+    ##  [57] "Clec2e"        "Clec4a4"       "Clmn"          "Cnga1"        
+    ##  [61] "Col5a3"        "Cplx2"         "Cpt1c"         "Cryzl2"       
+    ##  [65] "Ctnnd2"        "Ctsw"          "Ctxn1"         "Cux2"         
+    ##  [69] "Cyp2c29"       "Cyp2c67"       "Cyp2d22"       "Dcbld1"       
+    ##  [73] "Ddx43"         "Disp2"         "Dnali1"        "Dnase2b"      
+    ##  [77] "Dpf1"          "Dusp21"        "Dvl2"          "Ebpl"         
+    ##  [81] "Ednrb"         "Egfl8"         "Emid1"         "Ephb6"        
+    ##  [85] "Etv5"          "Evpl"          "Faim2"         "Fam227a"      
+    ##  [89] "Fam83a"        "Fancc"         "Fbxo15"        "Fbxo24"       
+    ##  [93] "Fgf13"         "Fgf17"         "Fgl1"          "Fibin"        
+    ##  [97] "Fndc1"         "Foxd4"         "Foxh1"         "Fsd2"         
+    ## [101] "Gamt"          "Gdf3"          "Glt1d1"        "Glyctk"       
+    ## [105] "Gm10778"       "Gm1110"        "Gm12185"       "Gm5127"       
+    ## [109] "Gm5544"        "Gpr150"        "Gpt2"          "Gpx2"         
+    ## [113] "H2-M2"         "H60c"          "Hbegf"         "Hdac8"        
+    ## [117] "Hes1"          "Hormad2"       "Hs6st3"        "Hsd17b1"      
+    ## [121] "Hsf5"          "Htra1"         "Il11ra1"       "Il12rb1"      
+    ## [125] "Iqch"          "Kcnj8"         "Kcnk3"         "Kcnmb4"       
+    ## [129] "Klc3"          "Klhdc1"        "Klhl29"        "Lekr1"        
+    ## [133] "Lgr5"          "Lix1l"         "Lmf1"          "Lpar3"        
+    ## [137] "Lrfn1"         "Lrrc2"         "Lrrc3"         "Lrrn4"        
+    ## [141] "Ltk"           "Lxn"           "Mansc1"        "Mansc4"       
+    ## [145] "March9"        "Med27"         "Mef2d"         "Mfng"         
+    ## [149] "Mrpl2"         "Msmb"          "Msto1"         "Mup5"         
+    ## [153] "Myh7b"         "Myl6b"         "Naif1"         "Nat14"        
+    ## [157] "Nat8f1"        "Ncmap"         "Ndn"           "Nmnat2"       
+    ## [161] "Npff"          "Nppa"          "Nrip2"         "Nthl1"        
+    ## [165] "Nudt18"        "Olfml1"        "Otx2"          "P2ry6"        
+    ## [169] "Palmd"         "Patj"          "Pcdhb14"       "Pcdhga8"      
+    ## [173] "Pcgf2"         "Pcsk9"         "Pdgfb"         "Pdlim3"       
+    ## [177] "Perp"          "Pigh"          "Pla2r1"        "Plekha7"      
+    ## [181] "Plekhb1"       "Plekhg5"       "Pmch"          "Prkar1b"      
+    ## [185] "Prob1"         "Procr"         "Proz"          "Prr36"        
+    ## [189] "Qdpr"          "Qrfpr"         "Rab6b"         "Rad9b"        
+    ## [193] "Rag2"          "Rarres2"       "Rasgrp3"       "Rassf6"       
+    ## [197] "Rbfox3"        "Ret"           "Rfxap"         "Rhov"         
+    ## [201] "Rnaset2b"      "Rps6ka6"       "Rps6kl1"       "Rras"         
+    ## [205] "Rsph3a"        "Rtl8b"         "Rundc3b"       "Rusc2"        
+    ## [209] "Saa4"          "Sdc1"          "Sec22a"        "Sec31b"       
+    ## [213] "Sema4c"        "Sgce"          "Sirt5"         "Sit1"         
+    ## [217] "Six1"          "Skida1"        "Slamf7"        "Slc10a5"      
+    ## [221] "Slc13a4"       "Slc16a12"      "Slc17a3"       "Slc22a21"     
+    ## [225] "Slc29a2"       "Slc6a12"       "Socs3"         "Sorcs2"       
+    ## [229] "Spaca1"        "Spo11"         "Srd5a1"        "Stac2"        
+    ## [233] "Svep1"         "Syce1"         "Tat"           "Tbc1d30"      
+    ## [237] "Tecpr1"        "Thop1"         "Tigd5"         "Tmem190"      
+    ## [241] "Tmem269"       "Tmem67"        "Tnnt2"         "Try10"        
+    ## [245] "Tsacc"         "Tsku"          "Tssk3"         "Ttll7"        
+    ## [249] "Ube2cbp"       "Unc45b"        "Vgf"           "Vnn3"         
+    ## [253] "Zc3h10"        "Zdhhc23"       "Zfp811"        "Zfp94"        
+    ## [257] "Zfp979"        "Zkscan2"       "Zpbp2"        
+    ## 
+    ## [[12]]
+    ##   [1] "1810010H24Rik" "1810046K07Rik" "2310030G06Rik" "3110082I17Rik"
+    ##   [5] "4931406C07Rik" "4931440F15Rik" "A430078G23Rik" "Abcc1"        
+    ##   [9] "Acp1"          "Adamtsl1"      "AF366264"      "Aldoc"        
+    ##  [13] "Alkal2"        "Amacr"         "Angpt2"        "Angptl8"      
+    ##  [17] "Ankrd49"       "Anks1b"        "Apol11a"       "Apol7a"       
+    ##  [21] "Arhgap5"       "Asb5"          "Asic3"         "Aspdh"        
+    ##  [25] "Bambi"         "Bbs7"          "Bco1"          "Bicd1"        
+    ##  [29] "Bmp3"          "Bmp8a"         "Brsk2"         "C3ar1"        
+    ##  [33] "Cacna1c"       "Cacna1d"       "Cacnb3"        "Cacnb4"       
+    ##  [37] "Cadm1"         "Cadm2"         "Cadm3"         "Camkv"        
+    ##  [41] "Cap2"          "Car5b"         "Cat"           "Ccdc162"      
+    ##  [45] "Ccnyl1"        "Cd300c"        "Cd7"           "Cdc14b"       
+    ##  [49] "Cerkl"         "Chrm3"         "Clec11a"       "Cnbd2"        
+    ##  [53] "Cntf"          "Col4a2"        "Crispld2"      "Crlf1"        
+    ##  [57] "Ctif"          "Cubn"          "Cxcr3"         "Cyp4f16"      
+    ##  [61] "D10Jhu81e"     "D130040H23Rik" "Ddr1"          "Deup1"        
+    ##  [65] "Dhdh"          "Dnaaf5"        "Dnah7b"        "Dtx1"         
+    ##  [69] "Dtx3"          "Dyx1c1"        "Efnb3"         "Egln3"        
+    ##  [73] "Egr2"          "Ehd3"          "Enah"          "Enho"         
+    ##  [77] "Enpp6"         "Esrrg"         "F2"            "Fam209"       
+    ##  [81] "Fam20a"        "Fam222a"       "Fam57a"        "Fat3"         
+    ##  [85] "Faxc"          "Fbxl2"         "Fbxw5"         "Fcrl5"        
+    ##  [89] "Fkbp1b"        "Flrt1"         "Flrt2"         "Fndc10"       
+    ##  [93] "Frzb"          "Fxyd4"         "Fzd3"          "Gbp11"        
+    ##  [97] "Gbp8"          "Gdpgp1"        "Ghdc"          "Ghr"          
+    ## [101] "Gm12253"       "Gm13212"       "Gm5464"        "Gm960"        
+    ## [105] "Gng3"          "Gpr62"         "Gpr82"         "Greb1"        
+    ## [109] "Grem1"         "Grm5"          "Gulp1"         "Haghl"        
+    ## [113] "Hal"           "Hdx"           "Hlf"           "Hoxa4"        
+    ## [117] "Hoxc13"        "Hsd3b6"        "Hspb7"         "Htr1b"        
+    ## [121] "Htr2a"         "Ido1"          "Ifi207"        "Ifi44"        
+    ## [125] "Ifit1bl1"      "Igf2"          "Igsf10"        "Il17rb"       
+    ## [129] "Il17rd"        "Il31ra"        "Impg2"         "Irs1"         
+    ## [133] "Islr2"         "Itga11"        "Itga7"         "Itpkc"        
+    ## [137] "Kank2"         "Kank3"         "Kcnab3"        "Kcnf1"        
+    ## [141] "Kcng3"         "Kcnip3"        "Kcnk2"         "Kcnmb1"       
+    ## [145] "Kdm4d"         "Kif1a"         "Kif21a"        "Kif26a"       
+    ## [149] "Kif7"          "Ksr2"          "Lacc1"         "Lcn4"         
+    ## [153] "Lefty2"        "Lgals4"        "Lilra5"        "Lmntd2"       
+    ## [157] "Lrg1"          "Lrp2bp"        "Ly96"          "Mafb"         
+    ## [161] "Mag"           "Maged2"        "Magi2"         "Mapkbp1"      
+    ## [165] "Mast1"         "Megf10"        "Mettl1"        "Mill2"        
+    ## [169] "Mlip"          "Mmp11"         "Mpp3"          "Mpv17"        
+    ## [173] "Mrpl23"        "Muc13"         "Muc6"          "Mycl"         
+    ## [177] "Myh14"         "Nap1l2"        "Nat1"          "Nav3"         
+    ## [181] "Necap1"        "Nek10"         "Nhlrc4"        "Nkain1"       
+    ## [185] "Npas1"         "Nqo2"          "Nrap"          "Ntn1"         
+    ## [189] "Numbl"         "Oas1e"         "Oas2"          "Oas3"         
+    ## [193] "Oasl1"         "Oit3"          "Olfr164"       "Olfr420"      
+    ## [197] "Pacsin1"       "Pald1"         "Pappa2"        "Papss2"       
+    ## [201] "Pax6"          "Pcdh1"         "Pcsk4"         "Pcsk6"        
+    ## [205] "Pde6a"         "Pdgfd"         "Pdzd9"         "Phf11d"       
+    ## [209] "Phkg1"         "Pi15"          "Pianp"         "Pilrb2"       
+    ## [213] "Pkd2l1"        "Pknox2"        "Pla2g4d"       "Plagl1"       
+    ## [217] "Plpp2"         "Plppr5"        "Pp2d1"         "Ppp1r32"      
+    ## [221] "Ppp1r36"       "Ppp1r3d"       "Ppp1r3f"       "Ppp1r42"      
+    ## [225] "Prdm8"         "Prrx1"         "Ptges"         "Ptpn13"       
+    ## [229] "Ptprk"         "Rad51d"        "Rassf9"        "Rbm20"        
+    ## [233] "Rdh12"         "Rgs20"         "Rhoc"          "Rnf152"       
+    ## [237] "Rnf224"        "Rnf39"         "Rpusd3"        "Runx1t1"      
+    ## [241] "Samd15"        "Sars2"         "Sebox"         "Sema3e"       
+    ## [245] "Sept3"         "Serpinb10"     "Serpinb9b"     "Sgip1"        
+    ## [249] "Sh2d2a"        "Siglec5"       "Slc31a2"       "Slc7a15"      
+    ## [253] "Slc9a3r2"      "Slc9c1"        "Smim10l2a"     "Smoc1"        
+    ## [257] "Sod3"          "Sptbn2"        "Stac3"         "Sycp3"        
+    ## [261] "Synpo"         "Tas2r108"      "Tbx15"         "Tbx18"        
+    ## [265] "Tchp"          "Teddm1a"       "Tenm3"         "Tex12"        
+    ## [269] "Thbs4"         "Thsd4"         "Tm4sf20"       "Tmco2"        
+    ## [273] "Tmem17"        "Tmod2"         "Tnfrsf13c"     "Tnfsf11"      
+    ## [277] "Trim30b"       "Trim72"        "Tshr"          "Tsnaxip1"     
+    ## [281] "Tspan17"       "Tspan18"       "Ttc23"         "Ttc25"        
+    ## [285] "Upk1b"         "Uprt"          "Ust"           "Vash2"        
+    ## [289] "Vmn1r32"       "Vps33b"        "Vsig10l"       "Xlr"          
+    ## [293] "Yes1"          "Zfhx4"         "Zfp248"        "Zfp286"       
+    ## [297] "Zfp3"          "Zfp30"         "Zfp420"        "Zfp442"       
+    ## [301] "Zfp458"        "Zfp493"        "Zfp72"         "Zfp738"       
+    ## [305] "Zfp93"
+
+``` r
 plot(svbone$v[,1:2],col=conditNums,xlab="PC1",ylab="PC2")
 legend("bottomright",legend = unique(names(conditNums)),col=1:2,fill = 1:2)
 ```
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-1.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-15.png)
 
 ``` r
 library(EACI)
@@ -1028,136 +2406,136 @@ for(l in 1:4){
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  0.66 sec 
-    ## iteration 2 done; time  0.6 sec 
-    ## iteration 3 done; time  0.59 sec 
-    ## iteration 4 done; time  0.71 sec 
-    ## iteration 5 done; time  0.77 sec 
-    ## iteration 6 done; time  0.63 sec 
-    ## iteration 7 done; time  0.75 sec 
-    ## iteration 8 done; time  0.71 sec 
-    ## iteration 9 done; time  0.77 sec 
-    ## iteration 10 done; time  1.14 sec
+    ## iteration 1 done; time  2.85 sec 
+    ## iteration 2 done; time  1.75 sec 
+    ## iteration 3 done; time  2 sec 
+    ## iteration 4 done; time  2.98 sec 
+    ## iteration 5 done; time  1.86 sec 
+    ## iteration 6 done; time  2.97 sec 
+    ## iteration 7 done; time  1.92 sec 
+    ## iteration 8 done; time  2.97 sec 
+    ## iteration 9 done; time  1.87 sec 
+    ## iteration 10 done; time  1.79 sec
 
     ## Labeling output ...
 
     ## Loaded Package GO.db
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-2.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-16.png)
 
     ## [1] "LOADINGS PC 1"
     ## [1] "*************************Enriched Down for PC 1 *************************"
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-3.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-4.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-17.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-18.png)
 
     ##                    pval
-    ## GO:0000784 3.647966e-67
-    ## GO:0005759 2.760104e-28
-    ## GO:0003735 9.499767e-28
-    ## GO:0003823 1.684502e-24
-    ## GO:0007006 3.862506e-19
-    ## GO:0006342 1.603197e-18
-    ## GO:0045814 1.603197e-18
-    ## GO:0045746 1.443393e-16
-    ## GO:0015931 9.341810e-15
-    ## GO:0045333 3.658173e-14
-    ## GO:0017137 7.136554e-10
-    ## GO:0044450 1.616629e-09
-    ## GO:0002377 1.727998e-09
-    ## GO:0005496 2.729222e-07
-    ## GO:0008033 5.894054e-07
-    ## GO:0030838 1.759249e-06
-    ## GO:1990939 3.981807e-06
-    ## GO:0019228 4.353179e-06
-    ## GO:0030258 5.861163e-06
-    ## GO:0016811 9.953691e-06
-    ## GO:0006302 2.652326e-05
-    ## GO:0018958 3.881669e-05
-    ## GO:0008038 4.569886e-05
-    ## GO:0043200 9.168930e-05
-    ## GO:0070286 1.105458e-04
-    ##                                                                                               Term
-    ## GO:0000784                                                    nuclear chromosome, telomeric region
-    ## GO:0005759                                                                    mitochondrial matrix
-    ## GO:0003735                                                      structural constituent of ribosome
-    ## GO:0003823                                                                         antigen binding
-    ## GO:0007006                                                     mitochondrial membrane organization
-    ## GO:0006342                                                                     chromatin silencing
-    ## GO:0045814                                      negative regulation of gene expression, epigenetic
-    ## GO:0045746                                          negative regulation of Notch signaling pathway
-    ## GO:0015931                                                nucleobase-containing compound transport
-    ## GO:0045333                                                                    cellular respiration
-    ## GO:0017137                                                                      Rab GTPase binding
-    ## GO:0044450                                                      microtubule organizing center part
-    ## GO:0002377                                                               immunoglobulin production
-    ## GO:0005496                                                                         steroid binding
-    ## GO:0008033                                                                         tRNA processing
-    ## GO:0030838                                    positive regulation of actin filament polymerization
-    ## GO:1990939                                                ATP-dependent microtubule motor activity
-    ## GO:0019228                                                               neuronal action potential
-    ## GO:0030258                                                                      lipid modification
-    ## GO:0016811 hydrolase activity, acting on carbon-nitrogen (but not peptide) bonds, in linear amides
-    ## GO:0006302                                                              double-strand break repair
-    ## GO:0018958                                            phenol-containing compound metabolic process
-    ## GO:0008038                                                                      neuron recognition
-    ## GO:0043200                                                                  response to amino acid
-    ## GO:0070286                                                        axonemal dynein complex assembly
+    ## GO:0070566 7.607572e-14
+    ## GO:0035458 3.304110e-12
+    ## GO:0005161 1.596934e-10
+    ## GO:0038065 1.984349e-10
+    ## GO:1904037 2.239786e-10
+    ## GO:0031941 8.743526e-10
+    ## GO:0050907 1.498345e-08
+    ## GO:0043236 4.033187e-07
+    ## GO:0085029 3.168805e-06
+    ## GO:0017145 1.073265e-05
+    ## GO:0005326 4.648073e-05
+    ## GO:0046625 4.896034e-05
+    ## GO:0016805 5.400087e-05
+    ## GO:0007130 7.107311e-05
+    ## GO:0015301 8.568400e-05
+    ## GO:0033144 8.918757e-05
+    ## GO:0070207 9.120552e-05
+    ## GO:0034505 1.097866e-04
+    ## GO:0005844 1.527675e-04
+    ## GO:0005548 5.301896e-04
+    ## GO:0006958 5.621254e-04
+    ## GO:0003407 7.928374e-04
+    ## GO:0005798 1.021517e-03
+    ## GO:0001191 1.085061e-03
+    ## GO:0016860 1.163158e-03
+    ##                                                                                          Term
+    ## GO:0070566                                                       adenylyltransferase activity
+    ## GO:0035458                                               cellular response to interferon-beta
+    ## GO:0005161                                    platelet-derived growth factor receptor binding
+    ## GO:0038065                                               collagen-activated signaling pathway
+    ## GO:1904037                           positive regulation of epithelial cell apoptotic process
+    ## GO:0031941                                                                  filamentous actin
+    ## GO:0050907                      detection of chemical stimulus involved in sensory perception
+    ## GO:0043236                                                                    laminin binding
+    ## GO:0085029                                                      extracellular matrix assembly
+    ## GO:0017145                                                                 stem cell division
+    ## GO:0005326                                              neurotransmitter transporter activity
+    ## GO:0046625                                                               sphingolipid binding
+    ## GO:0016805                                                               dipeptidase activity
+    ## GO:0007130                                                      synaptonemal complex assembly
+    ## GO:0015301                                                    anion:anion antiporter activity
+    ## GO:0033144    negative regulation of intracellular steroid hormone receptor signaling pathway
+    ## GO:0070207                                                          protein homotrimerization
+    ## GO:0034505                                                               tooth mineralization
+    ## GO:0005844                                                                           polysome
+    ## GO:0005548                                                  phospholipid transporter activity
+    ## GO:0006958                                           complement activation, classical pathway
+    ## GO:0003407                                                          neural retina development
+    ## GO:0005798                                                           Golgi-associated vesicle
+    ## GO:0001191 transcriptional repressor activity, RNA polymerase II transcription factor binding
+    ## GO:0016860                                             intramolecular oxidoreductase activity
     ## [1] "*************************Enriched Up for PC 1 *************************"
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-5.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-19.png)
 
     ##                    pval
-    ## GO:0050907 0.000000e+00
-    ## GO:0051453 1.363354e-13
-    ## GO:0060395 1.492717e-11
-    ## GO:0030199 2.810825e-08
-    ## GO:0007565 4.030166e-08
-    ## GO:0042734 1.557591e-07
-    ## GO:0042641 2.773135e-07
-    ## GO:0051015 1.755583e-06
-    ## GO:0019902 3.804549e-06
-    ## GO:0001952 5.606859e-06
-    ## GO:0022600 6.483939e-06
-    ## GO:0031234 7.596977e-06
-    ## GO:0046165 4.134425e-05
-    ## GO:0015296 3.244905e-04
-    ## GO:0051607 4.525466e-04
-    ## GO:0051705 6.139598e-04
-    ## GO:0002244 6.443296e-04
-    ## GO:0050771 7.471947e-04
-    ## GO:0003009 1.223735e-03
-    ## GO:0099094 1.319309e-03
-    ## GO:0000795 1.561030e-03
-    ## GO:0099086 1.561030e-03
-    ## GO:0008080 2.471286e-03
-    ## GO:0061337 2.631329e-03
-    ## GO:0061005 3.150520e-03
-    ##                                                                     Term
-    ## GO:0050907 detection of chemical stimulus involved in sensory perception
-    ## GO:0051453                                regulation of intracellular pH
-    ## GO:0060395                              SMAD protein signal transduction
-    ## GO:0030199                                  collagen fibril organization
-    ## GO:0007565                                              female pregnancy
-    ## GO:0042734                                          presynaptic membrane
-    ## GO:0042641                                                    actomyosin
-    ## GO:0051015                                        actin filament binding
-    ## GO:0019902                                           phosphatase binding
-    ## GO:0001952                            regulation of cell-matrix adhesion
-    ## GO:0022600                                      digestive system process
-    ## GO:0031234    extrinsic component of cytoplasmic side of plasma membrane
-    ## GO:0046165                                  alcohol biosynthetic process
-    ## GO:0015296                               anion:cation symporter activity
-    ## GO:0051607                                     defense response to virus
-    ## GO:0051705                                       multi-organism behavior
-    ## GO:0002244                 hematopoietic progenitor cell differentiation
-    ## GO:0050771                           negative regulation of axonogenesis
-    ## GO:0003009                                   skeletal muscle contraction
-    ## GO:0099094                          ligand-gated cation channel activity
-    ## GO:0000795                                          synaptonemal complex
-    ## GO:0099086                                        synaptonemal structure
-    ## GO:0008080                                  N-acetyltransferase activity
-    ## GO:0061337                                            cardiac conduction
-    ## GO:0061005           cell differentiation involved in kidney development
+    ## GO:0002181 0.000000e+00
+    ## GO:0006342 0.000000e+00
+    ## GO:0019843 0.000000e+00
+    ## GO:0008565 0.000000e+00
+    ## GO:0030515 0.000000e+00
+    ## GO:0002251 0.000000e+00
+    ## GO:0042775 0.000000e+00
+    ## GO:0031492 0.000000e+00
+    ## GO:0000049 0.000000e+00
+    ## GO:1905368 0.000000e+00
+    ## GO:0034644 0.000000e+00
+    ## GO:0099023 1.776357e-15
+    ## GO:0000186 3.108624e-15
+    ## GO:0006336 3.419487e-14
+    ## GO:0034724 3.419487e-14
+    ## GO:0005793 6.417089e-14
+    ## GO:0007098 8.040235e-13
+    ## GO:0000428 5.237810e-12
+    ## GO:0045746 1.075873e-11
+    ## GO:1901505 4.622791e-11
+    ## GO:0045259 6.277778e-11
+    ## GO:0061512 4.833236e-10
+    ## GO:0051082 5.707212e-10
+    ## GO:0043001 8.298739e-10
+    ## GO:0071013 9.734480e-10
+    ##                                                                  Term
+    ## GO:0002181                                    cytoplasmic translation
+    ## GO:0006342                                        chromatin silencing
+    ## GO:0019843                                               rRNA binding
+    ## GO:0008565                               protein transporter activity
+    ## GO:0030515                                             snoRNA binding
+    ## GO:0002251                   organ or tissue specific immune response
+    ## GO:0042775     mitochondrial ATP synthesis coupled electron transport
+    ## GO:0031492                                    nucleosomal DNA binding
+    ## GO:0000049                                               tRNA binding
+    ## GO:1905368                                          peptidase complex
+    ## GO:0034644                                    cellular response to UV
+    ## GO:0099023                                          tethering complex
+    ## GO:0000186                               activation of MAPKK activity
+    ## GO:0006336            DNA replication-independent nucleosome assembly
+    ## GO:0034724        DNA replication-independent nucleosome organization
+    ## GO:0005793       endoplasmic reticulum-Golgi intermediate compartment
+    ## GO:0007098                                           centrosome cycle
+    ## GO:0000428                        DNA-directed RNA polymerase complex
+    ## GO:0045746             negative regulation of Notch signaling pathway
+    ## GO:1901505 carbohydrate derivative transmembrane transporter activity
+    ## GO:0045259                   proton-transporting ATP synthase complex
+    ## GO:0061512                             protein localization to cilium
+    ## GO:0051082                                   unfolded protein binding
+    ## GO:0043001                 Golgi to plasma membrane protein transport
+    ## GO:0071013                               catalytic step 2 spliceosome
 
     ## Loading necessary libraries...
 
@@ -1165,110 +2543,136 @@ for(l in 1:4){
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  0.73 sec 
-    ## iteration 2 done; time  0.69 sec 
-    ## iteration 3 done; time  0.77 sec 
-    ## iteration 4 done; time  0.8 sec 
-    ## iteration 5 done; time  1.24 sec 
-    ## iteration 6 done; time  0.82 sec 
-    ## iteration 7 done; time  1.3 sec 
-    ## iteration 8 done; time  0.86 sec 
-    ## iteration 9 done; time  1.28 sec 
-    ## iteration 10 done; time  1.16 sec
+    ## iteration 1 done; time  1.76 sec 
+    ## iteration 2 done; time  1.94 sec 
+    ## iteration 3 done; time  1.77 sec 
+    ## iteration 4 done; time  2.12 sec 
+    ## iteration 5 done; time  1.73 sec 
+    ## iteration 6 done; time  1.96 sec 
+    ## iteration 7 done; time  1.98 sec 
+    ## iteration 8 done; time  1.79 sec 
+    ## iteration 9 done; time  2.01 sec 
+    ## iteration 10 done; time  2 sec
 
     ## Labeling output ...
 
     ## Loaded Package GO.db
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-6.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-7.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-20.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-21.png)
 
     ## [1] "LOADINGS PC 2"
     ## [1] "*************************Enriched Down for PC 2 *************************"
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-8.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-9.png)
-
-    ##                    pval                                               Term
-    ## GO:0051290 7.307539e-82                      protein heterotetramerization
-    ## GO:0001669 6.822807e-17                                  acrosomal vesicle
-    ## GO:0022627 4.632372e-14                  cytosolic small ribosomal subunit
-    ## GO:0006342 8.470617e-13                                chromatin silencing
-    ## GO:0045814 8.470617e-13 negative regulation of gene expression, epigenetic
-    ## GO:0019825 9.436965e-13                                     oxygen binding
-    ## GO:0030135 1.072745e-11                                     coated vesicle
-    ## GO:0004867 7.821462e-11       serine-type endopeptidase inhibitor activity
-    ## GO:0006302 2.599255e-10                         double-strand break repair
-    ## GO:0045746 1.647406e-09     negative regulation of Notch signaling pathway
-    ## GO:0005179 5.189281e-09                                   hormone activity
-    ## GO:0044325 9.221732e-09                                ion channel binding
-    ## GO:0007612 1.916246e-08                                           learning
-    ## GO:0005520 2.119385e-08                 insulin-like growth factor binding
-    ## GO:0007050 3.207450e-08                                  cell cycle arrest
-    ## GO:0004725 1.051561e-07              protein tyrosine phosphatase activity
-    ## GO:0016607 7.074191e-07                                      nuclear speck
-    ## GO:0007608 1.859478e-06                        sensory perception of smell
-    ## GO:0010506 2.039872e-06                            regulation of autophagy
-    ## GO:0019218 2.337556e-06            regulation of steroid metabolic process
-    ## GO:0001046 2.839857e-06        core promoter sequence-specific DNA binding
-    ## GO:0046068 8.925275e-06                             cGMP metabolic process
-    ## GO:0022839 5.893398e-05                         ion gated channel activity
-    ## GO:0005518 6.727777e-05                                   collagen binding
-    ## GO:0050919 8.606400e-05                                negative chemotaxis
-    ## [1] "*************************Enriched Up for PC 2 *************************"
-
-![](BoneNotebook_files/figure-markdown_github/pcacandice-10.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-22.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-23.png)
 
     ##                    pval
-    ## GO:0003823 0.000000e+00
-    ## GO:0005882 8.548717e-14
-    ## GO:0002377 8.659740e-14
-    ## GO:0051783 5.835488e-11
-    ## GO:0016811 1.482892e-10
-    ## GO:0006081 1.082206e-09
-    ## GO:0021543 2.077551e-09
-    ## GO:0006304 5.426667e-08
-    ## GO:0015931 2.176660e-07
-    ## GO:0004252 3.441386e-07
-    ## GO:0071901 6.487250e-07
-    ## GO:0060359 1.259760e-06
-    ## GO:0004222 1.785226e-06
-    ## GO:0004984 2.350654e-06
-    ## GO:0016459 3.734440e-05
-    ## GO:0008081 5.547060e-05
-    ## GO:1990939 6.055621e-05
-    ## GO:0034704 7.381673e-05
-    ## GO:0005813 9.448805e-05
-    ## GO:0002028 2.108274e-04
-    ## GO:0002027 2.621599e-04
-    ## GO:0030246 7.487776e-04
-    ## GO:0009408 7.782523e-04
-    ## GO:0070664 9.991749e-04
-    ## GO:0008022 1.405299e-03
-    ##                                                                                               Term
-    ## GO:0003823                                                                         antigen binding
-    ## GO:0005882                                                                   intermediate filament
-    ## GO:0002377                                                               immunoglobulin production
-    ## GO:0051783                                                          regulation of nuclear division
-    ## GO:0016811 hydrolase activity, acting on carbon-nitrogen (but not peptide) bonds, in linear amides
-    ## GO:0006081                                                     cellular aldehyde metabolic process
-    ## GO:0021543                                                                     pallium development
-    ## GO:0006304                                                                        DNA modification
-    ## GO:0015931                                                nucleobase-containing compound transport
-    ## GO:0004252                                                      serine-type endopeptidase activity
-    ## GO:0071901                         negative regulation of protein serine/threonine kinase activity
-    ## GO:0060359                                                                response to ammonium ion
-    ## GO:0004222                                                           metalloendopeptidase activity
-    ## GO:0004984                                                             olfactory receptor activity
-    ## GO:0016459                                                                          myosin complex
-    ## GO:0008081                                                   phosphoric diester hydrolase activity
-    ## GO:1990939                                                ATP-dependent microtubule motor activity
-    ## GO:0034704                                                                 calcium channel complex
-    ## GO:0005813                                                                              centrosome
-    ## GO:0002028                                                      regulation of sodium ion transport
-    ## GO:0002027                                                                regulation of heart rate
-    ## GO:0030246                                                                    carbohydrate binding
-    ## GO:0009408                                                                        response to heat
-    ## GO:0070664                                          negative regulation of leukocyte proliferation
-    ## GO:0008022                                                              protein C-terminus binding
+    ## GO:0050820 5.141139e-27
+    ## GO:0031492 1.495594e-22
+    ## GO:0006342 1.104275e-18
+    ## GO:0042775 4.730700e-16
+    ## GO:0008376 7.167746e-15
+    ## GO:0001848 4.015287e-13
+    ## GO:0005798 3.349770e-12
+    ## GO:0043256 4.839155e-12
+    ## GO:0006336 5.435259e-12
+    ## GO:0034724 5.435259e-12
+    ## GO:0003727 1.187831e-10
+    ## GO:0002251 6.534908e-10
+    ## GO:0035335 1.209878e-09
+    ## GO:0045259 1.900510e-09
+    ## GO:0034122 2.421363e-09
+    ## GO:0045746 4.925256e-09
+    ## GO:0036503 4.971826e-09
+    ## GO:0070207 5.617687e-09
+    ## GO:0061298 8.623451e-09
+    ## GO:0001881 1.008699e-08
+    ## GO:0090484 1.365810e-08
+    ## GO:0030552 1.665551e-08
+    ## GO:0060713 2.918809e-08
+    ## GO:0031123 3.195090e-08
+    ## GO:0019843 3.972289e-08
+    ##                                                                   Term
+    ## GO:0050820                          positive regulation of coagulation
+    ## GO:0031492                                     nucleosomal DNA binding
+    ## GO:0006342                                         chromatin silencing
+    ## GO:0042775      mitochondrial ATP synthesis coupled electron transport
+    ## GO:0008376                    acetylgalactosaminyltransferase activity
+    ## GO:0001848                                          complement binding
+    ## GO:0005798                                    Golgi-associated vesicle
+    ## GO:0043256                                             laminin complex
+    ## GO:0006336             DNA replication-independent nucleosome assembly
+    ## GO:0034724         DNA replication-independent nucleosome organization
+    ## GO:0003727                                 single-stranded RNA binding
+    ## GO:0002251                    organ or tissue specific immune response
+    ## GO:0035335                         peptidyl-tyrosine dephosphorylation
+    ## GO:0045259                    proton-transporting ATP synthase complex
+    ## GO:0034122 negative regulation of toll-like receptor signaling pathway
+    ## GO:0045746              negative regulation of Notch signaling pathway
+    ## GO:0036503                                                ERAD pathway
+    ## GO:0070207                                   protein homotrimerization
+    ## GO:0061298           retina vasculature development in camera-type eye
+    ## GO:0001881                                          receptor recycling
+    ## GO:0090484                                   drug transporter activity
+    ## GO:0030552                                                cAMP binding
+    ## GO:0060713                            labyrinthine layer morphogenesis
+    ## GO:0031123                                       RNA 3'-end processing
+    ## GO:0019843                                                rRNA binding
+    ## [1] "*************************Enriched Up for PC 2 *************************"
+
+![](BoneNotebook_files/figure-markdown_github/pcacandice-24.png)
+
+    ##                    pval
+    ## GO:0010800 0.000000e+00
+    ## GO:0030101 0.000000e+00
+    ## GO:0005771 0.000000e+00
+    ## GO:0031646 4.440892e-16
+    ## GO:0001191 3.301803e-13
+    ## GO:0032182 7.376322e-13
+    ## GO:0097546 1.492029e-11
+    ## GO:0007212 1.649703e-11
+    ## GO:0042403 2.605391e-10
+    ## GO:0042147 5.541776e-10
+    ## GO:0034113 8.356733e-10
+    ## GO:0030968 1.058154e-09
+    ## GO:0050853 2.381793e-09
+    ## GO:0005200 2.791314e-08
+    ## GO:0042481 3.803354e-08
+    ## GO:0099622 4.522837e-08
+    ## GO:0055072 4.732425e-08
+    ## GO:0030497 8.086319e-08
+    ## GO:0005793 8.443633e-08
+    ## GO:0016836 9.285385e-08
+    ## GO:0006509 1.248916e-07
+    ## GO:1901071 1.851046e-07
+    ## GO:0016891 4.430776e-07
+    ## GO:0032355 2.823323e-06
+    ## GO:0048305 5.739825e-06
+    ##                                                                                          Term
+    ## GO:0010800                          positive regulation of peptidyl-threonine phosphorylation
+    ## GO:0030101                                                     natural killer cell activation
+    ## GO:0005771                                                                multivesicular body
+    ## GO:0031646                                 positive regulation of neurological system process
+    ## GO:0001191 transcriptional repressor activity, RNA polymerase II transcription factor binding
+    ## GO:0032182                                                     ubiquitin-like protein binding
+    ## GO:0097546                                                                       ciliary base
+    ## GO:0007212                                                dopamine receptor signaling pathway
+    ## GO:0042403                                                  thyroid hormone metabolic process
+    ## GO:0042147                                            retrograde transport, endosome to Golgi
+    ## GO:0034113                                                     heterotypic cell-cell adhesion
+    ## GO:0030968                                    endoplasmic reticulum unfolded protein response
+    ## GO:0050853                                                  B cell receptor signaling pathway
+    ## GO:0005200                                             structural constituent of cytoskeleton
+    ## GO:0042481                                                        regulation of odontogenesis
+    ## GO:0099622                                        cardiac muscle cell membrane repolarization
+    ## GO:0055072                                                               iron ion homeostasis
+    ## GO:0030497                                                              fatty acid elongation
+    ## GO:0005793                               endoplasmic reticulum-Golgi intermediate compartment
+    ## GO:0016836                                                               hydro-lyase activity
+    ## GO:0006509                                            membrane protein ectodomain proteolysis
+    ## GO:1901071                                  glucosamine-containing compound metabolic process
+    ## GO:0016891                          endoribonuclease activity, producing 5'-phosphomonoesters
+    ## GO:0032355                                                              response to estradiol
+    ## GO:0048305                                                           immunoglobulin secretion
 
     ## Loading necessary libraries...
 
@@ -1276,136 +2680,136 @@ for(l in 1:4){
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  1.69 sec 
-    ## iteration 2 done; time  1.05 sec 
-    ## iteration 3 done; time  0.97 sec 
-    ## iteration 4 done; time  0.77 sec 
-    ## iteration 5 done; time  0.72 sec 
-    ## iteration 6 done; time  1.07 sec 
-    ## iteration 7 done; time  0.97 sec 
-    ## iteration 8 done; time  1.62 sec 
-    ## iteration 9 done; time  1.11 sec 
-    ## iteration 10 done; time  1.56 sec
+    ## iteration 1 done; time  2.61 sec 
+    ## iteration 2 done; time  1.69 sec 
+    ## iteration 3 done; time  1.75 sec 
+    ## iteration 4 done; time  1.72 sec 
+    ## iteration 5 done; time  2.09 sec 
+    ## iteration 6 done; time  1.85 sec 
+    ## iteration 7 done; time  1.76 sec 
+    ## iteration 8 done; time  2.04 sec 
+    ## iteration 9 done; time  1.94 sec 
+    ## iteration 10 done; time  1.86 sec
 
     ## Labeling output ...
 
     ## Loaded Package GO.db
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-11.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-12.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-25.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-26.png)
 
     ## [1] "LOADINGS PC 3"
     ## [1] "*************************Enriched Down for PC 3 *************************"
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-13.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-14.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-27.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-28.png)
 
     ##                    pval
-    ## GO:0038024 2.976365e-39
-    ## GO:0005179 2.466970e-23
-    ## GO:0010811 2.330227e-11
-    ## GO:0098644 1.453797e-10
-    ## GO:0016811 4.273135e-10
-    ## GO:0034704 3.616582e-09
-    ## GO:0001076 1.807864e-08
-    ## GO:0048020 3.080003e-08
-    ## GO:0021536 3.677141e-08
-    ## GO:0030674 9.585132e-07
-    ## GO:0046849 1.253063e-05
-    ## GO:0004683 1.570869e-05
-    ## GO:0045773 2.031144e-05
-    ## GO:0001676 2.398625e-05
-    ## GO:0015370 3.237325e-05
-    ## GO:0010633 7.000053e-05
-    ## GO:0005770 1.453302e-04
-    ## GO:0005759 2.049949e-04
-    ## GO:0009064 3.087111e-04
-    ## GO:0099094 4.833708e-04
-    ## GO:0014704 5.201631e-04
-    ## GO:0046434 7.838631e-04
-    ## GO:0008235 1.473427e-03
-    ## GO:0007009 1.679861e-03
-    ## GO:0007050 1.900410e-03
-    ##                                                                                               Term
-    ## GO:0038024                                                                 cargo receptor activity
-    ## GO:0005179                                                                        hormone activity
-    ## GO:0010811                                          positive regulation of cell-substrate adhesion
-    ## GO:0098644                                                             complex of collagen trimers
-    ## GO:0016811 hydrolase activity, acting on carbon-nitrogen (but not peptide) bonds, in linear amides
-    ## GO:0034704                                                                 calcium channel complex
-    ## GO:0001076           transcription factor activity, RNA polymerase II transcription factor binding
-    ## GO:0048020                                                          CCR chemokine receptor binding
-    ## GO:0021536                                                                diencephalon development
-    ## GO:0030674                                                               protein binding, bridging
-    ## GO:0046849                                                                         bone remodeling
-    ## GO:0004683                                            calmodulin-dependent protein kinase activity
-    ## GO:0045773                                                   positive regulation of axon extension
-    ## GO:0001676                                                 long-chain fatty acid metabolic process
-    ## GO:0015370                                                        solute:sodium symporter activity
-    ## GO:0010633                                        negative regulation of epithelial cell migration
-    ## GO:0005770                                                                           late endosome
-    ## GO:0005759                                                                    mitochondrial matrix
-    ## GO:0009064                                           glutamine family amino acid metabolic process
-    ## GO:0099094                                                    ligand-gated cation channel activity
-    ## GO:0014704                                                                       intercalated disc
-    ## GO:0046434                                                       organophosphate catabolic process
-    ## GO:0008235                                                            metalloexopeptidase activity
-    ## GO:0007009                                                            plasma membrane organization
-    ## GO:0007050                                                                       cell cycle arrest
+    ## GO:0046885 2.338255e-27
+    ## GO:0044062 5.350673e-16
+    ## GO:0001881 6.910544e-15
+    ## GO:0038065 7.110091e-15
+    ## GO:0015026 3.566085e-12
+    ## GO:0008376 8.644259e-12
+    ## GO:0031312 1.121044e-11
+    ## GO:0048024 1.142227e-11
+    ## GO:0016646 1.282837e-11
+    ## GO:0048488 2.044837e-07
+    ## GO:0002021 2.058414e-07
+    ## GO:0001958 2.573959e-07
+    ## GO:0036075 2.573959e-07
+    ## GO:0035456 6.718150e-07
+    ## GO:0042056 1.143574e-06
+    ## GO:0010765 1.834045e-06
+    ## GO:0001191 2.602512e-06
+    ## GO:0005385 5.315469e-06
+    ## GO:0019748 6.478479e-06
+    ## GO:0005583 1.014807e-05
+    ## GO:0098643 1.014807e-05
+    ## GO:0003730 1.946384e-05
+    ## GO:0030971 3.816649e-05
+    ## GO:0005112 4.700904e-05
+    ## GO:0006888 7.439968e-05
+    ##                                                                                             Term
+    ## GO:0046885                                            regulation of hormone biosynthetic process
+    ## GO:0044062                                                               regulation of excretion
+    ## GO:0001881                                                                    receptor recycling
+    ## GO:0038065                                                  collagen-activated signaling pathway
+    ## GO:0015026                                                                   coreceptor activity
+    ## GO:0008376                                              acetylgalactosaminyltransferase activity
+    ## GO:0031312                                             extrinsic component of organelle membrane
+    ## GO:0048024                                          regulation of mRNA splicing, via spliceosome
+    ## GO:0016646 oxidoreductase activity, acting on the CH-NH group of donors, NAD or NADP as acceptor
+    ## GO:0048488                                                          synaptic vesicle endocytosis
+    ## GO:0002021                                                            response to dietary excess
+    ## GO:0001958                                                             endochondral ossification
+    ## GO:0036075                                                              replacement ossification
+    ## GO:0035456                                                           response to interferon-beta
+    ## GO:0042056                                                              chemoattractant activity
+    ## GO:0010765                                           positive regulation of sodium ion transport
+    ## GO:0001191    transcriptional repressor activity, RNA polymerase II transcription factor binding
+    ## GO:0005385                                           zinc ion transmembrane transporter activity
+    ## GO:0019748                                                           secondary metabolic process
+    ## GO:0005583                                                             fibrillar collagen trimer
+    ## GO:0098643                                                                banded collagen fibril
+    ## GO:0003730                                                                   mRNA 3'-UTR binding
+    ## GO:0030971                                                      receptor tyrosine kinase binding
+    ## GO:0005112                                                                         Notch binding
+    ## GO:0006888                                                ER to Golgi vesicle-mediated transport
     ## [1] "*************************Enriched Up for PC 3 *************************"
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-15.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-29.png)
 
     ##                    pval
-    ## GO:2000177 0.000000e+00
-    ## GO:0000287 0.000000e+00
-    ## GO:0050982 0.000000e+00
-    ## GO:0005088 0.000000e+00
-    ## GO:1901987 0.000000e+00
-    ## GO:0051453 0.000000e+00
-    ## GO:0008589 5.107026e-15
-    ## GO:0006733 3.974598e-14
-    ## GO:0031234 3.688161e-13
-    ## GO:0005201 9.083845e-13
-    ## GO:0001952 4.730882e-12
-    ## GO:0008277 6.821468e-10
-    ## GO:0002040 2.221871e-09
-    ## GO:0002377 1.976827e-08
-    ## GO:0007043 2.436302e-08
-    ## GO:0034446 6.562894e-08
-    ## GO:1990939 1.021562e-07
-    ## GO:0007218 4.484521e-07
-    ## GO:0008081 5.841736e-07
-    ## GO:0051592 2.979361e-06
-    ## GO:0005546 2.989073e-06
-    ## GO:0001570 4.890835e-06
-    ## GO:0031965 1.777283e-05
-    ## GO:0098797 2.196586e-05
-    ## GO:0019228 2.776519e-05
-    ##                                                                          Term
-    ## GO:2000177                  regulation of neural precursor cell proliferation
-    ## GO:0000287                                              magnesium ion binding
-    ## GO:0050982                                   detection of mechanical stimulus
-    ## GO:0005088                     Ras guanyl-nucleotide exchange factor activity
-    ## GO:1901987                          regulation of cell cycle phase transition
-    ## GO:0051453                                     regulation of intracellular pH
-    ## GO:0008589                         regulation of smoothened signaling pathway
-    ## GO:0006733                          oxidoreduction coenzyme metabolic process
-    ## GO:0031234         extrinsic component of cytoplasmic side of plasma membrane
-    ## GO:0005201                        extracellular matrix structural constituent
-    ## GO:0001952                                 regulation of cell-matrix adhesion
-    ## GO:0008277 regulation of G-protein coupled receptor protein signaling pathway
-    ## GO:0002040                                             sprouting angiogenesis
-    ## GO:0002377                                          immunoglobulin production
-    ## GO:0007043                                        cell-cell junction assembly
-    ## GO:0034446                        substrate adhesion-dependent cell spreading
-    ## GO:1990939                           ATP-dependent microtubule motor activity
-    ## GO:0007218                                     neuropeptide signaling pathway
-    ## GO:0008081                              phosphoric diester hydrolase activity
-    ## GO:0051592                                            response to calcium ion
-    ## GO:0005546                      phosphatidylinositol-4,5-bisphosphate binding
-    ## GO:0001570                                                     vasculogenesis
-    ## GO:0031965                                                   nuclear membrane
-    ## GO:0098797                                    plasma membrane protein complex
-    ## GO:0019228                                          neuronal action potential
+    ## GO:0017144 0.000000e+00
+    ## GO:0008373 0.000000e+00
+    ## GO:0016805 0.000000e+00
+    ## GO:0008569 0.000000e+00
+    ## GO:0035458 0.000000e+00
+    ## GO:0045601 0.000000e+00
+    ## GO:0061900 0.000000e+00
+    ## GO:0070542 0.000000e+00
+    ## GO:0060669 2.220446e-16
+    ## GO:0001786 4.662937e-15
+    ## GO:0006826 2.382539e-13
+    ## GO:0031901 1.458389e-12
+    ## GO:0004181 5.615286e-12
+    ## GO:0005089 3.161094e-11
+    ## GO:0034505 8.669820e-11
+    ## GO:0006213 1.543847e-10
+    ## GO:0042246 4.122191e-10
+    ## GO:0031123 9.074974e-10
+    ## GO:0005164 1.018907e-09
+    ## GO:0042403 1.421206e-09
+    ## GO:0007212 1.562438e-09
+    ## GO:0035929 4.889881e-09
+    ## GO:0032182 5.591791e-09
+    ## GO:0016667 6.921822e-09
+    ## GO:0031941 8.701504e-09
+    ##                                                                    Term
+    ## GO:0017144                                       drug metabolic process
+    ## GO:0008373                                   sialyltransferase activity
+    ## GO:0016805                                         dipeptidase activity
+    ## GO:0008569 ATP-dependent microtubule motor activity, minus-end-directed
+    ## GO:0035458                         cellular response to interferon-beta
+    ## GO:0045601               regulation of endothelial cell differentiation
+    ## GO:0061900                                        glial cell activation
+    ## GO:0070542                                       response to fatty acid
+    ## GO:0060669                             embryonic placenta morphogenesis
+    ## GO:0001786                                   phosphatidylserine binding
+    ## GO:0006826                                           iron ion transport
+    ## GO:0031901                                      early endosome membrane
+    ## GO:0004181                             metallocarboxypeptidase activity
+    ## GO:0005089               Rho guanyl-nucleotide exchange factor activity
+    ## GO:0034505                                         tooth mineralization
+    ## GO:0006213                      pyrimidine nucleoside metabolic process
+    ## GO:0042246                                          tissue regeneration
+    ## GO:0031123                                        RNA 3'-end processing
+    ## GO:0005164                       tumor necrosis factor receptor binding
+    ## GO:0042403                            thyroid hormone metabolic process
+    ## GO:0007212                          dopamine receptor signaling pathway
+    ## GO:0035929                                    steroid hormone secretion
+    ## GO:0032182                               ubiquitin-like protein binding
+    ## GO:0016667  oxidoreductase activity, acting on a sulfur group of donors
+    ## GO:0031941                                            filamentous actin
 
     ## Loading necessary libraries...
 
@@ -1413,136 +2817,136 @@ for(l in 1:4){
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  0.62 sec 
-    ## iteration 2 done; time  0.72 sec 
-    ## iteration 3 done; time  0.64 sec 
-    ## iteration 4 done; time  1.17 sec 
-    ## iteration 5 done; time  0.66 sec 
-    ## iteration 6 done; time  0.74 sec 
-    ## iteration 7 done; time  0.75 sec 
-    ## iteration 8 done; time  0.77 sec 
-    ## iteration 9 done; time  1.31 sec 
-    ## iteration 10 done; time  0.73 sec
+    ## iteration 1 done; time  1.75 sec 
+    ## iteration 2 done; time  1.95 sec 
+    ## iteration 3 done; time  2.15 sec 
+    ## iteration 4 done; time  2.91 sec 
+    ## iteration 5 done; time  1.82 sec 
+    ## iteration 6 done; time  1.71 sec 
+    ## iteration 7 done; time  2.02 sec 
+    ## iteration 8 done; time  1.71 sec 
+    ## iteration 9 done; time  1.95 sec 
+    ## iteration 10 done; time  2.73 sec
 
     ## Labeling output ...
 
     ## Loaded Package GO.db
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-16.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-17.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-30.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-31.png)
 
     ## [1] "LOADINGS PC 4"
     ## [1] "*************************Enriched Down for PC 4 *************************"
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-18.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-19.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-32.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-33.png)
 
     ##                    pval
-    ## GO:0019825 8.944932e-12
-    ## GO:0002377 9.687255e-11
-    ## GO:0072331 1.628375e-10
-    ## GO:0003823 1.808584e-10
-    ## GO:0050771 1.555369e-09
-    ## GO:0007157 1.643315e-09
-    ## GO:0015370 1.270301e-08
-    ## GO:0005179 1.321492e-08
-    ## GO:0031301 1.401150e-08
-    ## GO:0070988 5.784360e-08
-    ## GO:0086010 8.283098e-07
-    ## GO:0015837 1.368209e-05
-    ## GO:0004222 1.614177e-05
-    ## GO:2000177 1.854142e-05
-    ## GO:0008080 6.949656e-05
-    ## GO:0003341 7.311360e-05
-    ## GO:0007565 1.551840e-04
-    ## GO:0032886 1.629041e-04
-    ## GO:0018958 3.569682e-04
-    ## GO:0006402 5.542298e-04
-    ## GO:0044448 1.634880e-03
-    ## GO:1990823 1.755529e-03
-    ## GO:1990830 1.755529e-03
-    ## GO:0008344 3.280867e-03
-    ## GO:0044450 3.648869e-03
-    ##                                                                                   Term
-    ## GO:0019825                                                              oxygen binding
-    ## GO:0002377                                                   immunoglobulin production
-    ## GO:0072331                                   signal transduction by p53 class mediator
-    ## GO:0003823                                                             antigen binding
-    ## GO:0050771                                         negative regulation of axonogenesis
-    ## GO:0007157 heterophilic cell-cell adhesion via plasma membrane cell adhesion molecules
-    ## GO:0015370                                            solute:sodium symporter activity
-    ## GO:0005179                                                            hormone activity
-    ## GO:0031301                                    integral component of organelle membrane
-    ## GO:0070988                                                               demethylation
-    ## GO:0086010                             membrane depolarization during action potential
-    ## GO:0015837                                                             amine transport
-    ## GO:0004222                                               metalloendopeptidase activity
-    ## GO:2000177                           regulation of neural precursor cell proliferation
-    ## GO:0008080                                                N-acetyltransferase activity
-    ## GO:0003341                                                             cilium movement
-    ## GO:0007565                                                            female pregnancy
-    ## GO:0032886                                     regulation of microtubule-based process
-    ## GO:0018958                                phenol-containing compound metabolic process
-    ## GO:0006402                                                      mRNA catabolic process
-    ## GO:0044448                                                            cell cortex part
-    ## GO:1990823                                      response to leukemia inhibitory factor
-    ## GO:1990830                             cellular response to leukemia inhibitory factor
-    ## GO:0008344                                                   adult locomotory behavior
-    ## GO:0044450                                          microtubule organizing center part
+    ## GO:0000049 1.675808e-31
+    ## GO:0042278 8.004842e-16
+    ## GO:0006024 1.078986e-09
+    ## GO:0032590 5.407825e-09
+    ## GO:0034644 5.605207e-09
+    ## GO:0097150 1.928004e-08
+    ## GO:0042181 1.304775e-06
+    ## GO:0048305 7.250023e-06
+    ## GO:0120033 7.854826e-06
+    ## GO:1900077 1.110572e-05
+    ## GO:0090501 2.942812e-05
+    ## GO:0007098 5.335510e-05
+    ## GO:0001540 6.084666e-05
+    ## GO:0016234 2.313841e-04
+    ## GO:0007140 6.794481e-04
+    ## GO:0140030 8.034988e-04
+    ## GO:0051028 8.829881e-04
+    ## GO:0000922 1.105754e-03
+    ## GO:0030544 1.129751e-03
+    ## GO:0030662 1.839162e-03
+    ## GO:0050853 1.882080e-03
+    ## GO:0032592 1.980832e-03
+    ## GO:0007130 2.565254e-03
+    ## GO:0032892 2.701334e-03
+    ## GO:2001258 3.551801e-03
+    ##                                                                               Term
+    ## GO:0000049                                                            tRNA binding
+    ## GO:0042278                                     purine nucleoside metabolic process
+    ## GO:0006024                                  glycosaminoglycan biosynthetic process
+    ## GO:0032590                                                       dendrite membrane
+    ## GO:0034644                                                 cellular response to UV
+    ## GO:0097150                               neuronal stem cell population maintenance
+    ## GO:0042181                                             ketone biosynthetic process
+    ## GO:0048305                                                immunoglobulin secretion
+    ## GO:0120033 negative regulation of plasma membrane bounded cell projection assembly
+    ## GO:1900077            negative regulation of cellular response to insulin stimulus
+    ## GO:0090501                                      RNA phosphodiester bond hydrolysis
+    ## GO:0007098                                                        centrosome cycle
+    ## GO:0001540                                                    amyloid-beta binding
+    ## GO:0016234                                                          inclusion body
+    ## GO:0007140                                           male meiotic nuclear division
+    ## GO:0140030                                  modification-dependent protein binding
+    ## GO:0051028                                                          mRNA transport
+    ## GO:0000922                                                            spindle pole
+    ## GO:0030544                                                   Hsp70 protein binding
+    ## GO:0030662                                                 coated vesicle membrane
+    ## GO:0050853                                       B cell receptor signaling pathway
+    ## GO:0032592                            integral component of mitochondrial membrane
+    ## GO:0007130                                           synaptonemal complex assembly
+    ## GO:0032892                           positive regulation of organic acid transport
+    ## GO:2001258                          negative regulation of cation channel activity
     ## [1] "*************************Enriched Up for PC 4 *************************"
 
-![](BoneNotebook_files/figure-markdown_github/pcacandice-20.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-21.png)
+![](BoneNotebook_files/figure-markdown_github/pcacandice-34.png)![](BoneNotebook_files/figure-markdown_github/pcacandice-35.png)
 
     ##                    pval
-    ## GO:0005201 0.000000e+00
-    ## GO:0005865 0.000000e+00
-    ## GO:0048477 0.000000e+00
-    ## GO:0005882 0.000000e+00
-    ## GO:0005791 4.440892e-16
-    ## GO:0099094 6.661338e-16
-    ## GO:0072329 7.847722e-12
-    ## GO:0043433 2.585843e-11
-    ## GO:0046849 1.413043e-09
-    ## GO:0003407 2.948983e-09
-    ## GO:0005518 3.607401e-09
-    ## GO:0006457 9.033564e-09
-    ## GO:0031330 1.537172e-08
-    ## GO:0004725 2.288043e-08
-    ## GO:0021536 2.404396e-08
-    ## GO:0016459 2.630267e-08
-    ## GO:0038024 2.955799e-08
-    ## GO:0044447 4.739889e-08
-    ## GO:0007528 5.812392e-08
-    ## GO:0022839 1.009165e-07
-    ## GO:0061025 1.244124e-07
-    ## GO:0070167 1.295244e-07
-    ## GO:0005520 3.034041e-07
-    ## GO:0030246 5.171963e-07
-    ## GO:0060359 2.014904e-06
-    ##                                                                        Term
-    ## GO:0005201                      extracellular matrix structural constituent
-    ## GO:0005865                                    striated muscle thin filament
-    ## GO:0048477                                                        oogenesis
-    ## GO:0005882                                            intermediate filament
-    ## GO:0005791                                      rough endoplasmic reticulum
-    ## GO:0099094                             ligand-gated cation channel activity
-    ## GO:0072329                            monocarboxylic acid catabolic process
-    ## GO:0043433 negative regulation of DNA binding transcription factor activity
-    ## GO:0046849                                                  bone remodeling
-    ## GO:0003407                                        neural retina development
-    ## GO:0005518                                                 collagen binding
-    ## GO:0006457                                                  protein folding
-    ## GO:0031330                negative regulation of cellular catabolic process
-    ## GO:0004725                            protein tyrosine phosphatase activity
-    ## GO:0021536                                         diencephalon development
-    ## GO:0016459                                                   myosin complex
-    ## GO:0038024                                          cargo receptor activity
-    ## GO:0044447                                                     axoneme part
-    ## GO:0007528                               neuromuscular junction development
-    ## GO:0022839                                       ion gated channel activity
-    ## GO:0061025                                                  membrane fusion
-    ## GO:0070167                      regulation of biomineral tissue development
-    ## GO:0005520                               insulin-like growth factor binding
-    ## GO:0030246                                             carbohydrate binding
-    ## GO:0060359                                         response to ammonium ion
+    ## GO:0002026 0.000000e+00
+    ## GO:0005859 0.000000e+00
+    ## GO:0097546 0.000000e+00
+    ## GO:0006352 0.000000e+00
+    ## GO:0005811 0.000000e+00
+    ## GO:0030574 0.000000e+00
+    ## GO:0070830 0.000000e+00
+    ## GO:0016339 0.000000e+00
+    ## GO:0035458 1.909584e-14
+    ## GO:0043236 2.020606e-14
+    ## GO:0071277 2.442491e-14
+    ## GO:2000249 8.393286e-14
+    ## GO:0005326 1.065814e-13
+    ## GO:0014888 1.985079e-13
+    ## GO:0001541 3.543832e-13
+    ## GO:0051489 3.760769e-12
+    ## GO:0006826 6.657586e-11
+    ## GO:0003727 1.502537e-09
+    ## GO:0019835 2.364963e-09
+    ## GO:0030145 4.038722e-09
+    ## GO:0010765 6.622302e-09
+    ## GO:0060143 6.970130e-09
+    ## GO:0046875 1.481876e-08
+    ## GO:0030968 1.810729e-08
+    ## GO:0043395 2.775179e-08
+    ##                                                                                        Term
+    ## GO:0002026                                     regulation of the force of heart contraction
+    ## GO:0005859                                                            muscle myosin complex
+    ## GO:0097546                                                                     ciliary base
+    ## GO:0006352                                          DNA-templated transcription, initiation
+    ## GO:0005811                                                                    lipid droplet
+    ## GO:0030574                                                       collagen catabolic process
+    ## GO:0070830                                               bicellular tight junction assembly
+    ## GO:0016339 calcium-dependent cell-cell adhesion via plasma membrane cell adhesion molecules
+    ## GO:0035458                                             cellular response to interferon-beta
+    ## GO:0043236                                                                  laminin binding
+    ## GO:0071277                                                 cellular response to calcium ion
+    ## GO:2000249                                  regulation of actin cytoskeleton reorganization
+    ## GO:0005326                                            neurotransmitter transporter activity
+    ## GO:0014888                                                       striated muscle adaptation
+    ## GO:0001541                                                     ovarian follicle development
+    ## GO:0051489                                                regulation of filopodium assembly
+    ## GO:0006826                                                               iron ion transport
+    ## GO:0003727                                                      single-stranded RNA binding
+    ## GO:0019835                                                                        cytolysis
+    ## GO:0030145                                                            manganese ion binding
+    ## GO:0010765                                      positive regulation of sodium ion transport
+    ## GO:0060143             positive regulation of syncytium formation by plasma membrane fusion
+    ## GO:0046875                                                          ephrin receptor binding
+    ## GO:0030968                                  endoplasmic reticulum unfolded protein response
+    ## GO:0043395                                             heparan sulfate proteoglycan binding
 
 ### Differential expression of Candice's data
 
@@ -1667,64 +3071,13 @@ std.heatmap(cor(ambrosiMatNorm,method = "spearman"))
 ![](BoneNotebook_files/figure-markdown_github/differentialExpression-13.png)
 
 ``` r
-entrezmm <- getBM(attributes = c('mgi_symbol', "entrezgene"), filters = "mgi_symbol",
-                   values = rownames(res[res$padj<.1,]), mart = mart)
-eKG <- enrichKEGG(entrezmm$entrezgene[!is.na(entrezmm$entrezgene)],organism = "mmu",pvalueCutoff = .1)
-eKG
+# entrezmm <- getBM(attributes = c('mgi_symbol', "entrezgene"), filters = "mgi_symbol",
+#                    values = rownames(res[res$padj<.1,]), mart = mart)
+# eKG <- enrichKEGG(entrezmm$entrezgene[!is.na(entrezmm$entrezgene)],organism = "mmu",pvalueCutoff = .1)
+# eKG
+# eKG$Description
+# eKG$geneID
 ```
-
-    ## #
-    ## # over-representation test
-    ## #
-    ## #...@organism     mmu 
-    ## #...@ontology     KEGG 
-    ## #...@keytype      kegg 
-    ## #...@gene     chr [1:258] "67851" "668661" "224904" "232345" "11370" "11504" ...
-    ## #...pvalues adjusted by 'BH' with cutoff <0.1 
-    ## #...9 enriched terms found
-    ## 'data.frame':    9 obs. of  9 variables:
-    ##  $ ID         : chr  "mmu03010" "mmu00190" "mmu05012" "mmu04714" ...
-    ##  $ Description: chr  "Ribosome" "Oxidative phosphorylation" "Parkinson's disease" "Thermogenesis" ...
-    ##  $ GeneRatio  : chr  "14/134" "12/134" "12/134" "13/134" ...
-    ##  $ BgRatio    : chr  "177/8204" "134/8204" "144/8204" "230/8204" ...
-    ##  $ pvalue     : num  1.01e-06 1.70e-06 3.64e-06 9.23e-05 7.51e-04 ...
-    ##  $ p.adjust   : num  0.00014 0.00014 0.0002 0.00381 0.02478 ...
-    ##  $ qvalue     : num  0.000132 0.000132 0.000189 0.003595 0.023397 ...
-    ##  $ geneID     : chr  "66845/68565/19896/19899/19921/19951/57808/67248/11837/68052/267019/57294/27050/20102" "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130" ...
-    ##  $ Count      : int  14 12 12 13 9 3 7 8 6
-    ## #...Citation
-    ##   Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
-    ##   clusterProfiler: an R package for comparing biological themes among
-    ##   gene clusters. OMICS: A Journal of Integrative Biology
-    ##   2012, 16(5):284-287
-
-``` r
-eKG$Description
-```
-
-    ## [1] "Ribosome"                            
-    ## [2] "Oxidative phosphorylation"           
-    ## [3] "Parkinson's disease"                 
-    ## [4] "Thermogenesis"                       
-    ## [5] "Retrograde endocannabinoid signaling"
-    ## [6] "Non-homologous end-joining"          
-    ## [7] "Pyrimidine metabolism"               
-    ## [8] "Measles"                             
-    ## [9] "TGF-beta signaling pathway"
-
-``` r
-eKG$geneID
-```
-
-    ## [1] "66845/68565/19896/19899/19921/19951/57808/67248/11837/68052/267019/57294/27050/20102"
-    ## [2] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"            
-    ## [3] "12859/20463/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"            
-    ## [4] "12859/20463/12894/17706/17711/17716/17717/17719/17720/17721/17722/54405/104130"      
-    ## [5] "14710/17716/17717/17719/17720/17721/17722/54405/104130"                              
-    ## [6] "227525/21673/14375"                                                                  
-    ## [7] "22169/66422/18102/54369/66420/20022/331487"                                          
-    ## [8] "70192/19106/27103/71586/23960/246728/246727/20846"                                   
-    ## [9] "12159/12166/13179/15903/16323/19877"
 
 ``` r
 library(ReactomePA)
@@ -1756,287 +3109,283 @@ as.data.frame(enrichPathway(rownames(entrezres)[entrezres$padj<.1],organism="mou
 ```
 
     ##                          ID
+    ## R-MMU-1799339 R-MMU-1799339
+    ## R-MMU-975956   R-MMU-975956
     ## R-MMU-72689     R-MMU-72689
     ## R-MMU-156827   R-MMU-156827
     ## R-MMU-72706     R-MMU-72706
-    ## R-MMU-1799339 R-MMU-1799339
-    ## R-MMU-975956   R-MMU-975956
-    ## R-MMU-72613     R-MMU-72613
-    ## R-MMU-72737     R-MMU-72737
     ## R-MMU-927802   R-MMU-927802
     ## R-MMU-975957   R-MMU-975957
-    ## R-MMU-72766     R-MMU-72766
+    ## R-MMU-72613     R-MMU-72613
+    ## R-MMU-72737     R-MMU-72737
+    ## R-MMU-1474244 R-MMU-1474244
+    ## R-MMU-3000178 R-MMU-3000178
+    ## R-MMU-2022090 R-MMU-2022090
     ## R-MMU-72695     R-MMU-72695
-    ## R-MMU-6791226 R-MMU-6791226
-    ## R-MMU-72312     R-MMU-72312
-    ## R-MMU-8868773 R-MMU-8868773
+    ## R-MMU-1474290 R-MMU-1474290
+    ## R-MMU-216083   R-MMU-216083
+    ## R-MMU-72766     R-MMU-72766
     ## R-MMU-72649     R-MMU-72649
     ## R-MMU-72702     R-MMU-72702
     ## R-MMU-72662     R-MMU-72662
-    ## R-MMU-3000178 R-MMU-3000178
-    ## R-MMU-2022090 R-MMU-2022090
-    ## R-MMU-1474244 R-MMU-1474244
-    ## R-MMU-216083   R-MMU-216083
+    ## R-MMU-1650814 R-MMU-1650814
     ## R-MMU-1474228 R-MMU-1474228
     ## R-MMU-8948216 R-MMU-8948216
     ##                                                                                                          Description
+    ## R-MMU-1799339                                            SRP-dependent cotranslational protein targeting to membrane
+    ## R-MMU-975956                            Nonsense Mediated Decay (NMD) independent of the Exon Junction Complex (EJC)
     ## R-MMU-72689                                                                 Formation of a pool of free 40S subunits
     ## R-MMU-156827                                       L13a-mediated translational silencing of Ceruloplasmin expression
     ## R-MMU-72706                                                  GTP hydrolysis and joining of the 60S ribosomal subunit
-    ## R-MMU-1799339                                            SRP-dependent cotranslational protein targeting to membrane
-    ## R-MMU-975956                            Nonsense Mediated Decay (NMD) independent of the Exon Junction Complex (EJC)
-    ## R-MMU-72613                                                                        Eukaryotic Translation Initiation
-    ## R-MMU-72737                                                                     Cap-dependent Translation Initiation
     ## R-MMU-927802                                                                           Nonsense-Mediated Decay (NMD)
     ## R-MMU-975957                               Nonsense Mediated Decay (NMD) enhanced by the Exon Junction Complex (EJC)
-    ## R-MMU-72766                                                                                              Translation
+    ## R-MMU-72613                                                                        Eukaryotic Translation Initiation
+    ## R-MMU-72737                                                                     Cap-dependent Translation Initiation
+    ## R-MMU-1474244                                                                      Extracellular matrix organization
+    ## R-MMU-3000178                                                                                      ECM proteoglycans
+    ## R-MMU-2022090                                           Assembly of collagen fibrils and other multimeric structures
     ## R-MMU-72695                                      Formation of the ternary complex, and subsequently, the 43S complex
-    ## R-MMU-6791226                                          Major pathway of rRNA processing in the nucleolus and cytosol
-    ## R-MMU-72312                                                                                          rRNA processing
-    ## R-MMU-8868773                                                             rRNA processing in the nucleus and cytosol
+    ## R-MMU-1474290                                                                                     Collagen formation
+    ## R-MMU-216083                                                                      Integrin cell surface interactions
+    ## R-MMU-72766                                                                                              Translation
     ## R-MMU-72649                                                                 Translation initiation complex formation
     ## R-MMU-72702                                                           Ribosomal scanning and start codon recognition
     ## R-MMU-72662   Activation of the mRNA upon binding of the cap-binding complex and eIFs, and subsequent binding to 43S
-    ## R-MMU-3000178                                                                                      ECM proteoglycans
-    ## R-MMU-2022090                                           Assembly of collagen fibrils and other multimeric structures
-    ## R-MMU-1474244                                                                      Extracellular matrix organization
-    ## R-MMU-216083                                                                      Integrin cell surface interactions
+    ## R-MMU-1650814                                                            Collagen biosynthesis and modifying enzymes
     ## R-MMU-1474228                                                                Degradation of the extracellular matrix
     ## R-MMU-8948216                                                                           Collagen chain trimerization
     ##               GeneRatio  BgRatio       pvalue     p.adjust       qvalue
-    ## R-MMU-72689      12/121  88/8657 2.686592e-09 9.056897e-07 8.071199e-07
-    ## R-MMU-156827     12/121  98/8657 9.449668e-09 9.056897e-07 8.071199e-07
-    ## R-MMU-72706      12/121  99/8657 1.062758e-08 9.056897e-07 8.071199e-07
-    ## R-MMU-1799339    11/121  81/8657 1.335826e-08 9.056897e-07 8.071199e-07
-    ## R-MMU-975956     11/121  81/8657 1.335826e-08 9.056897e-07 8.071199e-07
-    ## R-MMU-72613      12/121 106/8657 2.330642e-08 1.128697e-06 1.005856e-06
-    ## R-MMU-72737      12/121 106/8657 2.330642e-08 1.128697e-06 1.005856e-06
-    ## R-MMU-927802     11/121 101/8657 1.384501e-07 5.214955e-06 4.647390e-06
-    ## R-MMU-975957     11/121 101/8657 1.384501e-07 5.214955e-06 4.647390e-06
-    ## R-MMU-72766      14/121 212/8657 1.362494e-06 4.618856e-05 4.116167e-05
-    ## R-MMU-72695       6/121  47/8657 4.426370e-05 1.111058e-03 9.901367e-04
-    ## R-MMU-6791226     9/121 121/8657 4.588438e-05 1.111058e-03 9.901367e-04
-    ## R-MMU-72312       9/121 121/8657 4.588438e-05 1.111058e-03 9.901367e-04
-    ## R-MMU-8868773     9/121 121/8657 4.588438e-05 1.111058e-03 9.901367e-04
-    ## R-MMU-72649       6/121  54/8657 9.831420e-05 2.083032e-03 1.856327e-03
-    ## R-MMU-72702       6/121  54/8657 9.831420e-05 2.083032e-03 1.856327e-03
-    ## R-MMU-72662       6/121  55/8657 1.091046e-04 2.175674e-03 1.938887e-03
-    ## R-MMU-3000178     5/121  40/8657 2.184614e-04 4.114357e-03 3.666575e-03
-    ## R-MMU-2022090     5/121  44/8657 3.448500e-04 6.152850e-03 5.483210e-03
-    ## R-MMU-1474244    12/121 272/8657 4.026846e-04 6.825504e-03 6.082657e-03
-    ## R-MMU-216083      6/121  76/8657 6.482689e-04 1.046491e-02 9.325973e-03
-    ## R-MMU-1474228     7/121 129/8657 2.144219e-03 3.304047e-02 2.944454e-02
-    ## R-MMU-8948216     4/121  41/8657 2.466764e-03 3.635796e-02 3.240098e-02
-    ##                                                                                             geneID
-    ## R-MMU-72689               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-156827              53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-72706               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-1799339                   19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-975956                    19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-72613               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-72737               53356/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-927802                    19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-975957                    19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-72766   53356/66845/68565/19896/19899/19921/19951/57808/11837/68052/267019/57294/27050/20102
-    ## R-MMU-72695                                                   53356/68052/267019/57294/27050/20102
-    ## R-MMU-6791226                                14791/72544/19896/19899/19921/19951/57808/11837/20826
-    ## R-MMU-72312                                  14791/72544/19896/19899/19921/19951/57808/11837/20826
-    ## R-MMU-8868773                                14791/72544/19896/19899/19921/19951/57808/11837/20826
-    ## R-MMU-72649                                                   53356/68052/267019/57294/27050/20102
-    ## R-MMU-72702                                                   53356/68052/267019/57294/27050/20102
-    ## R-MMU-72662                                                   53356/68052/267019/57294/27050/20102
-    ## R-MMU-3000178                                                        12111/12842/12824/12832/13179
-    ## R-MMU-2022090                                                        12842/12824/12832/12837/16948
-    ## R-MMU-1474244            232345/12111/12159/12842/12824/12832/12837/13179/15891/319480/16613/16948
-    ## R-MMU-216083                                                  12842/12824/12832/12837/15891/319480
-    ## R-MMU-1474228                                           232345/12842/12824/12832/12837/13179/16613
-    ## R-MMU-8948216                                                              12842/12824/12832/12837
+    ## R-MMU-1799339     9/117  81/8657 1.274656e-06 0.0002090435 0.0001851605
+    ## R-MMU-975956      9/117  81/8657 1.274656e-06 0.0002090435 0.0001851605
+    ## R-MMU-72689       9/117  88/8657 2.579460e-06 0.0002820209 0.0002498003
+    ## R-MMU-156827      9/117  98/8657 6.346482e-06 0.0003815006 0.0003379145
+    ## R-MMU-72706       9/117  99/8657 6.902813e-06 0.0003815006 0.0003379145
+    ## R-MMU-927802      9/117 101/8657 8.141781e-06 0.0003815006 0.0003379145
+    ## R-MMU-975957      9/117 101/8657 8.141781e-06 0.0003815006 0.0003379145
+    ## R-MMU-72613       9/117 106/8657 1.210079e-05 0.0004410067 0.0003906221
+    ## R-MMU-72737       9/117 106/8657 1.210079e-05 0.0004410067 0.0003906221
+    ## R-MMU-1474244    13/117 272/8657 7.282586e-05 0.0023886883 0.0021157829
+    ## R-MMU-3000178     5/117  40/8657 1.866303e-04 0.0055649766 0.0049291834
+    ## R-MMU-2022090     5/117  44/8657 2.950529e-04 0.0080647790 0.0071433858
+    ## R-MMU-72695       5/117  47/8657 4.035283e-04 0.0101813294 0.0090181223
+    ## R-MMU-1474290     6/117  74/8657 4.697276e-04 0.0110050459 0.0097477300
+    ## R-MMU-216083      6/117  76/8657 5.423359e-04 0.0117021152 0.0103651598
+    ## R-MMU-72766      10/117 212/8657 5.708349e-04 0.0117021152 0.0103651598
+    ## R-MMU-72649       5/117  54/8657 7.717386e-04 0.0140627929 0.0124561324
+    ## R-MMU-72702       5/117  54/8657 7.717386e-04 0.0140627929 0.0124561324
+    ## R-MMU-72662       5/117  55/8657 8.398595e-04 0.0144986268 0.0128421727
+    ## R-MMU-1650814     5/117  62/8657 1.449418e-03 0.0237704500 0.0210546990
+    ## R-MMU-1474228     7/117 129/8657 1.768732e-03 0.0276259130 0.0244696790
+    ## R-MMU-8948216     4/117  41/8657 2.182192e-03 0.0325345026 0.0288174670
+    ##                                                                                        geneID
+    ## R-MMU-1799339                          67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-975956                           67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-72689                            67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-156827                           67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-72706                            67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-927802                           67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-975957                           67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-72613                            67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-72737                            67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-1474244 232345/12111/12159/12842/12824/12832/12837/13179/15891/319480/16613/16948/26433
+    ## R-MMU-3000178                                                   12111/12842/12824/12832/13179
+    ## R-MMU-2022090                                                   12842/12824/12832/12837/16948
+    ## R-MMU-72695                                                    267019/66481/20088/27050/20103
+    ## R-MMU-1474290                                             12842/12824/12832/12837/16948/26433
+    ## R-MMU-216083                                             12842/12824/12832/12837/15891/319480
+    ## R-MMU-72766                      66845/67115/19899/19951/11837/267019/66481/20088/27050/20103
+    ## R-MMU-72649                                                    267019/66481/20088/27050/20103
+    ## R-MMU-72702                                                    267019/66481/20088/27050/20103
+    ## R-MMU-72662                                                    267019/66481/20088/27050/20103
+    ## R-MMU-1650814                                                   12842/12824/12832/12837/26433
+    ## R-MMU-1474228                                      232345/12842/12824/12832/12837/13179/16613
+    ## R-MMU-8948216                                                         12842/12824/12832/12837
     ##               Count
-    ## R-MMU-72689      12
-    ## R-MMU-156827     12
-    ## R-MMU-72706      12
-    ## R-MMU-1799339    11
-    ## R-MMU-975956     11
-    ## R-MMU-72613      12
-    ## R-MMU-72737      12
-    ## R-MMU-927802     11
-    ## R-MMU-975957     11
-    ## R-MMU-72766      14
-    ## R-MMU-72695       6
-    ## R-MMU-6791226     9
-    ## R-MMU-72312       9
-    ## R-MMU-8868773     9
-    ## R-MMU-72649       6
-    ## R-MMU-72702       6
-    ## R-MMU-72662       6
+    ## R-MMU-1799339     9
+    ## R-MMU-975956      9
+    ## R-MMU-72689       9
+    ## R-MMU-156827      9
+    ## R-MMU-72706       9
+    ## R-MMU-927802      9
+    ## R-MMU-975957      9
+    ## R-MMU-72613       9
+    ## R-MMU-72737       9
+    ## R-MMU-1474244    13
     ## R-MMU-3000178     5
     ## R-MMU-2022090     5
-    ## R-MMU-1474244    12
+    ## R-MMU-72695       5
+    ## R-MMU-1474290     6
     ## R-MMU-216083      6
+    ## R-MMU-72766      10
+    ## R-MMU-72649       5
+    ## R-MMU-72702       5
+    ## R-MMU-72662       5
+    ## R-MMU-1650814     5
     ## R-MMU-1474228     7
     ## R-MMU-8948216     4
 
 ``` r
 eG <- enrichGO(rownames(res[res$padj<.1,]),OrgDb ='org.Mm.eg.db',keyType = "SYMBOL",ont = "BP")
 dfGO <- as.data.frame(eG)
+write.table(dfGO,file = "~/Desktop/CandiceGO.txt",quote = F,sep = "\t")
 print(dfGO[1:30,])
 ```
 
     ##                    ID
-    ## GO:0051607 GO:0051607
     ## GO:0009615 GO:0009615
-    ## GO:0071346 GO:0071346
-    ## GO:0034341 GO:0034341
-    ## GO:0006220 GO:0006220
+    ## GO:0051607 GO:0051607
     ## GO:0001649 GO:0001649
-    ## GO:0009147 GO:0009147
-    ## GO:0006303 GO:0006303
-    ## GO:0000726 GO:0000726
     ## GO:0030199 GO:0030199
-    ## GO:0006221 GO:0006221
+    ## GO:0001503 GO:0001503
+    ## GO:0042451 GO:0042451
+    ## GO:0046129 GO:0046129
     ## GO:0048333 GO:0048333
-    ## GO:0035282 GO:0035282
-    ## GO:0050688 GO:0050688
-    ## GO:0002831 GO:0002831
-    ## GO:0072527 GO:0072527
-    ## GO:0043900 GO:0043900
-    ## GO:0072528 GO:0072528
+    ## GO:0071346 GO:0071346
+    ## GO:0006183 GO:0006183
+    ## GO:0045992 GO:0045992
     ## GO:0001958 GO:0001958
     ## GO:0036075 GO:0036075
-    ## GO:0044419 GO:0044419
-    ## GO:0042832 GO:0042832
-    ## GO:0050830 GO:0050830
-    ## GO:0043901 GO:0043901
+    ## GO:0072522 GO:0072522
+    ## GO:0030198 GO:0030198
+    ## GO:0043062 GO:0043062
+    ## GO:1901070 GO:1901070
     ## GO:0042455 GO:0042455
     ## GO:0009148 GO:0009148
+    ## GO:0034341 GO:0034341
     ## GO:0009163 GO:0009163
-    ## GO:0009220 GO:0009220
-    ## GO:0046132 GO:0046132
-    ## GO:0001562 GO:0001562
-    ##                                                         Description
-    ## GO:0051607                                defense response to virus
-    ## GO:0009615                                        response to virus
-    ## GO:0071346                    cellular response to interferon-gamma
-    ## GO:0034341                             response to interferon-gamma
-    ## GO:0006220                  pyrimidine nucleotide metabolic process
-    ## GO:0001649                               osteoblast differentiation
-    ## GO:0009147     pyrimidine nucleoside triphosphate metabolic process
-    ## GO:0006303 double-strand break repair via nonhomologous end joining
-    ## GO:0000726                               non-recombinational repair
-    ## GO:0030199                             collagen fibril organization
-    ## GO:0006221               pyrimidine nucleotide biosynthetic process
-    ## GO:0048333                          mesodermal cell differentiation
-    ## GO:0035282                                             segmentation
-    ## GO:0050688                  regulation of defense response to virus
-    ## GO:0002831                regulation of response to biotic stimulus
-    ## GO:0072527         pyrimidine-containing compound metabolic process
-    ## GO:0043900                     regulation of multi-organism process
-    ## GO:0072528      pyrimidine-containing compound biosynthetic process
-    ## GO:0001958                                endochondral ossification
-    ## GO:0036075                                 replacement ossification
-    ## GO:0044419               interspecies interaction between organisms
-    ## GO:0042832                            defense response to protozoan
-    ## GO:0050830              defense response to Gram-positive bacterium
-    ## GO:0043901            negative regulation of multi-organism process
-    ## GO:0042455                      ribonucleoside biosynthetic process
-    ## GO:0009148  pyrimidine nucleoside triphosphate biosynthetic process
-    ## GO:0009163                          nucleoside biosynthetic process
-    ## GO:0009220           pyrimidine ribonucleotide biosynthetic process
-    ## GO:0046132           pyrimidine ribonucleoside biosynthetic process
-    ## GO:0001562                                    response to protozoan
+    ## GO:0044403 GO:0044403
+    ## GO:0051216 GO:0051216
+    ## GO:1901659 GO:1901659
+    ## NA               <NA>
+    ## NA.1             <NA>
+    ## NA.2             <NA>
+    ## NA.3             <NA>
+    ## NA.4             <NA>
+    ## NA.5             <NA>
+    ##                                                        Description
+    ## GO:0009615                                       response to virus
+    ## GO:0051607                               defense response to virus
+    ## GO:0001649                              osteoblast differentiation
+    ## GO:0030199                            collagen fibril organization
+    ## GO:0001503                                            ossification
+    ## GO:0042451                  purine nucleoside biosynthetic process
+    ## GO:0046129              purine ribonucleoside biosynthetic process
+    ## GO:0048333                         mesodermal cell differentiation
+    ## GO:0071346                   cellular response to interferon-gamma
+    ## GO:0006183                                GTP biosynthetic process
+    ## GO:0045992            negative regulation of embryonic development
+    ## GO:0001958                               endochondral ossification
+    ## GO:0036075                                replacement ossification
+    ## GO:0072522         purine-containing compound biosynthetic process
+    ## GO:0030198                       extracellular matrix organization
+    ## GO:0043062                    extracellular structure organization
+    ## GO:1901070      guanosine-containing compound biosynthetic process
+    ## GO:0042455                     ribonucleoside biosynthetic process
+    ## GO:0009148 pyrimidine nucleoside triphosphate biosynthetic process
+    ## GO:0034341                            response to interferon-gamma
+    ## GO:0009163                         nucleoside biosynthetic process
+    ## GO:0044403    symbiosis, encompassing mutualism through parasitism
+    ## GO:0051216                                   cartilage development
+    ## GO:1901659                  glycosyl compound biosynthetic process
+    ## NA                                                            <NA>
+    ## NA.1                                                          <NA>
+    ## NA.2                                                          <NA>
+    ## NA.3                                                          <NA>
+    ## NA.4                                                          <NA>
+    ## NA.5                                                          <NA>
     ##            GeneRatio   BgRatio       pvalue     p.adjust       qvalue
-    ## GO:0051607    15/243 202/23577 3.157935e-09 9.152741e-06 8.009334e-06
-    ## GO:0009615    16/243 246/23577 6.314413e-09 9.152741e-06 8.009334e-06
-    ## GO:0071346     8/243  75/23577 1.055996e-06 1.020445e-03 8.929654e-04
-    ## GO:0034341     8/243  94/23577 5.889357e-06 4.268312e-03 3.735092e-03
-    ## GO:0006220     5/243  29/23577 1.082890e-05 6.278595e-03 5.494240e-03
-    ## GO:0001649    11/243 224/23577 2.254231e-05 9.764248e-03 8.544448e-03
-    ## GO:0009147     4/243  17/23577 2.357700e-05 9.764248e-03 8.544448e-03
-    ## GO:0006303     5/243  38/23577 4.243819e-05 1.537854e-02 1.345737e-02
-    ## GO:0000726     5/243  43/23577 7.804379e-05 1.935407e-02 1.693626e-02
-    ## GO:0030199     5/243  43/23577 7.804379e-05 1.935407e-02 1.693626e-02
-    ## GO:0006221     4/243  23/23577 8.355669e-05 1.935407e-02 1.693626e-02
-    ## GO:0048333     4/243  23/23577 8.355669e-05 1.935407e-02 1.693626e-02
-    ## GO:0035282     7/243 103/23577 9.690644e-05 1.935407e-02 1.693626e-02
-    ## GO:0050688     6/243  72/23577 9.974272e-05 1.935407e-02 1.693626e-02
-    ## GO:0002831     8/243 139/23577 1.001418e-04 1.935407e-02 1.693626e-02
-    ## GO:0072527     5/243  48/23577 1.331328e-04 2.412199e-02 2.110855e-02
-    ## GO:0043900    13/243 378/23577 1.634455e-04 2.787227e-02 2.439032e-02
-    ## GO:0072528     4/243  28/23577 1.855446e-04 2.988299e-02 2.614985e-02
-    ## GO:0001958     4/243  29/23577 2.134991e-04 3.094670e-02 2.708068e-02
-    ## GO:0036075     4/243  29/23577 2.134991e-04 3.094670e-02 2.708068e-02
-    ## GO:0044419    12/243 350/23577 2.989092e-04 3.921132e-02 3.431284e-02
-    ## GO:0042832     4/243  32/23577 3.155078e-04 3.921132e-02 3.431284e-02
-    ## GO:0050830     6/243  89/23577 3.207643e-04 3.921132e-02 3.431284e-02
-    ## GO:0043901     8/243 165/23577 3.246194e-04 3.921132e-02 3.431284e-02
-    ## GO:0042455     4/243  33/23577 3.561396e-04 4.035305e-02 3.531194e-02
-    ## GO:0009148     3/243  14/23577 3.619108e-04 4.035305e-02 3.531194e-02
-    ## GO:0009163     4/243  35/23577 4.484112e-04 4.487979e-02 3.927317e-02
-    ## GO:0009220     3/243  15/23577 4.489527e-04 4.487979e-02 3.927317e-02
-    ## GO:0046132     3/243  15/23577 4.489527e-04 4.487979e-02 3.927317e-02
-    ## GO:0001562     4/243  36/23577 5.004110e-04 4.679650e-02 4.095044e-02
-    ##                                                                                                      geneID
-    ## GO:0051607        Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl1/Oasl2/Parp9/Rtp4/Stat1/Tspan6/Zbp1
-    ## GO:0009615 Ddx60/Eif2ak2/Eif2ak4/Gbp4/Ifih1/Ifit1/Oas2/Oas3/Oasl1/Oasl2/Parp9/Rps15a/Rtp4/Stat1/Tspan6/Zbp1
-    ## GO:0071346                                                       Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
-    ## GO:0034341                                                       Gbp10/Gbp4/Gbp6/Gbp7/Gbp8/Irf8/Parp9/Stat1
-    ## GO:0006220                                                                      Cmpk2/Dctpp1/Nme1/Nme6/Uprt
-    ## GO:0001649                                    Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Ibsp/Id3/Itga11/Runx2/Satb2/Sfrp2
-    ## GO:0009147                                                                           Cmpk2/Dctpp1/Nme1/Nme6
-    ## GO:0006303                                                                 Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
-    ## GO:0000726                                                                 Dclre1c/Ercc1/Parp9/Prpf19/Xrcc6
-    ## GO:0030199                                                                   Col1a1/Col2a1/Col5a2/Lox/Sfrp2
-    ## GO:0006221                                                                             Cmpk2/Nme1/Nme6/Uprt
-    ## GO:0048333                                                                          Bmp4/Bmpr1a/Inhba/Sfrp2
-    ## GO:0035282                                                            Bmp4/Bmpr1a/Mafb/Nrp2/Pcsk6/Sfrp2/Ttn
-    ## GO:0050688                                                            Ddx60/Eif2ak4/Gbp4/Parp9/Stat1/Tspan6
-    ## GO:0002831                                                  Ddx60/Eif2ak4/Gbp4/Mif/Parp9/Stat1/Trib1/Tspan6
-    ## GO:0072527                                                                      Cmpk2/Dctpp1/Nme1/Nme6/Uprt
-    ## GO:0043900                    Ddx60/Eif2ak2/Eif2ak4/Gbp4/Inhba/Irf8/Mif/Oas3/Oasl1/Parp9/Stat1/Trib1/Tspan6
-    ## GO:0072528                                                                             Cmpk2/Nme1/Nme6/Uprt
-    ## GO:0001958                                                                         Bmp4/Col1a1/Col2a1/Runx2
-    ## GO:0036075                                                                         Bmp4/Col1a1/Col2a1/Runx2
-    ## GO:0044419                           Cul4a/Eif2ak2/Eif2ak4/Eif3g/Gbp6/Gbp7/Irf8/Oas3/Oasl1/Romo1/Stat1/Zbp1
-    ## GO:0042832                                                                             Gbp10/Gbp6/Gbp7/Irf8
-    ## GO:0050830                                                              Gbp10/Gbp6/Gbp7/Rarres2/Romo1/Rpl39
-    ## GO:0043901                                               Eif2ak2/Eif2ak4/Irf8/Oas3/Oasl1/Stat1/Trib1/Tspan6
-    ## GO:0042455                                                                              Aprt/Nme1/Nme6/Uprt
-    ## GO:0009148                                                                                  Cmpk2/Nme1/Nme6
-    ## GO:0009163                                                                              Aprt/Nme1/Nme6/Uprt
-    ## GO:0009220                                                                                   Nme1/Nme6/Uprt
-    ## GO:0046132                                                                                   Nme1/Nme6/Uprt
-    ## GO:0001562                                                                             Gbp10/Gbp6/Gbp7/Irf8
+    ## GO:0009615    16/226 246/23577 2.226839e-09 6.105993e-06 5.358478e-06
+    ## GO:0051607    14/226 202/23577 1.027491e-08 1.408691e-05 1.236234e-05
+    ## GO:0001649    12/226 224/23577 1.863234e-06 1.702996e-03 1.494510e-03
+    ## GO:0030199     6/226  43/23577 3.290441e-06 2.255598e-03 1.979460e-03
+    ## GO:0001503    14/226 395/23577 3.036210e-05 1.665058e-02 1.461216e-02
+    ## GO:0042451     4/226  21/23577 4.328697e-05 1.695612e-02 1.488030e-02
+    ## GO:0046129     4/226  21/23577 4.328697e-05 1.695612e-02 1.488030e-02
+    ## GO:0048333     4/226  23/23577 6.308785e-05 2.162336e-02 1.897616e-02
+    ## GO:0071346     6/226  75/23577 8.420468e-05 2.565436e-02 2.251367e-02
+    ## GO:0006183     3/226  11/23577 1.354921e-04 3.411764e-02 2.994085e-02
+    ## GO:0045992     4/226  28/23577 1.404942e-04 3.411764e-02 2.994085e-02
+    ## GO:0001958     4/226  29/23577 1.617539e-04 3.411764e-02 2.994085e-02
+    ## GO:0036075     4/226  29/23577 1.617539e-04 3.411764e-02 2.994085e-02
+    ## GO:0072522    10/226 253/23577 1.752884e-04 3.433149e-02 3.012852e-02
+    ## GO:0030198     9/226 209/23577 1.959074e-04 3.478969e-02 3.053063e-02
+    ## GO:0043062     9/226 210/23577 2.030033e-04 3.478969e-02 3.053063e-02
+    ## GO:1901070     3/226  13/23577 2.315448e-04 3.734682e-02 3.277471e-02
+    ## GO:0042455     4/226  33/23577 2.704405e-04 4.014214e-02 3.522781e-02
+    ## GO:0009148     3/226  14/23577 2.926120e-04 4.014214e-02 3.522781e-02
+    ## GO:0034341     6/226  94/23577 2.927946e-04 4.014214e-02 3.522781e-02
+    ## GO:0009163     4/226  35/23577 3.408971e-04 4.325393e-02 3.795865e-02
+    ## GO:0044403    11/226 328/23577 3.470410e-04 4.325393e-02 3.795865e-02
+    ## GO:0051216     8/226 182/23577 3.859822e-04 4.601579e-02 4.038240e-02
+    ## GO:1901659     4/226  37/23577 4.235991e-04 4.839620e-02 4.247138e-02
+    ## NA              <NA>      <NA>           NA           NA           NA
+    ## NA.1            <NA>      <NA>           NA           NA           NA
+    ## NA.2            <NA>      <NA>           NA           NA           NA
+    ## NA.3            <NA>      <NA>           NA           NA           NA
+    ## NA.4            <NA>      <NA>           NA           NA           NA
+    ## NA.5            <NA>      <NA>           NA           NA           NA
+    ##                                                                                                    geneID
+    ## GO:0009615 Cxcl9/Ddx60/Eif2ak2/Gbp4/Ifih1/Ifit1/Isg15/Oas1a/Oas2/Oas3/Oasl2/Rps15a/Rtp4/Stat1/Tspan6/Zbp1
+    ## GO:0051607              Cxcl9/Ddx60/Eif2ak2/Gbp4/Ifih1/Ifit1/Isg15/Oas2/Oas3/Oasl2/Rtp4/Stat1/Tspan6/Zbp1
+    ## GO:0001649                            Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Ibsp/Id3/Itga11/Rack1/Runx2/Satb2/Sfrp2
+    ## GO:0030199                                                           Col1a1/Col2a1/Col5a2/Lox/Plod3/Sfrp2
+    ## GO:0001503               Bmp3/Bmp4/Bmpr1a/Cat/Col1a1/Col2a1/Ibsp/Id3/Isg15/Itga11/Rack1/Runx2/Satb2/Sfrp2
+    ## GO:0042451                                                                             Aprt/Nme1/Nme6/Pnp
+    ## GO:0046129                                                                             Aprt/Nme1/Nme6/Pnp
+    ## GO:0048333                                                                        Bmp4/Bmpr1a/Inhba/Sfrp2
+    ## GO:0071346                                                                Gbp10/Gbp4/Gbp7/Gbp8/Gbp9/Stat1
+    ## GO:0006183                                                                                  Nme1/Nme6/Pnp
+    ## GO:0045992                                                                         Bmp4/Col5a2/Fzd3/Sfrp2
+    ## GO:0001958                                                                       Bmp4/Col1a1/Col2a1/Runx2
+    ## GO:0036075                                                                       Bmp4/Col1a1/Col2a1/Runx2
+    ## GO:0072522                                        Aprt/Atp5h/Gpr176/Nme1/Nme6/Oas1a/Oas2/Oasl2/Papss2/Pnp
+    ## GO:0030198                                         Col1a1/Col2a1/Col5a2/Ibsp/Lox/Plod3/Postn/Sema5a/Sfrp2
+    ## GO:0043062                                         Col1a1/Col2a1/Col5a2/Ibsp/Lox/Plod3/Postn/Sema5a/Sfrp2
+    ## GO:1901070                                                                                  Nme1/Nme6/Pnp
+    ## GO:0042455                                                                             Aprt/Nme1/Nme6/Pnp
+    ## GO:0009148                                                                                Cmpk2/Nme1/Nme6
+    ## GO:0034341                                                                Gbp10/Gbp4/Gbp7/Gbp8/Gbp9/Stat1
+    ## GO:0009163                                                                             Aprt/Nme1/Nme6/Pnp
+    ## GO:0044403                               Cul4a/Eif2ak2/Gbp7/Gbp9/Isg15/Oas1a/Oas3/Rab7/Stat1/Trim30a/Zbp1
+    ## GO:0051216                                               Bmp3/Bmp4/Bmpr1a/Col1a1/Col2a1/Runx2/Satb2/Sfrp2
+    ## GO:1901659                                                                             Aprt/Nme1/Nme6/Pnp
+    ## NA                                                                                                   <NA>
+    ## NA.1                                                                                                 <NA>
+    ## NA.2                                                                                                 <NA>
+    ## NA.3                                                                                                 <NA>
+    ## NA.4                                                                                                 <NA>
+    ## NA.5                                                                                                 <NA>
     ##            Count
-    ## GO:0051607    15
     ## GO:0009615    16
-    ## GO:0071346     8
-    ## GO:0034341     8
-    ## GO:0006220     5
-    ## GO:0001649    11
-    ## GO:0009147     4
-    ## GO:0006303     5
-    ## GO:0000726     5
-    ## GO:0030199     5
-    ## GO:0006221     4
+    ## GO:0051607    14
+    ## GO:0001649    12
+    ## GO:0030199     6
+    ## GO:0001503    14
+    ## GO:0042451     4
+    ## GO:0046129     4
     ## GO:0048333     4
-    ## GO:0035282     7
-    ## GO:0050688     6
-    ## GO:0002831     8
-    ## GO:0072527     5
-    ## GO:0043900    13
-    ## GO:0072528     4
+    ## GO:0071346     6
+    ## GO:0006183     3
+    ## GO:0045992     4
     ## GO:0001958     4
     ## GO:0036075     4
-    ## GO:0044419    12
-    ## GO:0042832     4
-    ## GO:0050830     6
-    ## GO:0043901     8
+    ## GO:0072522    10
+    ## GO:0030198     9
+    ## GO:0043062     9
+    ## GO:1901070     3
     ## GO:0042455     4
     ## GO:0009148     3
+    ## GO:0034341     6
     ## GO:0009163     4
-    ## GO:0009220     3
-    ## GO:0046132     3
-    ## GO:0001562     4
+    ## GO:0044403    11
+    ## GO:0051216     8
+    ## GO:1901659     4
+    ## NA            NA
+    ## NA.1          NA
+    ## NA.2          NA
+    ## NA.3          NA
+    ## NA.4          NA
+    ## NA.5          NA
 
 ``` r
 ifnGenes <- Reduce(union,strsplit(dfGO[which(grepl(pattern = "defense|interferon|immune",dfGO[,2])),"geneID"],"/"))
@@ -2052,6 +3401,9 @@ std.heatmap(log(boneMatNorm[ifnGenes,]+1,2)-rowMeans(log(boneMatNorm[ifnGenes,]+
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
+
+    ## Warning in image.default(z = matrix(z, ncol = 1), col = col, breaks =
+    ## tmpbreaks, : unsorted 'breaks' will be sorted before use
 
 ![](BoneNotebook_files/figure-markdown_github/EnrichGO-1.png)
 
@@ -2083,6 +3435,9 @@ std.heatmap(log(boneMatNorm[bmpGenes,]+1,2)-rowMeans(log(boneMatNorm[bmpGenes,]+
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
+
+    ## Warning in image.default(z = matrix(z, ncol = 1), col = col, breaks =
+    ## tmpbreaks, : unsorted 'breaks' will be sorted before use
 
 ![](BoneNotebook_files/figure-markdown_github/EnrichGO-3.png)
 
@@ -2188,8 +3543,8 @@ print(overlaps[[1]])
 ```
 
     ##      CD24- CD24+ Sca1- ZFP+
-    ## up       8    17    19    9
-    ## down     4    18    11   17
+    ## up      11    14    14   10
+    ## down     3    17    11   13
 
 ``` r
 #Down in KO
@@ -2197,8 +3552,8 @@ print(overlaps[[2]])
 ```
 
     ##      CD24- CD24+ Sca1- ZFP+
-    ## up       1     7     2    6
-    ## down     3     4     2    2
+    ## up       1     5     0    4
+    ## down     2     3     2    1
 
 Not much. If you get loose, maybe one could say that that are up in the new data are more likely to be up in the osteocytes and down in the preadipocytes. Which genes are they?
 
@@ -2290,7 +3645,7 @@ Let's check the expression of a list of hormone receptors I compiled:
 
 ``` r
 save.image("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
-#load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
+load("~/code/IngrahamLab/BoneNotebook_cache/markdown_github/everything.RData")
 #I looked through the literature and found what may be all the hormone receptors
 receptors <- c("Esr1","Esr2","Gper1","Esrra","Esrrb","Pgr","Gnrhr","Trhr","Trhr2","Lhcgr","Ghrhr","Ghr","Ghsr","Nr4a1","Fshr","Prlhr","Pth1r","Pth2r","Prlr","Thra","Thrb","Trhr","Tshr","Crhr1","Crhr2","Mc2r",    "Mchr1","Trhr2","Mc1r","Znhit3","Kiss1r","Ar")
 print(receptors)
@@ -2301,6 +3656,20 @@ print(receptors)
     ## [15] "Fshr"   "Prlhr"  "Pth1r"  "Pth2r"  "Prlr"   "Thra"   "Thrb"  
     ## [22] "Trhr"   "Tshr"   "Crhr1"  "Crhr2"  "Mc2r"   "Mchr1"  "Trhr2" 
     ## [29] "Mc1r"   "Znhit3" "Kiss1r" "Ar"
+
+``` r
+std.heatmap(log(boneMatNorm[receptors[receptors%in%rownames(boneMatNorm)],]+1,2))
+```
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
+    ## dendogram.
+
+    ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
+    ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
+    ## dendogram.
+
+![](BoneNotebook_files/figure-markdown_github/hormonereceptors-1.png)
 
 ``` r
 std.heatmap(log(ambrosiMatNorm[receptors[receptors%in%rownames(ambrosiMatNorm)],]+1,2))
@@ -2314,42 +3683,50 @@ std.heatmap(log(ambrosiMatNorm[receptors[receptors%in%rownames(ambrosiMatNorm)],
     ## Discrepancy: Colv is FALSE, while dendrogram is `column'. Omitting column
     ## dendogram.
 
-![](BoneNotebook_files/figure-markdown_github/hormonereceptors-1.png)
+![](BoneNotebook_files/figure-markdown_github/hormonereceptors-2.png)
+
+``` r
+heatmap.2(boneMatNorm[rownames(boneMatNorm)[grepl("Wnt|Bmp|Tgf",rownames(boneMatNorm))],],trace = "none",col = cols,main="Wnt,TGFB Expression")
+```
+
+![](BoneNotebook_files/figure-markdown_github/hormonereceptors-3.png)
 
 Now let's broaden the search to all the paracrine, autocrine etc receptors annotated!
 
 ``` r
 descriptions <- getBM(c("mgi_symbol","mgi_description"),filters =c("mgi_symbol"),values=rownames(boneMat) ,mart = mart)
+descriptions <- descriptions[!duplicated(descriptions$mgi_symbol),]
 rownames(descriptions) <- descriptions$mgi_symbol
 descriptions[descriptions$mgi_symbol %in% receptors,]
 ```
 
     ##        mgi_symbol                                 mgi_description
-    ## Ar             Ar                               androgen receptor
-    ## Crhr1       Crhr1      corticotropin releasing hormone receptor 1
-    ## Crhr2       Crhr2      corticotropin releasing hormone receptor 2
-    ## Esr1         Esr1                     estrogen receptor 1 (alpha)
-    ## Esr2         Esr2                      estrogen receptor 2 (beta)
-    ## Esrra       Esrra                estrogen related receptor, alpha
-    ## Esrrb       Esrrb                 estrogen related receptor, beta
-    ## Fshr         Fshr           follicle stimulating hormone receptor
-    ## Ghr           Ghr                         growth hormone receptor
-    ## Ghrhr       Ghrhr       growth hormone releasing hormone receptor
-    ## Ghsr         Ghsr            growth hormone secretagogue receptor
+    ## Ar             Ar                                                
+    ## Crhr1       Crhr1                                                
+    ## Crhr2       Crhr2                                                
+    ## Esr1         Esr1                                                
+    ## Esr2         Esr2                                                
+    ## Esrra       Esrra                                                
+    ## Esrrb       Esrrb                                                
+    ## Fshr         Fshr                                                
+    ## Ghr           Ghr                                                
+    ## Ghrhr       Ghrhr                                                
+    ## Ghsr         Ghsr                                                
     ## Gnrhr       Gnrhr         gonadotropin releasing hormone receptor
     ## Gper1       Gper1           G protein-coupled estrogen receptor 1
-    ## Kiss1r     Kiss1r                                  KISS1 receptor
-    ## Lhcgr       Lhcgr luteinizing hormone/choriogonadotropin receptor
-    ## Mc1r         Mc1r                         melanocortin 1 receptor
+    ## Kiss1r     Kiss1r                                                
+    ## Lhcgr       Lhcgr                                                
+    ## Mc1r         Mc1r                                                
     ## Mc2r         Mc2r                         melanocortin 2 receptor
-    ## Mchr1       Mchr1        melanin-concentrating hormone receptor 1
+    ## Mchr1       Mchr1                                                
     ## Nr4a1       Nr4a1 nuclear receptor subfamily 4, group A, member 1
-    ## Pgr           Pgr                           progesterone receptor
-    ## Prlhr       Prlhr            prolactin releasing hormone receptor
+    ## Pgr           Pgr                                                
+    ## Prlhr       Prlhr                                                
     ## Prlr         Prlr                              prolactin receptor
-    ## Pth1r       Pth1r                  parathyroid hormone 1 receptor
-    ## Pth2r       Pth2r                  parathyroid hormone 2 receptor
-    ## Thra         Thra                  thyroid hormone receptor alpha
+    ## Pth1r       Pth1r                                                
+    ## Pth2r       Pth2r                                                
+    ## Thra         Thra                                                
+    ## Thrb         Thrb                                                
     ## Trhr         Trhr          thyrotropin releasing hormone receptor
     ## Trhr2       Trhr2        thyrotropin releasing hormone receptor 2
     ## Tshr         Tshr            thyroid stimulating hormone receptor
@@ -2387,11 +3764,7 @@ print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
 print(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol])
 ```
 
-    ##  [1] "Pgr"      "Ryr3"     "Ghr"      "Csf2ra"   "Vldlr"    "Epha7"   
-    ##  [7] "Bmpr1a"   "Olfr419"  "Ccr9"     "Acvr1"    "Lilr4b"   "Lilrb4a" 
-    ## [13] "Rtp4"     "Rara"     "Klri2"    "Ptpre"    "Klrk1"    "Adgrg7"  
-    ## [19] "Lifr"     "Ptger4"   "Tlr7"     "Il18rap"  "Tnfrsf22" "Rack1"   
-    ## [25] "Rarres2"
+    ## [1] "Chrm3"  "Vldlr"  "Smo"    "Rara"   "Tlr7"   "Gpr176"
 
 ``` r
 dereceptors <-  c(rownames(resCandiceSub)[rownames(resCandiceSub)%in%recdesc$mgi_symbol],rownames(resCandiceSub)[rownames(resCandiceSub)%in%receptors])
@@ -2429,58 +3802,15 @@ std.heatmap(log(ambrosiMatNorm[dereceptors[dereceptors%in%rownames(ambrosiMatNor
 print(descriptions[dereceptors,])
 ```
 
-    ##          mgi_symbol
-    ## Pgr             Pgr
-    ## Ryr3           Ryr3
-    ## Ghr             Ghr
-    ## Csf2ra       Csf2ra
-    ## Vldlr         Vldlr
-    ## Epha7         Epha7
-    ## Bmpr1a       Bmpr1a
-    ## Olfr419     Olfr419
-    ## Ccr9           Ccr9
-    ## Acvr1         Acvr1
-    ## Lilr4b       Lilr4b
-    ## Lilrb4a     Lilrb4a
-    ## Rtp4           Rtp4
-    ## Rara           Rara
-    ## Klri2         Klri2
-    ## Ptpre         Ptpre
-    ## Klrk1         Klrk1
-    ## Adgrg7       Adgrg7
-    ## Lifr           Lifr
-    ## Ptger4       Ptger4
-    ## Tlr7           Tlr7
-    ## Il18rap     Il18rap
-    ## Tnfrsf22   Tnfrsf22
-    ## Rack1         Rack1
-    ## Rarres2     Rarres2
-    ##                                                                             mgi_description
-    ## Pgr                                                                   progesterone receptor
-    ## Ryr3                                                                   ryanodine receptor 3
-    ## Ghr                                                                 growth hormone receptor
-    ## Csf2ra   colony stimulating factor 2 receptor, alpha, low-affinity (granulocyte-macrophage)
-    ## Vldlr                                                 very low density lipoprotein receptor
-    ## Epha7                                                                       Eph receptor A7
-    ## Bmpr1a                                         bone morphogenetic protein receptor, type 1A
-    ## Olfr419                                                              olfactory receptor 419
-    ## Ccr9                                                       chemokine (C-C motif) receptor 9
-    ## Acvr1                                                            activin A receptor, type 1
-    ## Lilr4b                       leukocyte immunoglobulin-like receptor, subfamily B, member 4B
-    ## Lilrb4a                      leukocyte immunoglobulin-like receptor, subfamily B, member 4A
-    ## Rtp4                                                         receptor transporter protein 4
-    ## Rara                                                          retinoic acid receptor, alpha
-    ## Klri2                                    killer cell lectin-like receptor family I member 2
-    ## Ptpre                                        protein tyrosine phosphatase, receptor type, E
-    ## Klrk1                                killer cell lectin-like receptor subfamily K, member 1
-    ## Adgrg7                                               adhesion G protein-coupled receptor G7
-    ## Lifr                                                    leukemia inhibitory factor receptor
-    ## Ptger4                                             prostaglandin E receptor 4 (subtype EP4)
-    ## Tlr7                                                                   toll-like receptor 7
-    ## Il18rap                                           interleukin 18 receptor accessory protein
-    ## Tnfrsf22                              tumor necrosis factor receptor superfamily, member 22
-    ## Rack1                                                     receptor for activated C kinase 1
-    ## Rarres2                             retinoic acid receptor responder (tazarotene induced) 2
+    ##        mgi_symbol                             mgi_description
+    ## Pgr           Pgr                                            
+    ## Chrm3       Chrm3 cholinergic receptor, muscarinic 3, cardiac
+    ## Ghr           Ghr                                            
+    ## Vldlr       Vldlr       very low density lipoprotein receptor
+    ## Smo           Smo         smoothened, frizzled class receptor
+    ## Rara         Rara               retinoic acid receptor, alpha
+    ## Tlr7         Tlr7                        toll-like receptor 7
+    ## Gpr176     Gpr176              G protein-coupled receptor 176
 
 ``` r
 eacivector <- resCandiceSub$log2FoldChange
@@ -2496,16 +3826,16 @@ boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 
     ## Converting annotations to data.frames ...
 
-    ## iteration 1 done; time  1.35 sec 
-    ## iteration 2 done; time  0.14 sec 
-    ## iteration 3 done; time  0.12 sec 
-    ## iteration 4 done; time  0.12 sec 
-    ## iteration 5 done; time  0.13 sec 
-    ## iteration 6 done; time  0.13 sec 
-    ## iteration 7 done; time  0.13 sec 
-    ## iteration 8 done; time  0.13 sec 
-    ## iteration 9 done; time  0.28 sec 
-    ## iteration 10 done; time  0.13 sec
+    ## iteration 1 done; time  0.23 sec 
+    ## iteration 2 done; time  0.49 sec 
+    ## iteration 3 done; time  0.18 sec 
+    ## iteration 4 done; time  0.49 sec 
+    ## iteration 5 done; time  0.12 sec 
+    ## iteration 6 done; time  0.12 sec 
+    ## iteration 7 done; time  0.12 sec 
+    ## iteration 8 done; time  0.12 sec 
+    ## iteration 9 done; time  0.13 sec 
+    ## iteration 10 done; time  0.14 sec
 
     ## Labeling output ...
 
@@ -2515,68 +3845,68 @@ boneEACI <- eacitest(eacivector,"org.Mm.eg","SYMBOL",sets = "GO")
 print(boneEACI$setscores[1:30,])
 ```
 
-    ##                                                                                                             Term
-    ## GO:0098589                                                                                       membrane region
-    ## GO:0005509                                                                                   calcium ion binding
-    ## GO:0003725                                                                           double-stranded RNA binding
-    ## GO:0005581                                                                                       collagen trimer
-    ## GO:0030016                                                                                             myofibril
-    ## GO:0015078                                                       hydrogen ion transmembrane transporter activity
-    ## GO:0019843                                                                                          rRNA binding
-    ## GO:0002449                                                                          lymphocyte mediated immunity
-    ## GO:0048285                                                                                     organelle fission
-    ## GO:0034341                                                                          response to interferon-gamma
-    ## GO:0071346                                                                 cellular response to interferon-gamma
-    ## GO:0007600                                                                                    sensory perception
-    ## GO:0008289                                                                                         lipid binding
-    ## GO:0005681                                                                                  spliceosomal complex
-    ## GO:0000981                        RNA polymerase II transcription factor activity, sequence-specific DNA binding
-    ## GO:0005911                                                                                    cell-cell junction
-    ## GO:1990204                                                                                oxidoreductase complex
-    ## GO:0110053                                                             regulation of actin filament organization
-    ## GO:0010769                                          regulation of cell morphogenesis involved in differentiation
-    ## GO:0000785                                                                                             chromatin
-    ## GO:0070011                                                   peptidase activity, acting on L-amino acid peptides
-    ## GO:0061695                                        transferase complex, transferring phosphorus-containing groups
-    ## GO:0042113                                                                                     B cell activation
-    ## GO:0016705 oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen
-    ## GO:0001654                                                                                       eye development
-    ## GO:0051301                                                                                         cell division
-    ## GO:0043467                                          regulation of generation of precursor metabolites and energy
-    ## GO:0042578                                                                   phosphoric ester hydrolase activity
-    ## GO:0016055                                                                                 Wnt signaling pathway
-    ## GO:0198738                                                                            cell-cell signaling by wnt
+    ##                                                                                      Term
+    ## GO:0044456                                                                   synapse part
+    ## GO:0070011                            peptidase activity, acting on L-amino acid peptides
+    ## GO:0031589                                                        cell-substrate adhesion
+    ## GO:0031346                            positive regulation of cell projection organization
+    ## GO:0003725                                                    double-stranded RNA binding
+    ## GO:0008289                                                                  lipid binding
+    ## GO:0043292                                                              contractile fiber
+    ## GO:0006897                                                                    endocytosis
+    ## GO:0048511                                                               rhythmic process
+    ## GO:0005126                                                      cytokine receptor binding
+    ## GO:0004857                                                      enzyme inhibitor activity
+    ## GO:0051020                                                                 GTPase binding
+    ## GO:0048285                                                              organelle fission
+    ## GO:0015934                                                        large ribosomal subunit
+    ## GO:0006839                                                        mitochondrial transport
+    ## GO:0003682                                                              chromatin binding
+    ## GO:0070469                                                              respiratory chain
+    ## GO:0007517                                                       muscle organ development
+    ## GO:0051346                                      negative regulation of hydrolase activity
+    ## GO:0044432                                                     endoplasmic reticulum part
+    ## GO:1901615                                     organic hydroxy compound metabolic process
+    ## GO:0005773                                                                        vacuole
+    ## GO:0031226                                         intrinsic component of plasma membrane
+    ## GO:0045121                                                                  membrane raft
+    ## GO:0098857                                                           membrane microdomain
+    ## GO:0007600                                                             sensory perception
+    ## GO:0016829                                                                 lyase activity
+    ## GO:0009152                                     purine ribonucleotide biosynthetic process
+    ## GO:0000981 RNA polymerase II transcription factor activity, sequence-specific DNA binding
+    ## GO:0006325                                                         chromatin organization
     ##            Ontology   set.mean    set.sd set.size         pval
-    ## GO:0098589       CC  1.1974654 0.6277870        9 0.000000e+00
-    ## GO:0005509       MF  1.1497516 1.1351717       12 0.000000e+00
-    ## GO:0003725       MF  0.8704810 0.5197230       10 0.000000e+00
-    ## GO:0005581       CC  0.8574391 0.5255333        6 2.220446e-16
-    ## GO:0030016       CC  0.8458390 0.5763350        8 4.440892e-16
-    ## GO:0015078       MF -0.8006743 0.2144011        9 1.449466e-14
-    ## GO:0019843       MF -0.7558211 0.1986168       11 3.823360e-13
-    ## GO:0002449       BP -0.5898845 1.2793780        8 1.428357e-08
-    ## GO:0048285       BP  0.5833068 0.8816670       13 2.354918e-08
-    ## GO:0034341       BP  0.5460414 0.4676675        9 1.730189e-07
-    ## GO:0071346       BP  0.5460414 0.4676675        9 1.730189e-07
-    ## GO:0007600       BP  0.5240520 0.3683686        9 5.295603e-07
-    ## GO:0008289       MF  0.4912054 0.7669608       11 2.598986e-06
-    ## GO:0005681       CC -0.4907059 0.3476755        7 2.374721e-06
-    ## GO:0000981       MF  0.4729394 0.2945684       13 6.039757e-06
-    ## GO:0005911       CC -0.4543680 1.6562069        9 1.242261e-05
-    ## GO:1990204       CC -0.4054323 0.2838993        8 9.594303e-05
-    ## GO:0110053       BP  0.3972824 0.2889531       10 1.451251e-04
-    ## GO:0010769       BP  0.3918799 0.2843453       13 1.786456e-04
-    ## GO:0000785       CC -0.3585742 0.3936405       13 5.581995e-04
-    ## GO:0070011       MF  0.3450697 1.7231954        6 9.722858e-04
-    ## GO:0061695       CC -0.3336838 0.2622644        9 1.316335e-03
-    ## GO:0042113       BP -0.3320844 0.6587143       10 1.388396e-03
-    ## GO:0016705       MF  0.3188707 0.3514336        5 2.310484e-03
-    ## GO:0001654       BP  0.3042500 0.2518834       10 3.650647e-03
-    ## GO:0051301       BP  0.3034110 0.1987903       11 3.745675e-03
-    ## GO:0043467       BP -0.2898783 0.2357221        9 5.235120e-03
-    ## GO:0042578       MF  0.2788441 0.6169008        8 7.740857e-03
-    ## GO:0016055       BP  0.2777861 0.8015413        8 7.977514e-03
-    ## GO:0198738       BP  0.2777861 0.8015413        8 7.977514e-03
+    ## GO:0044456       CC  1.4021958 1.1535155       13 0.000000e+00
+    ## GO:0070011       MF  1.1932907 1.0707763        4 0.000000e+00
+    ## GO:0031589       BP  1.1796034 0.8807410       13 0.000000e+00
+    ## GO:0031346       BP  1.0097962 0.8762130       11 2.220446e-15
+    ## GO:0003725       MF  0.8836846 0.4521339       11 3.905321e-12
+    ## GO:0008289       MF  0.7630567 0.9956575        9 2.099222e-09
+    ## GO:0043292       CC  0.7434354 0.5832729        7 5.369112e-09
+    ## GO:0006897       BP  0.6978860 0.7024761       14 4.341871e-08
+    ## GO:0048511       BP -0.6847921 0.8612042        9 5.958651e-08
+    ## GO:0005126       MF  0.6746831 0.4542752       11 1.199993e-07
+    ## GO:0004857       MF  0.6692819 1.4068318        9 1.513317e-07
+    ## GO:0051020       MF  0.6390920 0.5134720        9 5.358341e-07
+    ## GO:0048285       BP  0.6283689 0.4026522       11 8.285866e-07
+    ## GO:0015934       CC -0.5949243 0.3765945        7 2.455115e-06
+    ## GO:0006839       BP -0.5888330 0.6144943        8 3.103944e-06
+    ## GO:0003682       MF  0.5392705 0.3400453       11 2.375036e-05
+    ## GO:0070469       CC -0.5067074 0.3429066        7 5.903980e-05
+    ## GO:0007517       BP -0.4979733 0.3734811       11 7.887717e-05
+    ## GO:0051346       BP  0.4970068 0.6027853       11 9.889216e-05
+    ## GO:0044432       CC -0.4528897 0.6106888       12 3.275230e-04
+    ## GO:1901615       BP -0.4456942 0.3241906       10 4.065527e-04
+    ## GO:0005773       CC  0.4455356 0.4953795       10 4.872535e-04
+    ## GO:0031226       CC  0.4422767 0.4906612       21 5.362058e-04
+    ## GO:0045121       CC  0.4246746 0.7436941       10 8.896886e-04
+    ## GO:0098857       CC  0.4246746 0.7436941       10 8.896886e-04
+    ## GO:0007600       BP  0.3945984 0.3165507        9 2.026982e-03
+    ## GO:0016829       MF -0.3796242 0.4090610        6 2.568782e-03
+    ## GO:0009152       BP -0.3771328 0.7547641        9 2.740085e-03
+    ## GO:0000981       MF  0.3362194 0.2375340       13 8.634765e-03
+    ## GO:0006325       BP  0.3169518 1.2919026       10 1.334807e-02
 
 ``` r
 print("done")
@@ -2589,7 +3919,7 @@ std.heatmap(cor.compare(boneMatNorm,ambrosiMatNorm,method="spearman"))
 ```
 
     ## [1] "Num Genes:"
-    ## [1] 22492
+    ## [1] 21553
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
@@ -2610,7 +3940,7 @@ std.heatmap(cor.compare(AmbrosiMatLog-rowMeans(AmbrosiMatLog),IngrahamMatLog-row
 ```
 
     ## [1] "Num Genes:"
-    ## [1] 3718
+    ## [1] 3713
 
     ## Warning in heatmap.2(M, Rowv = F, Colv = F, trace = "none", col = cols, :
     ## Discrepancy: Rowv is FALSE, while dendrogram is `both'. Omitting row
@@ -2931,8 +4261,8 @@ cor(arvp,method = "spe")
 ```
 
     ##            [,1]       [,2]
-    ## [1,] 1.00000000 0.08818878
-    ## [2,] 0.08818878 1.00000000
+    ## [1,] 1.00000000 0.09289192
+    ## [2,] 0.09289192 1.00000000
 
 ``` r
 plot(arvp,xlab="IngrahamLogPval",ylab="NursaLogPval",main="Androgen Receptor")
@@ -2946,31 +4276,30 @@ abline(h=-2.31,col=2)
 rownames(arvp)[arvp[,1]< -2.31&arvp[,2]< -2.31]
 ```
 
-    ##  [1] "Cadm1"         "Zfp51"         "Tex15"         "Nme1"         
-    ##  [5] "Plac8"         "Herpud1"       "Adamts1"       "Csrp2"        
-    ##  [9] "Cir1"          "Ifit1"         "Lpin1"         "Sfrp2"        
-    ## [13] "Tmem147"       "Postn"         "Irf8"          "Nme6"         
-    ## [17] "Vldlr"         "Ly6d"          "Ifi44"         "Cd209g"       
-    ## [21] "Greb1"         "Tomm6"         "Gjb3"          "Lsm7"         
-    ## [25] "Tex2"          "Romo1"         "Emg1"          "Gbp7"         
-    ## [29] "Samd5"         "Cdyl2"         "Calcoco1"      "Mlip"         
-    ## [33] "Scn4b"         "S100a4"        "Slc31a2"       "Ifih1"        
-    ## [37] "Zmynd10"       "Pi15"          "Bicc1"         "Parp9"        
-    ## [41] "Ccdc134"       "Dixdc1"        "Rep15"         "Gbp8"         
-    ## [45] "Exosc6"        "Mrps18a"       "Cst3"          "Cul4a"        
-    ## [49] "Eif3g"         "Slc4a5"        "Csf2ra"        "H2afv"        
-    ## [53] "Mien1"         "Arpc5l"        "Scd2"          "Sowaha"       
-    ## [57] "Stat1"         "Sap30"         "Gbp4"          "S100a10"      
-    ## [61] "Zfp874a"       "Card6"         "Slc35g1"       "Cacna2d4"     
-    ## [65] "Zfp125"        "Ndufa1"        "Aprt"          "Ptpre"        
-    ## [69] "1700021F05Rik" "Gbp6"          "Oasl2"         "Sec16b"       
-    ## [73] "Dph1"          "Gemin6"        "Cadm3"         "Rtn4ip1"      
-    ## [77] "Oas3"          "Oasl1"         "Frrs1"         "Fam136a"      
-    ## [81] "Commd4"        "Ugt8a"         "Dcn"           "Dctpp1"       
-    ## [85] "Tspan6"        "Urm1"          "Cat"           "Cox7a2l"      
-    ## [89] "Papss2"        "Rps4x"         "Id3"           "Rpl39"        
-    ## [93] "Cmah"          "Col1a1"        "Inhba"         "Rock1"        
-    ## [97] "Bmp4"          "Ankrd10"       "Gpx3"
+    ##  [1] "Smpdl3a"       "Zfp51"         "Tex15"         "Nme1"         
+    ##  [5] "Plac8"         "Herpud1"       "Cir1"          "Ndrg2"        
+    ##  [9] "Ifit1"         "Lpin1"         "Sfrp2"         "2010107E04Rik"
+    ## [13] "Postn"         "Nme6"          "Vldlr"         "Ly6d"         
+    ## [17] "Cd209g"        "Greb1"         "Tomm6"         "Mag"          
+    ## [21] "Fbxw5"         "Gjb3"          "Tex2"          "Marc2"        
+    ## [25] "Gbp7"          "Cxcl9"         "Trim30a"       "Samd5"        
+    ## [29] "Calcoco1"      "Sv2b"          "Gpr176"        "Scn4b"        
+    ## [33] "S100a4"        "Slc31a2"       "Amacr"         "Ifih1"        
+    ## [37] "Zmynd10"       "Pi15"          "Cd33"          "Ccdc134"      
+    ## [41] "Dixdc1"        "Il31ra"        "Gbp8"          "Timm10"       
+    ## [45] "Cul4a"         "Slc4a5"        "H2afv"         "Mien1"        
+    ## [49] "Bgn"           "Arpc5l"        "Scd2"          "Sowaha"       
+    ## [53] "Stat1"         "Erp29"         "Sap30"         "Gbp4"         
+    ## [57] "S100a10"       "Card6"         "Neb"           "Ndufa1"       
+    ## [61] "Plod3"         "Aprt"          "Ptpre"         "1700021F05Rik"
+    ## [65] "Isg15"         "Pcdhb18"       "Oasl2"         "Sec16b"       
+    ## [69] "Trim30d"       "Cadm3"         "Oas3"          "Rpl14"        
+    ## [73] "Cd3d"          "Frrs1"         "Commd4"        "Ugt8a"        
+    ## [77] "Dcn"           "Krtcap2"       "Tspan6"        "Urm1"         
+    ## [81] "Cat"           "Cox7a2l"       "Papss2"        "Id3"          
+    ## [85] "Rps3"          "Ap2s1"         "Pnp"           "Cmah"         
+    ## [89] "Col1a1"        "Inhba"         "Rock1"         "Bmp4"         
+    ## [93] "Herc6"         "Gpx3"
 
 ``` r
 PRs <- PRs[PRs$Gene%in%rownames(resCandice),]
@@ -2989,22 +4318,15 @@ abline(h=-2.31,col=2)
 rownames(prvp)[prvp[,1]< -2.31&prvp[,2]< -2.31]
 ```
 
-    ##  [1] "Lpin1"         "Gjb3"          "Adamts1"       "Plac8"        
-    ##  [5] "Cd209g"        "Gpx3"          "Bex6"          "Cadm1"        
-    ##  [9] "Gbp8"          "Pgr"           "Col8a1"        "Tenm4"        
-    ## [13] "Id3"           "Ly6d"          "Cox7a2l"       "Postn"        
-    ## [17] "Col5a2"        "Gngt2"         "Calcoco1"      "Oasl1"        
-    ## [21] "Zmynd10"       "Rep15"         "Sec16b"        "Col1a1"       
-    ## [25] "Mid1"          "Ifi44"         "Exosc6"        "Mlip"         
-    ## [29] "Gbp4"          "Acadvl"        "Frrs1"         "2410002F23Rik"
-    ## [33] "Arpc5l"        "Eif3g"         "Irf8"          "H2afv"        
-    ## [37] "Csrp2"         "Sfrp2"         "Scd2"          "Gbp6"         
-    ## [41] "Gemin6"        "Tomm6"         "Stat1"         "Zfp874a"      
-    ## [45] "Card6"         "Scn4b"         "Tmem147"       "Dctpp1"       
-    ## [49] "Tmem205"       "Romo1"         "Fam136a"       "Eif2ak4"      
-    ## [53] "S100a10"       "Zfp51"         "Ugt8a"         "Gbp7"         
-    ## [57] "Sap30"         "Ifit1"         "Herpud1"       "Bicc1"        
-    ## [61] "Rtn4ip1"       "Dph1"          "Slc31a2"       "Pi15"
+    ##  [1] "Lpin1"    "Gjb3"     "Cd3d"     "Plac8"    "Cd209g"   "Gpx3"    
+    ##  [7] "Bex6"     "Gbp8"     "Smpdl3a"  "Ndrg2"    "Pgr"      "Col8a1"  
+    ## [13] "Id3"      "Ly6d"     "Cox7a2l"  "Postn"    "Col5a2"   "Gngt2"   
+    ## [19] "Calcoco1" "Zmynd10"  "Sec16b"   "Col1a1"   "Nap1l2"   "Sv2b"    
+    ## [25] "Gbp4"     "Acadvl"   "Frrs1"    "Arpc5l"   "Marc2"    "H2afv"   
+    ## [31] "Sfrp2"    "Scd2"     "Bgn"      "Tomm6"    "Stat1"    "Dennd2a" 
+    ## [37] "Card6"    "Scn4b"    "Neb"      "Trim30a"  "Grcc10"   "Ndufb5"  
+    ## [43] "Mag"      "S100a10"  "Zfp51"    "Ugt8a"    "Gbp7"     "Sap30"   
+    ## [49] "Ifit1"    "Herpud1"  "Slc31a2"  "Pi15"
 
 ``` r
 heatmap.2(log(boneMatNorm[rownames(prvp)[prvp[,1]< -3&prvp[,2]< -3],]+1,2)-rowMeans(log(boneMatNorm[rownames(prvp)[prvp[,1]< -3&prvp[,2]< -3],]+1,2)),main="PR Related\nLog2(FC) from mean",cexRow=.5,breaks=seq(-4, 4, length.out=51),Rowv = T,Colv = F,trace="none",col=cols)
@@ -3033,21 +4355,22 @@ abline(h=-2.31,col=2)
 rownames(rarvp)[rarvp[,1]< -2.31&rarvp[,2]< -2.31]
 ```
 
-    ##  [1] "Lifr"          "Gpx3"          "Parp9"         "Dctpp1"       
-    ##  [5] "Id3"           "Gjb3"          "Postn"         "1700021F05Rik"
-    ##  [9] "Csrp2"         "A2m"           "2410002F23Rik" "Bmp4"         
-    ## [13] "Cst3"          "Sap30"         "Fmo5"          "Plac8"        
-    ## [17] "Pqlc3"         "Lpin1"         "Tor3a"         "Mif"          
-    ## [21] "Stat1"         "Nop10"         "Herpud1"       "Mzb1"         
-    ## [25] "Card6"         "Man1c1"        "Zfp874a"       "Slco4c1"      
-    ## [29] "Mtus1"         "Ifi44"         "Tex15"         "Gemin6"       
-    ## [33] "Kcnj10"        "Cir1"          "Zmynd10"       "Oas3"         
-    ## [37] "Oasl2"         "Bicc1"         "Slc31a2"       "Oas2"         
-    ## [41] "Ddx60"         "Rps15a"        "Myl1"          "Tmem147"      
-    ## [45] "Acadvl"        "Tmem205"       "Nme1"          "Col2a1"       
-    ## [49] "Sfrp2"         "Tspan6"        "Ugt8a"         "Eif2ak2"      
-    ## [53] "Pcsk6"         "Col5a2"        "Fkbp1b"        "Frrs1"        
-    ## [57] "Xrcc6"         "Romo1"
+    ##  [1] "Lifr"          "Gpx3"          "Tmem176a"      "Id3"          
+    ##  [5] "Gjb3"          "Smpdl3a"       "Postn"         "Ndrg2"        
+    ##  [9] "1700021F05Rik" "A2m"           "Bmp4"          "Amacr"        
+    ## [13] "Sap30"         "Marveld2"      "Ndc1"          "Cxcl9"        
+    ## [17] "Fmo5"          "Timm10"        "Plac8"         "Pqlc3"        
+    ## [21] "Pnp"           "Lpin1"         "Tor3a"         "Nap1l2"       
+    ## [25] "Stat1"         "Bgn"           "Nop10"         "Herpud1"      
+    ## [29] "Mzb1"          "Card6"         "Man1c1"        "Slco4c1"      
+    ## [33] "4930447C04Rik" "Mtus1"         "Radil"         "L1cam"        
+    ## [37] "Tex15"         "Kcnj10"        "Cir1"          "Rps21"        
+    ## [41] "Zmynd10"       "Oas3"          "Oasl2"         "Atp5h"        
+    ## [45] "Slc31a2"       "Oas2"          "Ddx60"         "Rps15a"       
+    ## [49] "Mag"           "Acadvl"        "Nme1"          "Col2a1"       
+    ## [53] "Sfrp2"         "Tspan6"        "Ugt8a"         "Eif2ak2"      
+    ## [57] "Pcsk6"         "Col5a2"        "Dsg2"          "Frrs1"        
+    ## [61] "Xrcc6"
 
 ``` r
 ERs <- ERs[ERs$Gene%in%rownames(resCandice),]
@@ -3066,48 +4389,46 @@ abline(h=-2.31,col=2)
 rownames(ervp)[ervp[,1]< -2.31&ervp[,2]< -2.31]
 ```
 
-    ##   [1] "Id3"           "Sfrp2"         "H2afv"         "Pqlc3"        
-    ##   [5] "Adamts1"       "Rarres2"       "Slc35g1"       "Ifit1"        
-    ##   [9] "Cst3"          "Herpud1"       "Dcn"           "Greb1"        
-    ##  [13] "Mtus1"         "Bmp4"          "Plac8"         "Peg3"         
-    ##  [17] "Cpt1a"         "Nme1"          "Emg1"          "Mrps18a"      
-    ##  [21] "Pgr"           "Lpin1"         "Gpx3"          "Gjb3"         
-    ##  [25] "Cox7a2l"       "Fam136a"       "Cadm1"         "Dph1"         
-    ##  [29] "Romo1"         "Mif"           "Col1a1"        "Mien1"        
-    ##  [33] "Ghr"           "Ankrd10"       "Nme6"          "Col5a2"       
-    ##  [37] "Slc31a2"       "Tomm6"         "Rtp4"          "Rep15"        
-    ##  [41] "Dctpp1"        "Frrs1"         "Runx2"         "Snap23"       
-    ##  [45] "Tenm4"         "Ly6d"          "S100a10"       "Tmem147"      
-    ##  [49] "Zfp874a"       "Chil5"         "Itga11"        "Csrp2"        
-    ##  [53] "Vldlr"         "Sec16b"        "Bicc1"         "Smpd3"        
-    ##  [57] "Col8a1"        "Ndufa1"        "Limch1"        "Slfn4"        
-    ##  [61] "Inhba"         "Nop10"         "Sema5a"        "Commd4"       
+    ##   [1] "Id3"           "Timm10"        "Tmem176a"      "Sfrp2"        
+    ##   [5] "H2afv"         "Pqlc3"         "Smpdl3a"       "Ifit1"        
+    ##   [9] "Ndrg2"         "Herpud1"       "Pnp"           "Dcn"          
+    ##  [13] "Greb1"         "Mtus1"         "Bmp4"          "Marc2"        
+    ##  [17] "Plac8"         "Cpt1a"         "Nme1"          "Pgr"          
+    ##  [21] "Lpin1"         "Gpx3"          "Gjb3"          "Cox7a2l"      
+    ##  [25] "Krtcap2"       "Rps21"         "Rps5"          "Col1a1"       
+    ##  [29] "Mien1"         "Ghr"           "Nme6"          "Col5a2"       
+    ##  [33] "Dennd2a"       "Slc31a2"       "Tomm6"         "Rtp4"         
+    ##  [37] "Frrs1"         "Runx2"         "Snap23"        "Ly6d"         
+    ##  [41] "S100a10"       "Amacr"         "Plod3"         "Chil5"        
+    ##  [45] "Itga11"        "Vldlr"         "Dsg2"          "Sec16b"       
+    ##  [49] "Rpl14"         "Rgmb"          "Col8a1"        "Ndufa1"       
+    ##  [53] "Limch1"        "Ndufb5"        "Slfn4"         "Inhba"        
+    ##  [57] "Ndc1"          "Marveld2"      "Grcc10"        "Nop10"        
+    ##  [61] "Sema5a"        "Bgn"           "Oas1a"         "Commd4"       
     ##  [65] "D8Ertd738e"    "Pfdn5"         "Gbp7"          "Ppp1r35"      
-    ##  [69] "Gvin1"         "Gxylt2"        "Ifih1"         "Oas2"         
-    ##  [73] "Gemin6"        "Urm1"          "Klf7"          "Lsm7"         
-    ##  [77] "Tex2"          "Tmem205"       "Postn"         "Pcsk6"        
-    ##  [81] "Rps13"         "Calcoco1"      "Sap30"         "Col2a1"       
-    ##  [85] "Baiap2"        "Arpc5l"        "Scd2"          "Zfp108"       
-    ##  [89] "Cox5b"         "Rpl35a"        "2410015M20Rik" "Fmo5"         
-    ##  [93] "Zmynd10"       "Cir1"          "Ccdc134"       "Nrp2"         
-    ##  [97] "Eif3g"         "Exosc6"        "Mlip"          "Rps27"        
-    ## [101] "Csf2ra"        "Cat"           "Irf8"          "Sac3d1"       
-    ## [105] "Papss2"        "Acadvl"        "Gngt2"         "Xrcc6"        
-    ## [109] "Klk1b11"       "1700021F05Rik" "Eif2ak4"       "Fkbp1b"       
-    ## [113] "2410002F23Rik" "Skiv2l"        "Hmgn1"         "Parp9"        
-    ## [117] "Aprt"          "Oasl2"         "Card6"         "Scn4b"        
-    ## [121] "Lox"           "Eif2ak2"       "S100a4"        "Prpf19"       
-    ## [125] "Ndufb11"       "Mafb"          "Cdyl2"         "Cd209g"       
-    ## [129] "Gbp4"          "Vpreb1"        "Tspan6"        "Ccdc58"       
-    ## [133] "Bmp3"          "Cadm3"         "Oas3"          "Oasl1"        
-    ## [137] "Cmc2"          "Myl1"          "Tor3a"         "Tomm7"        
-    ## [141] "Fam78b"        "Rps15a"        "Bbs7"          "Tmem258"      
-    ## [145] "Adprhl2"       "Zbp1"          "Stat1"         "Rtn4ip1"      
-    ## [149] "Dgkg"          "Fgd4"          "Trappc2"       "Cmpk2"        
-    ## [153] "Rps4x"         "Cul4a"         "Sf3b5"         "Rpl39"        
-    ## [157] "Gbp6"          "Ppp1r3d"       "Tceanc"        "Slco4c1"      
-    ## [161] "A2m"           "Chit1"         "Trib1"         "Ercc1"        
-    ## [165] "Tmem242"       "Epsti1"        "Ifi44"         "Ptpre"        
-    ## [169] "Tex15"         "Dixdc1"        "Evi2b"         "Zscan29"      
-    ## [173] "Gdi1"          "Zfp51"         "Man1c1"        "Efcab1"       
-    ## [177] "Olfm4"         "Pi15"          "Kcnj10"        "Slc25a12"
+    ##  [69] "2010107E04Rik" "Ifih1"         "Oas2"          "Urm1"         
+    ##  [73] "Klf7"          "Tex2"          "Postn"         "Pcsk6"        
+    ##  [77] "Calcoco1"      "Radil"         "Isg15"         "Cxcl9"        
+    ##  [81] "Sap30"         "Col2a1"        "Ap2s1"         "Arpc5l"       
+    ##  [85] "Scd2"          "Zfp108"        "2410015M20Rik" "Rab7"         
+    ##  [89] "Fmo5"          "Gpr176"        "Zmynd10"       "Cir1"         
+    ##  [93] "Ccdc134"       "Nrp2"          "Cat"           "Papss2"       
+    ##  [97] "Acadvl"        "Gngt2"         "Sv2b"          "Xrcc6"        
+    ## [101] "Klk1b11"       "1700021F05Rik" "Atp5h"         "L1cam"        
+    ## [105] "Aprt"          "Oasl2"         "Il1f9"         "Card6"        
+    ## [109] "Scn4b"         "Lox"           "Eif2ak2"       "Erp29"        
+    ## [113] "S100a4"        "Terf2"         "Gbp9"          "Cd209g"       
+    ## [117] "Gbp4"          "Vpreb1"        "Tspan6"        "Nap1l2"       
+    ## [121] "Ccdc58"        "Rps24"         "Bmp3"          "Cadm3"        
+    ## [125] "Oas3"          "Cmc2"          "Herc6"         "Tor3a"        
+    ## [129] "Tomm7"         "Trim30b"       "Fam78b"        "Rps15a"       
+    ## [133] "Cpa6"          "4930447C04Rik" "Bbs7"          "Tmem258"      
+    ## [137] "Cd3d"          "Dhdh"          "Zbp1"          "Stat1"        
+    ## [141] "Dgkg"          "Fgd4"          "Cmpk2"         "Rps3"         
+    ## [145] "Cul4a"         "Sf3b5"         "Mag"           "Ppp1r3d"      
+    ## [149] "Tceanc"        "Slco4c1"       "A2m"           "Chit1"        
+    ## [153] "Pcif1"         "Tmem242"       "Ptpre"         "Tex15"        
+    ## [157] "Dixdc1"        "Zfp458"        "Acp1"          "Evi2b"        
+    ## [161] "Zscan29"       "Gdi1"          "Zfp51"         "Man1c1"       
+    ## [165] "Trim30a"       "Olfm4"         "Pi15"          "Kcnj10"       
+    ## [169] "Slc25a12"

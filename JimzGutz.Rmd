@@ -116,6 +116,30 @@ hist.normalized <- function(x){
 
 
 ```{r loadData}
+# datapath <- "~/code/IngrahamLabData/JimGalaxy/"
+# fileList <- dir(datapath,full.names = T)[-1]
+# dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+# dsList <- list(dsList[[1]],Reduce(cbind, dsList[-1]))
+# JimData <- rn.merge(dsList[[1]],dsList[[2]],simple.intersect = T)
+# JimData <- apply(JimData,2,type.convert)
+# colnames(JimData)[6:ncol(JimData)] <- sapply(strsplit(fileList[-1],"\\[|\\]"),"[",2)
+# std.heatmap(cor(JimData,method = "spearman"))
+# JimDataNorm <- median.normalize(JimData)
+# barplot(JimDataNorm["Chga",],las=2,cex.names = .5)
+# barplot(gutMatNorm["Chga",],las=2,cex.names = .5)
+#std.heatmap(cor.compare(JimDataNorm,gutMatNorm,method = "spearman"))
+# datapath <- "~/code/IngrahamLabData/JimGalaxy/counts"
+# fileList <- dir(datapath,full.names = T)
+# dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
+# gutMat <- Reduce(rn.merge,dsList)
+# colnames(gutMat) <- sapply(strsplit(fileList,"Counts_"),"[",2)
+# gutMat <- gutMat[,colSums(gutMat)>500000]
+# gutMatNorm <- median.normalize(gutMat)
+#gutMat <- JimData
+#gutMatNorm <- JimDataNorm
+#sort(JimDataNorm[,1],decreasing = T)
+#sort(gutMatNorm[,1],decreasing = T)
+
 
 datapath <- "~/code/IngrahamLabData/JimSalmonOutputs"
 fileList <- dir(datapath)
@@ -124,9 +148,9 @@ fileList <- paste0(datapath,"/",fileList,"/","quant.sf")
 dsList <- lapply(fileList,read.csv2, sep="\t",header=T,row.names=1,stringsAsFactors=F)
 allRownames <- Reduce(union,lapply(dsList,rownames))
 
-#Use Biomart to get the 
+#Use Biomart to get the
 mart <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="www.ensembl.org")
-rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol","description"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart) 
+rnSymbol <- getBM(attributes = c("ensembl_transcript_id_version","mgi_symbol","description"),filters = c("ensembl_transcript_id_version"),values =allRownames ,mart = mart)
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!="",]
 rnSymbolGenes <- rnSymbol[rnSymbol$mgi_symbol!=""& !grepl("predicted gene", rnSymbol$description),]
 
@@ -138,7 +162,7 @@ colnames(gutMat) <- gsub("_L003_Rout","",lapply(strsplit(fileList,split = "/"),"
 std.heatmap(cor(gutMat,method="spearman"),cexCol=.5,cexRow=.5)
 
 gutMatNorm <-  median.normalize(gutMat[rowMaxs(gutMat)>2,])
-condits <- sapply(strsplit(colnames(gutMat),"_"),function(x)x[1])
+condits <- sapply(strsplit(colnames(gutMatNorm),"_"),function(x)x[1])
 
 ```
 
@@ -153,8 +177,8 @@ barplot(colSums(gutMatNorm),main = "PostNorm Reads",las=3,cex.names = .6)
 hist.normalized(log(gutMatNorm+1,2))
 legend("topright",fill = rainbow(ncol(gutMatNorm)),col=rainbow(ncol(gutMatNorm)),legend = colnames(gutMatNorm))
 
-gutMat <- gutMat[,c(-1,-3)]
-gutMatNorm <-  median.normalize(gutMat[rowMaxs(gutMat)>2,])
+#gutMat <- gutMat[,c(-1,-3)]
+#gutMatNorm <-  median.normalize(gutMat[rowMaxs(gutMat)>2,])
 condits <- sapply(strsplit(colnames(gutMat),"_"),function(x)x[1])
 hist.normalized(log(gutMatNorm+1,2))
 legend("topright",fill = rainbow(ncol(gutMatNorm)),col=rainbow(ncol(gutMatNorm)),legend = colnames(gutMatNorm))
@@ -175,6 +199,7 @@ legend("bottomright",inset = c(-.4,0),legend = unique(names(conditNums)),col=con
 ```
 
 ```{r EACI}
+
 eaciout <- list()
 l <- 1
 eacivector <- svgut$u[,l]
@@ -214,11 +239,12 @@ print(a[1:25,])
 
 ```{r CheckMarkers}
 
+print(gutMat["Chga",])
 barplot(gutMatNorm["Chga",],las=2,cex.names = .5,main = "Chga")
-barplot(gutMatNorm["Chga",grepl("GFP",colnames(gutMatNorm))],las=2,cex.names = .5,main = "Chga")
+#barplot(gutMatNorm["Chga",grepl("GFP",colnames(gutMatNorm))],las=2,cex.names = .5,main = "Chga")
 
 barplot(gutMatNorm["Lmx1a",],las=2,cex.names = .5,main = "Lmx1a")
-
+print(gutMat["Tph1",])
 barplot(gutMatNorm["Tph1",],las=2,cex.names = .5,main = "Tph1")
 barplot(gutMatNorm["Scn1a",],las=2,cex.names = .5,main = "Scn1a")
 
@@ -227,6 +253,7 @@ heatmap.2(gutCLN[rownames(gutCLN)[grepl("Olfr",rownames(gutCLN))],],trace = "non
 ```
 
 ```{r xCell}
+
 library(xCell)
 bmnu <- gutMatNorm
 rownames(bmnu) <- toupper(rownames(bmnu))
